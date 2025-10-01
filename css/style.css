@@ -26,7 +26,11 @@ header .container img {
     transition: all 0.3s ease;
 }
 
-@media (max-width: 833px) {
+    header .logo .tagline {
+        padding-right: 20px;
+    }
+
+@media (max-width: 33px) {
     /* 隐藏 header 中的原标语 */
     header .logo .tagline {
         display: none;
@@ -89,9 +93,7 @@ section {
 }
 
 @media (max-width: 768px) {
-    body {
-        padding: 0 15px;
-    }
+
     
     section {
         padding: 30px 10px;
