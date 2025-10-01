@@ -10,29 +10,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // FAQ Toggle with Animation
-    const faqItems = document.querySelectorAll('.faq-item');
+    // FAQ Toggle with Animation    
+const faqItems = document.querySelectorAll('.faq-item');
+faqItems.forEach(item => {
+  const question = item.querySelector('.faq-question');
+  const answer = item.querySelector('.faq-answer');
+  
+  question.addEventListener('click', function () {
+    const isOpen = answer.style.maxHeight && answer.style.maxHeight !== '0px';
     
-    faqItems.forEach(item => {
-        const question = item.querySelector('.faq-question');
-        const answer = item.querySelector('.faq-answer');
-        
-        // 初始化收起
-        answer.style.maxHeight = '0';
-        answer.style.padding = '0 20px';
-        
-        question.addEventListener('click', function() {
-            this.classList.toggle('active');
-            if (answer.style.maxHeight !== '0px') {
-                answer.style.maxHeight = '0px';
-                answer.style.padding = '0 20px';
-            } else {
-                // 增加足够的高度确保内容完全显示
-                answer.style.maxHeight = answer.scrollHeight + 100 + 'px';
-                answer.style.padding = '15px 20px';
-            }
+    // 收起所有其他项
+    faqItems.forEach(i => {
+      const a = i.querySelector('.faq-answer');
+      if (a.style.maxHeight && a.style.maxHeight !== '0px') {
+        a.style.maxHeight = a.scrollHeight + 'px';
+        requestAnimationFrame(() => {
+          a.style.maxHeight = '0px';
+          a.style.padding = '0 20px';
         });
+      }
     });
+    
+    // 展开当前项
+    if (!isOpen) {
+      answer.style.padding = '15px 20px';
+      answer.style.maxHeight = answer.scrollHeight + 30 + 'px'; // +30 是上下 padding
+    }
+  });
+});
+
+
     
     // Testimonial Slider
     const testimonials = document.querySelectorAll('.testimonial');
@@ -137,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // WhatsApp floating button
     const body = document.body;
     const whatsappButton = document.createElement('a');
-    whatsappButton.href = 'https://wa.me/60123456789';
+    whatsappButton.href = 'https://wa.me/60162182727';
     whatsappButton.className = 'whatsapp-float';
     whatsappButton.innerHTML = '<i class="fab fa-whatsapp"></i>';
     whatsappButton.setAttribute('target', '_blank');

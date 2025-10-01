@@ -59,11 +59,6 @@
             line-height: 1.6;
         }
         
-        .faq-answer.active {
-            padding: 20px;
-            max-height: 500px;
-        }
-        
         .faq-categories {
             display: flex;
             justify-content: center;
@@ -301,26 +296,6 @@
     <script>
         // FAQ Functionality
         document.addEventListener('DOMContentLoaded', function() {
-            // FAQ Toggle with Animation
-            const faqQuestions = document.querySelectorAll('.faq-question');
-            
-            faqQuestions.forEach(question => {
-                question.addEventListener('click', function() {
-                    // Toggle active class on question
-                    this.classList.toggle('active');
-                    
-                    // Toggle answer visibility
-                    const answer = this.nextElementSibling;
-                    answer.classList.toggle('active');
-                    
-                    // Set max-height for animation
-                    if (answer.classList.contains('active')) {
-                        answer.style.maxHeight = answer.scrollHeight + 'px';
-                    } else {
-                        answer.style.maxHeight = '0';
-                    }
-                });
-            });
             
             // Category Filtering
             const categoryBtns = document.querySelectorAll('.category-btn');
