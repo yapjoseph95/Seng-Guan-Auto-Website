@@ -1,27 +1,5 @@
 // Mobile Menu Toggle
 document.addEventListener('DOMContentLoaded', function() {
-
-    // 响应式标语显示
-function handleTagline() {
-    if (window.innerWidth <= 33) {
-        if (!document.querySelector('.tagline-fixed')) {
-            const tagline = document.createElement('div');
-            tagline.className = 'tagline-fixed';
-            tagline.textContent = 'Your Trusted Partner in Quality Used Cars';
-            document.body.appendChild(tagline);
-        }
-    } else {
-        const fixedTagline = document.querySelector('.tagline-fixed');
-        if (fixedTagline) {
-            fixedTagline.remove();
-        }
-    }
-}
-
-// 初始检查和监听窗口大小变化
-handleTagline();
-window.addEventListener('resize', handleTagline);
-
     const mobileMenu = document.querySelector('.mobile-menu');
     const nav = document.querySelector('nav');
     
