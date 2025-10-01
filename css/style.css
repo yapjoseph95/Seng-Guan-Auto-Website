@@ -26,7 +26,7 @@ header .container img {
     transition: all 0.3s ease;
 }
 
-@media (max-width: 933px) {
+@media (max-width: 833px) {
     /* 隐藏 header 中的原标语 */
     header .logo .tagline {
         display: none;

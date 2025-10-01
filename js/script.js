@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 响应式标语显示
 function handleTagline() {
-    if (window.innerWidth <= 933) {
+    if (window.innerWidth <= 833) {
         if (!document.querySelector('.tagline-fixed')) {
             const tagline = document.createElement('div');
             tagline.className = 'tagline-fixed';
