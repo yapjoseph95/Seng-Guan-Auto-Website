@@ -27,7 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 answer.style.maxHeight = '0px';
                 answer.style.padding = '0 20px';
             } else {
-                answer.style.maxHeight = answer.scrollHeight + 30 + 'px';
+                // 增加足够的高度确保内容完全显示
+                answer.style.maxHeight = answer.scrollHeight + 100 + 'px';
                 answer.style.padding = '15px 20px';
             }
         });
@@ -142,19 +143,31 @@ document.addEventListener('DOMContentLoaded', function() {
     whatsappButton.setAttribute('target', '_blank');
     body.appendChild(whatsappButton);
 
-    // Loan Calculator - Details toggle
-    const detailsBtn = document.getElementById('details-toggle');
-    const hiddenDetails = document.getElementById('hidden-details');
-    if (detailsBtn && hiddenDetails) {
-        detailsBtn.addEventListener('click', function() {
-            hiddenDetails.classList.toggle('open');
-            if (hiddenDetails.classList.contains('open')) {
-                detailsBtn.textContent = 'Hide Details';
-            } else {
-                detailsBtn.textContent = 'View Details';
-            }
-        });
-    }
+ // Loan Calculator - Details toggle
+const detailsBtn = document.getElementById('details-toggle');
+const hiddenDetails = document.getElementById('hidden-details');
+
+if (detailsBtn && hiddenDetails) {
+    // 确保初始状态
+    hiddenDetails.style.maxHeight = '0px';
+    
+    detailsBtn.addEventListener('click', function () {
+        if (hiddenDetails.classList.contains('open')) {
+            // 收起
+            hiddenDetails.style.maxHeight = '0px';
+            hiddenDetails.classList.remove('open');
+            detailsBtn.textContent = 'View Details';
+        } else {
+            // 展开
+            hiddenDetails.classList.add('open');
+            // 设置一个足够大的高度值确保内容完全显示
+            hiddenDetails.style.maxHeight = '1000px';
+            detailsBtn.textContent = 'Hide Details';
+        }
+    });
+}
+
+
 });
 
 // Loan Calculator
@@ -187,15 +200,16 @@ function calculateLoan() {
     }
     
     const loanAmount = carPrice - downpayment;
-    const monthlyPayment = (interestRate * loanAmount) / (1 - Math.pow(1 + interestRate, -loanTerm));
+    const totalInterest = loanAmount * interestRate * loanTerm;
+    const totalPayment = loanAmount + totalInterest;
+    const totalLoanMonth = loanTerm * 12;
+    const monthlyPayment = totalPayment / loanTerm;
     
+    // 更新结果
     const resultsElement = document.getElementById('results');
     resultsElement.style.display = 'block';
+    
     document.getElementById('monthly-payment').textContent = 'RM ' + monthlyPayment.toFixed(2);
-    
-    const totalPayment = monthlyPayment * loanTerm;
-    const totalInterest = totalPayment - loanAmount;
-    
     document.getElementById('total-loan').textContent = 'RM ' + loanAmount.toFixed(2);
     document.getElementById('total-downpayment').textContent = 'RM ' + downpayment.toFixed(2);
     document.getElementById('total-payment').textContent = 'RM ' + totalPayment.toFixed(2);
