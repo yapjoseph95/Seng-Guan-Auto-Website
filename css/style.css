@@ -149,6 +149,17 @@ img {
     border-color: #333;
 }
 
+.btn-woutline-white {
+    background-color: transparent;
+    color: var(--light-color);
+    border: 2px solid var(--light-color);
+}
+
+.btn-woutline-white:hover {
+    background-color: var(--light-color);
+    color: #000000;
+}
+
 .btn-outline {
     background-color: transparent;
     color: var(--dark-color);
@@ -241,9 +252,61 @@ nav ul li a.active::after {
     cursor: pointer;
 }
 
+.downpayment-container {
+  display: flex;
+  align-items: center;   /* 垂直居中对齐 */
+  gap: 10px;             /* 左右空隙 */
+  height: 48px;          /* 设置固定高度确保对齐 */
+}
+
+.switch-box {
+  display: flex;
+  height: 48px;
+  padding-top: 5px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 75px;   /* 长方体宽度 */
+  height: 35px;  /* 长方体高度 */
+  background-color: black;  /* 底色黑色 */
+  border-radius: 8px;
+  flex-shrink: 0; /* 防止开关被压缩 */
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 27px;   /* 白色方块大小 */
+  height: 27px;
+  background-color: white;
+  border-radius: 6px;
+  transition: 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: black;
+}
+
+input:checked + .slider {
+  transform: translateX(40px); /* 往右滑动 */
+}
+
+
+
 /* Hero Section */
 .hero {
-    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://via.placeholder.com/1920x800') no-repeat center center/cover;
+    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('../resources/background.jpg') no-repeat center 20%/cover;
     color: #fff;
     padding: 100px 0;
     text-align: center;
@@ -746,4 +809,8 @@ footer {
         width: 100%;
         text-align: center;
     }
+}
+
+#inventory-section {
+  scroll-margin-top: 180px; /* 这里的100px改成你的header高度 */
 }

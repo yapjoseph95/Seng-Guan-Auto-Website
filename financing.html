@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculator | Seng Guan Auto</title>
-    <link rel="icon" href="resources/logo.ico" type="image/x-icon">
+    <link rel="icon" href="resources/favicon2.png" type="image/x-icon">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -31,7 +31,7 @@
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             flex: 1;
-            min-width: 300px;
+            min-width: 200px;
         }
         
         .form-group {
@@ -50,11 +50,6 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 1rem;
-        }
-        
-        .downpayment-container {
-            display: flex;
-            align-items: center;
         }
         
         .downpayment-container input {
@@ -275,10 +270,18 @@
                         <input type="text" inputmode="decimal" id="loan-amount" placeholder="e.g., 80000">
                     </div>
                     <div class="form-group">
-                        <label for="downpayment">Downpayment</label>
+                        <label for="downpayment">Downpayment (<span class="slider-text">RM</span>)</label>
                         <div class="downpayment-container">
                             <input type="text" inputmode="decimal" id="downpayment" placeholder="e.g., 8000">
-                            <button id="downpayment-type" class="downpayment-type" onclick="toggleDownpaymentType()">RM</button>
+                            <div class="switch-box">
+                                <label class="switch">
+                                    <input type="checkbox" id="downpayment-type" onchange="toggleDownpaymentType(this)">
+                                        <span class="slider">
+                                            <span class="slider-text">RM</span>
+                                </span>
+                            </label>
+                        </div>
+
                         </div>
                     </div>
                     <div class="form-group">
@@ -433,14 +436,14 @@
                     <div class="faq-answer">
                         <p>For a standard loan application, you'll need to provide:</p>
                         <ul>
-                            <li>Copy of NRIC (front and back)</li>
-                            <li>Driving license</li>
-                            <li>Latest 3 months' salary slips</li>
-                            <li>Latest 3 months' bank statements</li>
-                            <li>Latest EPF statement or income tax return</li>
-                            <li>Employment confirmation letter (if required)</li>
+                            <li>- Copy of NRIC (front and back)</li>
+                            <li>- Driving license</li>
+                            <li>- Latest 3 months' salary slips</li>
+                            <li>- Latest 3 months' bank statements</li>
+                            <li>- Latest EPF statement or income tax return</li>
+                            <li>- Employment confirmation letter (if required)</li>
                         </ul>
-                        <p>Additional documents may be required depending on your employment status and the bank's requirements.</p>
+                        <p>*Additional documents may be required depending on your employment status and the bank's requirements.</p>
                     </div>
                 </div>
                 <div class="faq-item">
@@ -540,98 +543,6 @@
     </footer>
 
     <script src="js/script.js"></script>
-    <script>
-        // Calculator Functions
-        let isPercentage = false;
-        
-        function toggleDownpaymentType() {
-            const button = document.getElementById('downpayment-type');
-            isPercentage = !isPercentage;
-            button.textContent = isPercentage ? '%' : 'RM';
-        }
-        
-        // 当页面加载完成后，为按钮添加点击事件
-        document.addEventListener('DOMContentLoaded', function() {
-            const detailsButton = document.getElementById('details-toggle');
-            if (detailsButton) {
-                detailsButton.addEventListener('click', toggleDetails);
-            }
-        });
-        
-        function calculateLoan() {
-            const loanAmount = parseFloat(document.getElementById('loan-amount').value);
-            const downpaymentInput = parseFloat(document.getElementById('downpayment').value);
-            const interestRate = parseFloat(document.getElementById('interest-rate').value);
-            const loanTerm = parseFloat(document.getElementById('loan-term').value);
-            
-            if (isNaN(loanAmount) || isNaN(downpaymentInput) || isNaN(interestRate) || isNaN(loanTerm)) {
-                alert('Please fill in all fields with valid numbers');
-                return;
-            }
-            
-            // Calculate downpayment amount
-            const downpayment = isPercentage ? (loanAmount * downpaymentInput / 100) : downpaymentInput;
-            
-            // Calculate loan details
-            const principal = loanAmount - downpayment;
-            const monthlyRate = interestRate / 100 / 12;
-            const numberOfPayments = loanTerm * 12;
-            
-            const monthlyPayment = principal * monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
-            const totalPayment = monthlyPayment * numberOfPayments;
-            const totalInterest = totalPayment - principal;
-            
-            // Display results
-            document.getElementById('results').style.display = 'block';
-            document.getElementById('monthly-payment').textContent = 'RM ' + monthlyPayment.toFixed(2);
-            document.getElementById('total-downpayment').textContent = 'RM ' + downpayment.toFixed(2);
-            document.getElementById('total-loan').textContent = 'RM ' + principal.toFixed(2);
-            document.getElementById('total-payment').textContent = 'RM ' + totalPayment.toFixed(2);
-            document.getElementById('total-interest').textContent = 'RM ' + totalInterest.toFixed(2);
-        }
-        
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize calculator details toggle
-            document.getElementById('details-toggle').addEventListener('click', function() {
-                const hiddenDetails = document.getElementById('hidden-details');
-                if (hiddenDetails.style.display === 'block') {
-                    hiddenDetails.style.display = 'none';
-                } else {
-                    hiddenDetails.style.display = 'block';
-                }
-            });
-            
-            // FAQ Toggle with Animation
-            const faqQuestions = document.querySelectorAll('.faq-question');
-            const faqAnswers = document.querySelectorAll('.faq-answer');
-            
-            // Hide all answers by default
-            faqAnswers.forEach(answer => {
-                answer.classList.remove('show');
-            });
-            
-            faqQuestions.forEach(question => {
-                question.addEventListener('click', () => {
-                    const answer = question.nextElementSibling;
-                    const icon = question.querySelector('i');
-                    
-                    // Toggle active class for question
-                    question.classList.toggle('active');
-                    
-                    // Toggle show class for answer with animation
-                    answer.classList.toggle('show');
-                    
-                    if (answer.classList.contains('show')) {
-                        icon.classList.remove('fa-chevron-down');
-                        icon.classList.add('fa-chevron-up');
-                    } else {
-                        icon.classList.remove('fa-chevron-up');
-                        icon.classList.add('fa-chevron-down');
-                    }
-                });
-            });
-        });
-    </script>
+ 
 </body>
 </html>

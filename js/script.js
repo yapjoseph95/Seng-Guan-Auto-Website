@@ -180,13 +180,17 @@ if (detailsBtn && hiddenDetails) {
 // Loan Calculator
 let isPercentage = false;
 
-function toggleDownpaymentType() {
-    const downpaymentTypeBtn = document.getElementById('downpayment-type');
-    if (downpaymentTypeBtn) {
-        isPercentage = !isPercentage;
-        downpaymentTypeBtn.textContent = isPercentage ? '%' : 'RM';
-    }
+function toggleDownpaymentType(checkbox) {
+    const texts = document.querySelectorAll(".slider-text"); 
+    const isPercentage = checkbox.checked;
+
+    texts.forEach(span => {
+        span.textContent = isPercentage ? "%" : "RM";
+    });
 }
+
+
+
 
 function calculateLoan() {
     const carPrice = parseFloat(document.getElementById('loan-amount').value);
