@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator | Seng Guan Auto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Additional styles for calculator page */
+        .calculator-section {
+            padding: 60px 0;
+            background-color: #f8f9fa;
+        }
+        
+        .calculator-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        .calculator-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .downpayment-container {
+            display: flex;
+            align-items: center;
+        }
+        
+        .downpayment-container input {
+            flex: 1;
+        }
+        
+        .downpayment-type {
+            margin-left: 10px;
+            padding: 12px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .calculator-results {
+            background-color: var(--dark-color);
+            color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            overflow: hidden;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .result-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .result-label {
+            font-weight: 600;
+        }
+        
+        .result-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        
+        .details-toggle {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: 600;
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .hidden-details {
+            display: none;
+            margin-top: 15px;
+            transition: max-height 0.3s ease-out;
+            overflow: hidden;
+        }
+        
+        .financing-options {
+            padding: 80px 0;
+        }
+        
+        .option-card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+            transition: var(--transition);
+        }
+        
+        .option-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        .option-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .option-icon {
+            width: 60px;
+            height: 60px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            color: #fff;
+            font-size: 1.5rem;
+        }
+        
+        .option-title h3 {
+            margin-bottom: 5px;
+        }
+        
+        .option-features {
+            margin-top: 20px;
+        }
+        
+        .option-features li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .option-features li i {
+            color: var(--primary-color);
+            margin-right: 10px;
+            margin-top: 5px;
+        }
+        
+        .faq-section {
+            padding: 80px 0;
+            background-color: var(--light-color);
+        }
+        
+        .faq-item {
+            background-color: #fff;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .faq-question {
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+        
+        .faq-answer {
+    padding: 0 15px;
+    background-color: #f9f9f9;
+    border-radius: 0 0 8px 8px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    line-height: 1.6;
+}
+
+.faq-answer.show {
+    padding: 15px;
+    max-height: 500px;
+}
+
+.faq-answer p {
+    margin: 10px 0;
+}
+        
+        @media (max-width: 768px) {
+            .calculator-form {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <header>
+        <div class="container">
+            <div class="logo">
+                <h1>Seng Guan Auto</h1>
+                <p class="tagline">Your Trusted Partner in Quality Used Cars</p>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="financing.html" class="active">Calculator</a></li>
+                    <li><a href="faq.html">FAQ</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </nav>
+            <div class="mobile-menu">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Banner -->
+    <section class="page-banner">
+        <div class="container">
+            <h1>Loan Calculator</h1>
+            <p>Calculate your monthly payments and explore financing options</p>
+        </div>
+    </section>
+
+    <!-- Loan Calculator Section -->
+    <section class="calculator-section">
+        <div class="container">
+            <h2 class="section-title">Loan Calculator</h2>
+            <div class="calculator-container">
+                <div class="calculator-form">
+                    <div class="form-group">
+                        <label for="loan-amount">Car Price (RM)</label>
+                        <input type="number" id="loan-amount" placeholder="e.g., 80000">
+                    </div>
+                    <div class="form-group">
+                        <label for="downpayment">Downpayment</label>
+                        <div class="downpayment-container">
+                            <input type="number" id="downpayment" placeholder="e.g., 8000">
+                            <button id="downpayment-type" class="downpayment-type" onclick="toggleDownpaymentType()">RM</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="interest-rate">Interest Rate (%)</label>
+                        <input type="number" id="interest-rate" placeholder="e.g., 3.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="loan-term">Loan Term (Years)</label>
+                        <input type="number" id="loan-term" placeholder="e.g., 7" min="1" max="9">
+                    </div>
+                </div>
+                <button onclick="calculateLoan()" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Calculate</button>
+                
+                <div class="calculator-results" id="results" style="display: none;">
+                    <div class="result-item">
+                        <div class="result-label">Monthly Payment:</div>
+                        <div class="result-value" id="monthly-payment">RM 0</div>
+                    </div>
+                    <div class="result-item">
+                        <div class="result-label">Total Downpayment:</div>
+                        <div class="result-value" id="total-downpayment">RM 0</div>
+                    </div>
+                    <button class="details-toggle" id="details-toggle" onclick="toggleDetails()">View Details</button>
+                    <div class="hidden-details" id="hidden-details">
+                        <div class="result-item">
+                            <div class="result-label">Total Loan Amount:</div>
+                            <div class="result-value" id="total-loan">RM 0</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Payment:</div>
+                            <div class="result-value" id="total-payment">RM 0</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Interest:</div>
+                            <div class="result-value" id="total-interest">RM 0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Financing Options Section -->
+    <section class="financing-options">
+        <div class="container">
+            <h2 class="section-title">Our Financing Options</h2>
+            <div class="options-grid">
+                <div class="option-card">
+                    <div class="option-header">
+                        <div class="option-icon">
+                            <i class="fas fa-university"></i>
+                        </div>
+                        <div class="option-title">
+                            <h3>Bank Financing</h3>
+                            <p>Competitive rates from our banking partners</p>
+                        </div>
+                    </div>
+                    <p>We've partnered with Malaysia's leading banks to offer you competitive interest rates and flexible repayment terms. Our finance specialists will help you find the best loan package tailored to your needs.</p>
+                    <ul class="option-features">
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Interest rates starting from 2.8% p.a.</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Loan tenures from 1 to 9 years</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Minimal documentation required</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Quick approval process</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="option-card">
+                    <div class="option-header">
+                        <div class="option-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="option-title">
+                            <h3>In-House Financing</h3>
+                            <p>Flexible options for various credit profiles</p>
+                        </div>
+                    </div>
+                    <p>Our in-house financing solutions are designed to accommodate customers with different credit backgrounds. We believe everyone deserves a chance to own a quality vehicle with manageable payment terms.</p>
+                    <ul class="option-features">
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Flexible down payment options</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Customized payment schedules</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Alternative credit assessment</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>No hidden fees or charges</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="option-card">
+                    <div class="option-header">
+                        <div class="option-icon">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <div class="option-title">
+                            <h3>Trade-In Program</h3>
+                            <p>Upgrade your vehicle with ease</p>
+                        </div>
+                    </div>
+                    <p>Looking to upgrade? Our Trade-In Program allows you to use your current vehicle as a down payment towards your next purchase, making the transition smooth and affordable.</p>
+                    <ul class="option-features">
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Fair market value assessment</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Reduced down payment requirement</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Simplified paperwork process</span>
+                        </li>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <span>Same-day transaction possible</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+        <div class="container">
+            <h2 class="section-title">Frequently Asked Questions</h2>
+            <div class="faq-container">
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>What documents do I need for loan application?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>For a standard loan application, you'll need to provide:</p>
+                        <ul>
+                            <li>Copy of NRIC (front and back)</li>
+                            <li>Driving license</li>
+                            <li>Latest 3 months' salary slips</li>
+                            <li>Latest 3 months' bank statements</li>
+                            <li>Latest EPF statement or income tax return</li>
+                            <li>Employment confirmation letter (if required)</li>
+                        </ul>
+                        <p>Additional documents may be required depending on your employment status and the bank's requirements.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>How long does the loan approval process take?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>The loan approval process typically takes 1-3 working days, depending on the bank and the completeness of your documentation. In some cases, approvals can be obtained on the same day.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>What is the minimum down payment required?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>For most used vehicles, banks typically require a minimum down payment of 10% of the car's value. However, this can vary based on the vehicle's age, your credit profile, and the bank's policies. Our in-house financing options may offer more flexible down payment terms.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Can I get a loan with a less-than-perfect credit score?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, we work with various financial institutions and have in-house financing options that cater to different credit profiles. Our finance specialists will help find a solution that works for your specific situation.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">
+                        <span>Can I refinance my existing car loan?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, we offer refinancing options that may help you secure a better interest rate or more favorable terms. Our team can assess your current loan and advise on potential refinancing benefits.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Need Help with Financing?</h2>
+                <p>Our finance specialists are ready to assist you in finding the best solution</p>
+                <div class="cta-buttons">
+                    <a href="contact.html" class="btn btn-primary">Contact Us</a>
+                    <a href="#" class="btn btn-secondary">View Inventory</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-about">
+                    <h3>Seng Guan Auto Sdn. Bhd.</h3>
+                    <p>Your trusted partner in quality used cars since 1995.</p>
+                    <div class="social-icons">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="financing.html">Financing</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-contact">
+                    <h3>Contact Us</h3>
+                    <ul>
+                        <li><i class="fas fa-map-marker-alt"></i> 123 Jalan Ampang, 50450 Kuala Lumpur</li>
+                        <li><i class="fas fa-phone"></i> +60 3-1234 5678</li>
+                        <li><i class="fas fa-envelope"></i> info@sengguanauto.com</li>
+                        <li><i class="fas fa-clock"></i> Mon-Sat: 9AM-6PM, Sun: 10AM-4PM</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 Seng Guan Auto Sdn. Bhd. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/script.js"></script>
+    <script>
+        // FAQ Toggle with Animation
+        document.addEventListener('DOMContentLoaded', function() {
+            const faqQuestions = document.querySelectorAll('.faq-question');
+            const faqAnswers = document.querySelectorAll('.faq-answer');
+            
+            // Hide all answers by default
+            faqAnswers.forEach(answer => {
+                answer.classList.remove('show');
+            });
+            
+            faqQuestions.forEach(question => {
+                question.addEventListener('click', () => {
+                    const answer = question.nextElementSibling;
+                    const icon = question.querySelector('i');
+                    
+                    // Toggle active class for question
+                    question.classList.toggle('active');
+                    
+                    // Toggle show class for answer with animation
+                    answer.classList.toggle('show');
+                    
+                    if (answer.classList.contains('show')) {
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-up');
+                    } else {
+                        icon.classList.remove('fa-chevron-up');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

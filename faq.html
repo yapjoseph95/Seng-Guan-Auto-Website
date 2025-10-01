@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ | Seng Guan Auto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* FAQ页面特定样式 */
+        .faq-section {
+            padding: 80px 0;
+            background-color: var(--light-color);
+        }
+        
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .faq-item {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .faq-question {
+            padding: 20px;
+            background-color: #fff;
+            color: var(--secondary-color);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .faq-question:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .faq-question i {
+            transition: var(--transition);
+        }
+        
+        .faq-question.active i {
+            transform: rotate(180deg);
+        }
+        
+        .faq-answer {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            line-height: 1.6;
+        }
+        
+        .faq-answer.active {
+            padding: 20px;
+            max-height: 500px;
+        }
+        
+        .faq-categories {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .category-btn {
+            padding: 10px 20px;
+            margin: 0 10px 10px;
+            background-color: #fff;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 30px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .category-btn:hover, .category-btn.active {
+            background-color: var(--primary-color);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <header>
+        <div class="container">
+            <div class="logo">
+                <h1>Seng Guan Auto</h1>
+                <p class="tagline">Your Trusted Partner in Quality Used Cars</p>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="financing.html">Calculator</a></li>
+                    <li><a href="faq.html" class="active">FAQ</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </nav>
+            <div class="mobile-menu">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Page Banner -->
+    <section class="page-banner">
+        <div class="container">
+            <h2>Frequently Asked Questions</h2>
+            <p>Find answers to common questions about our services, vehicles, and financing options</p>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+        <div class="container">
+            <div class="faq-categories">
+                <button class="category-btn active" data-category="all">All Questions</button>
+                <button class="category-btn" data-category="vehicles">Vehicles</button>
+                <button class="category-btn" data-category="financing">Financing</button>
+                <button class="category-btn" data-category="services">Services</button>
+                <button class="category-btn" data-category="warranty">Warranty</button>
+            </div>
+            
+            <div class="faq-container">
+                <!-- Vehicle FAQs -->
+                <div class="faq-item" data-category="vehicles">
+                    <div class="faq-question">
+                        <span>What types of vehicles do you offer?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>At Seng Guan Auto, we offer a wide range of quality used vehicles including sedans, SUVs, trucks, and luxury vehicles. Our inventory is carefully selected to ensure we provide only the best options for our customers. We regularly update our inventory with new arrivals, so check back often to see our latest offerings.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item" data-category="vehicles">
+                    <div class="faq-question">
+                        <span>Do you provide vehicle history reports?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, we provide comprehensive vehicle history reports for all our vehicles. These reports include information about previous ownership, accident history, service records, and mileage verification. We believe in complete transparency, so you can make an informed decision when purchasing a vehicle from us.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item" data-category="vehicles">
+                    <div class="faq-question">
+                        <span>Can I test drive a vehicle before purchasing?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Absolutely! We encourage all potential buyers to test drive vehicles before making a purchase decision. You can schedule a test drive by contacting us through our website, calling our dealership, or visiting us in person. Our team will be happy to arrange a convenient time for you to experience the vehicle firsthand.</p>
+                    </div>
+                </div>
+                
+                <!-- Financing FAQs -->
+                <div class="faq-item" data-category="financing">
+                    <div class="faq-question">
+                        <span>What financing options do you offer?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>We offer multiple financing options to suit different needs and financial situations. These include bank financing through our partner financial institutions, in-house financing options for those who may not qualify for traditional bank loans, and trade-in options where you can use your current vehicle as part of the payment. Our finance team will work with you to find the best solution for your specific circumstances.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item" data-category="financing">
+                    <div class="faq-question">
+                        <span>What documents do I need for financing approval?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>For financing approval, you typically need to provide proof of identity (IC or passport), proof of income (salary slips or tax returns), proof of residence (utility bills or bank statements), and employment verification. Additional documents may be required depending on the specific financing option you choose. Our finance team will guide you through the process and help you prepare all necessary documentation.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item" data-category="financing">
+                    <div class="faq-question">
+                        <span>How long does the financing approval process take?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>The financing approval process typically takes 1-3 business days, depending on the financing option and the completeness of your application. In some cases, we can provide same-day approval for qualified applicants. Our team works diligently to expedite the process and keep you informed at every step.</p>
+                    </div>
+                </div>
+                
+                <!-- Services FAQs -->
+                <div class="faq-item" data-category="services">
+                    <div class="faq-question">
+                        <span>Do you offer after-sales service?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, we provide comprehensive after-sales service to ensure your vehicle continues to perform at its best. Our service center is equipped with modern diagnostic tools and staffed by experienced technicians who can handle routine maintenance, repairs, and parts replacement. We also offer service packages that can be customized to your specific needs.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item" data-category="services">
+                    <div class="faq-question">
+                        <span>Can you help with vehicle registration and insurance?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Absolutely! We provide full assistance with vehicle registration and insurance processes. Our team will handle the paperwork and coordinate with relevant authorities to ensure a smooth transfer of ownership. We also work with multiple insurance providers to help you find the best coverage options for your new vehicle at competitive rates.</p>
+                    </div>
+                </div>
+                
+                <!-- Warranty FAQs -->
+                <div class="faq-item" data-category="warranty">
+                    <div class="faq-question">
+                        <span>Do your vehicles come with a warranty?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes, all our vehicles come with a standard warranty that covers major mechanical components. The duration and coverage of the warranty may vary depending on the vehicle's age, mileage, and condition. We also offer extended warranty options for additional peace of mind. Our sales team will provide detailed information about the warranty coverage for the specific vehicle you're interested in.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item" data-category="warranty">
+                    <div class="faq-question">
+                        <span>What does your warranty cover?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Our standard warranty typically covers the engine, transmission, drivetrain, and other major mechanical components. It provides protection against manufacturing defects and certain types of mechanical failures. Routine maintenance items and wear-and-tear components (such as brakes, tires, and batteries) are generally not covered. For a detailed explanation of warranty coverage, please speak with our sales representatives.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item" data-category="warranty">
+                    <div class="faq-question">
+                        <span>How do I make a warranty claim?</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>To make a warranty claim, simply contact our service department by phone or email, or visit our dealership in person. Our service team will assess the issue, determine if it's covered under warranty, and guide you through the next steps. We strive to process warranty claims efficiently to minimize any inconvenience to our customers.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Still Have Questions?</h2>
+            <p>Our team is ready to assist you with any additional questions or concerns</p>
+            <a href="contact.html" class="btn btn-primary">Contact Us Today</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section about">
+                    <h3>About Seng Guan Auto</h3>
+                    <p>Your trusted partner in finding quality used vehicles with exceptional service and financing options.</p>
+                    <div class="contact-info">
+                        <p><i class="fas fa-map-marker-alt"></i> 123 Main Street, Kuala Lumpur</p>
+                        <p><i class="fas fa-phone"></i> +60 12-345 6789</p>
+                        <p><i class="fas fa-envelope"></i> info@sengguanauto.com</p>
+                    </div>
+                </div>
+                <div class="footer-section links">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="financing.html">Calculator</a></li>
+                        <li><a href="faq.html">FAQ</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section social">
+                    <h3>Connect With Us</h3>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                    <p>Business Hours: Mon-Sat 9AM-6PM</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 Seng Guan Auto Sdn. Bhd. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/script.js"></script>
+    <script>
+        // FAQ Functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // FAQ Toggle with Animation
+            const faqQuestions = document.querySelectorAll('.faq-question');
+            
+            faqQuestions.forEach(question => {
+                question.addEventListener('click', function() {
+                    // Toggle active class on question
+                    this.classList.toggle('active');
+                    
+                    // Toggle answer visibility
+                    const answer = this.nextElementSibling;
+                    answer.classList.toggle('active');
+                    
+                    // Set max-height for animation
+                    if (answer.classList.contains('active')) {
+                        answer.style.maxHeight = answer.scrollHeight + 'px';
+                    } else {
+                        answer.style.maxHeight = '0';
+                    }
+                });
+            });
+            
+            // Category Filtering
+            const categoryBtns = document.querySelectorAll('.category-btn');
+            const faqItems = document.querySelectorAll('.faq-item');
+            
+            categoryBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    categoryBtns.forEach(b => b.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // Get selected category
+                    const category = this.getAttribute('data-category');
+                    
+                    // Show/hide FAQ items based on category
+                    faqItems.forEach(item => {
+                        if (category === 'all' || item.getAttribute('data-category') === category) {
+                            item.style.display = 'block';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
