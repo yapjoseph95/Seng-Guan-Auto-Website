@@ -19,6 +19,46 @@ html {
     scroll-behavior: smooth;
 }
 
+header .container img {
+    width: clamp(120px, 15vw, 250px);
+    /* 最小120px，根据视口宽度的15%缩放，最大250px */
+    height: auto;
+    transition: all 0.3s ease;
+}
+
+@media (max-width: 933px) {
+    /* 隐藏 header 中的原标语 */
+    header .logo .tagline {
+        display: none;
+    }
+    
+    /* 创建固定在屏幕底部的标语 */
+    .tagline-fixed {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        background-color: var(--dark-color);
+        color: #fff;
+        text-align: center;
+        padding: 10px 15px;
+        z-index: 99;
+        font-size: 0.85rem;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 给 body 添加底部内边距，避免内容被标语遮挡 */
+    body {
+        padding-bottom: 45px;
+    }
+    
+    /* 调整 WhatsApp 按钮位置，避免被标语遮挡 */
+    .whatsapp-float {
+        bottom: 60px;
+    }
+}
+
 body {
     animation: fadeIn 0.5s ease-in-out;
     padding: 0; /* 移除全局内边距 */
