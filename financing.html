@@ -296,8 +296,8 @@
                         <div class="result-label">Total Downpayment:</div>
                         <div class="result-value" id="total-downpayment">RM 0</div>
                     </div>
-                    <button class="details-toggle" id="details-toggle" onclick="toggleDetails()">View Details</button>
-                    <div class="hidden-details" id="hidden-details">
+                    <button class="details-toggle" id="details-toggle">View Details</button>
+                    <div class="hidden-details" id="hidden-details"></div>
                         <div class="result-item">
                             <div class="result-label">Total Loan Amount:</div>
                             <div class="result-value" id="total-loan">RM 0</div>
@@ -498,6 +498,7 @@
             <div class="footer-grid">
                 <div class="footer-about">
                     <h3>Seng Guan Auto Sdn. Bhd.</h3>
+                    <p>(202301019072) 1512994A</p>
                     <p>Your trusted partner in quality used cars since 1995.</p>
                     <div class="social-icons">
                         <a href="#"><i class="fab fa-facebook-f"></i></a>
@@ -510,30 +511,90 @@
                     <ul>
                         <li><a href="index.html">Home</a></li>
                         <li><a href="about.html">About Us</a></li>
-                        <li><a href="financing.html">Financing</a></li>
+                        <li><a href="financing.html">Calculator</a></li>
                         <li><a href="contact.html">Contact</a></li>
                     </ul>
                 </div>
                 <div class="footer-contact">
                     <h3>Contact Us</h3>
                     <ul>
-                        <li><i class="fas fa-map-marker-alt"></i> 123 Jalan Ampang, 50450 Kuala Lumpur</li>
-                        <li><i class="fas fa-phone"></i> +60 3-1234 5678</li>
-                        <li><i class="fas fa-envelope"></i> info@sengguanauto.com</li>
-                        <li><i class="fas fa-clock"></i> Mon-Sat: 9AM-6PM, Sun: 10AM-4PM</li>
+                        <li><i class="fas fa-map-marker-alt"></i>Lot 712, Batu 18, Jln Klang Banting, Taman Langat Jaya, 42700 Banting, Selangor</li>
+                        <li><i class="fas fa-phone"></i> +6 03-3187 6199</li>
+                        <li><i class="fas fa-envelope"></i> info@sengguanauto.com.my</li>
+                        <li><i class="fas fa-clock"></i> Mon-Sat: 9AM-6PM, Sun: Close</li>
                     </ul>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2023 Seng Guan Auto Sdn. Bhd. All Rights Reserved.</p>
+                <p>&copy; 2025 Seng Guan Auto Sdn. Bhd. All Rights Reserved.</p>
             </div>
         </div>
     </footer>
 
     <script src="js/script.js"></script>
     <script>
-        // FAQ Toggle with Animation
+        // Calculator Functions
+        let isPercentage = false;
+        
+        function toggleDownpaymentType() {
+            const button = document.getElementById('downpayment-type');
+            isPercentage = !isPercentage;
+            button.textContent = isPercentage ? '%' : 'RM';
+        }
+        
+        // 当页面加载完成后，为按钮添加点击事件
         document.addEventListener('DOMContentLoaded', function() {
+            const detailsButton = document.getElementById('details-toggle');
+            if (detailsButton) {
+                detailsButton.addEventListener('click', toggleDetails);
+            }
+        });
+        
+        function calculateLoan() {
+            const loanAmount = parseFloat(document.getElementById('loan-amount').value);
+            const downpaymentInput = parseFloat(document.getElementById('downpayment').value);
+            const interestRate = parseFloat(document.getElementById('interest-rate').value);
+            const loanTerm = parseFloat(document.getElementById('loan-term').value);
+            
+            if (isNaN(loanAmount) || isNaN(downpaymentInput) || isNaN(interestRate) || isNaN(loanTerm)) {
+                alert('Please fill in all fields with valid numbers');
+                return;
+            }
+            
+            // Calculate downpayment amount
+            const downpayment = isPercentage ? (loanAmount * downpaymentInput / 100) : downpaymentInput;
+            
+            // Calculate loan details
+            const principal = loanAmount - downpayment;
+            const monthlyRate = interestRate / 100 / 12;
+            const numberOfPayments = loanTerm * 12;
+            
+            const monthlyPayment = principal * monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments) / (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+            const totalPayment = monthlyPayment * numberOfPayments;
+            const totalInterest = totalPayment - principal;
+            
+            // Display results
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('monthly-payment').textContent = 'RM ' + monthlyPayment.toFixed(2);
+            document.getElementById('total-downpayment').textContent = 'RM ' + downpayment.toFixed(2);
+            document.getElementById('total-loan').textContent = 'RM ' + principal.toFixed(2);
+            document.getElementById('total-payment').textContent = 'RM ' + totalPayment.toFixed(2);
+            document.getElementById('total-interest').textContent = 'RM ' + totalInterest.toFixed(2);
+        }
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize calculator details toggle
+            document.getElementById('details-toggle').addEventListener('click', function() {
+                const hiddenDetails = document.getElementById('hidden-details');
+                if (hiddenDetails.style.display === 'block') {
+                    hiddenDetails.style.display = 'none';
+                } else {
+                    hiddenDetails.style.display = 'block';
+                }
+            });
+            
+            // FAQ Toggle with Animation
             const faqQuestions = document.querySelectorAll('.faq-question');
             const faqAnswers = document.querySelectorAll('.faq-answer');
             

@@ -581,11 +581,20 @@ footer {
 }
 
 .hidden-details {
-    display: none;
+    max-height: 0;              /* 默认高度为 0 */
+    opacity: 0;                 /* 默认透明 */
+    overflow: hidden;           /* 超出部分隐藏 */
     margin-top: 15px;
     padding-top: 15px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 0.9rem;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+/* 展开时额外加个 class 控制 */
+.hidden-details.open {
+    max-height: 500px;          /* 给个足够大的值保证能展开 */
+    opacity: 1;
 }
 
 .hidden-details .result-item {
@@ -596,6 +605,7 @@ footer {
 .hidden-details .result-value {
     font-size: 0.95rem;
 }
+
 
 @media (max-width: 768px) {
     header .container {
