@@ -505,6 +505,18 @@ input:checked + .slider {
     line-height: 1.8;
 }
 
+.team-member {
+    display: flex;
+    align-items: center;
+}
+
+.member-image {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 15px;
+}
 .customer {
     display: flex;
     align-items: center;
