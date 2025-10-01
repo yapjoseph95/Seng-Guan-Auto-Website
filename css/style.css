@@ -20,15 +20,15 @@ html {
 }
 
 header .container img {
-    width: clamp(120px, 15vw, 250px);
+    width: clamp(120px, 50vw, 250px);
     /* 最小120px，根据视口宽度的15%缩放，最大250px */
     height: auto;
     transition: all 0.3s ease;
 }
 
 header .logo .tagline {
-        padding-right: 40px;
-        padding-left: 20px;
+        padding-right: 25px;
+        padding-left: 5px;
 }
     
     /* 给 body 添加底部内边距，避免内容被标语遮挡 */
