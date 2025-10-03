@@ -504,12 +504,6 @@ input:checked + .slider {
     font-style: italic;
     line-height: 1.8;
 }
-
-.team-member {
-    display: flex;
-    align-items: center;
-}
-
 .member-image {
     width: 100px;
     height: 100px;
@@ -1144,11 +1138,9 @@ footer {
 
 .team-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    max-width: 800px;
-    horizontal-align: center;
-    margin: 0 auto;
+    grid-template-columns: repeat(auto-fit, minmax(300px, auto));
     gap: 40px;
+    justify-content: center;
 }
 
 .team-member {
@@ -1158,7 +1150,7 @@ footer {
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
     border: 1px solid var(--light-color);
-    display: block;
+    /* 不要写 display:block，因为默认就是 block */
 }
 
 .team-member:hover {
