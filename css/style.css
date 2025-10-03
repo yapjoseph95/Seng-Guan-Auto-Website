@@ -1044,6 +1044,8 @@ footer {
 .values-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    max-width: 800px;
+    margin: 0 auto;
     gap: 40px;
     margin-top: 60px;
     position: relative;
@@ -1143,6 +1145,9 @@ footer {
 .team-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    max-width: 800px;
+    horizontal-align: center;
+    margin: 0 auto;
     gap: 40px;
 }
 
