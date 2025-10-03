@@ -708,19 +708,7 @@ footer {
     font-size: 0.95rem;
 }
 
-
-@media (max-width: 768px) {
-    header .container {
-        flex-direction: row;
-        justify-content: space-between;
-        text-align: left;
-        position: relative;
-    }
-    
-    .logo {
-        max-width: 70%;
-    }
-    
+@media (max-width: 1084px) {
     nav {
         position: fixed;
         top: 0;
@@ -756,6 +744,19 @@ footer {
     
     .mobile-menu.active i:before {
         content: "\f00d";
+    }
+}
+
+@media (max-width: 768px) {
+    header .container {
+        flex-direction: row;
+        justify-content: space-between;
+        text-align: left;
+        position: relative;
+    }
+    
+    .logo {
+        max-width: 70%;
     }
     
     .hero-content h2 {
@@ -1345,6 +1346,12 @@ footer {
     border-left: 4px solid transparent;
 }
 
+@media (max-width: 789px) {
+    .choose-list li {
+        align-items: center;
+    }
+}
+
 .choose-list li:hover {
     transform: translateY(-5px);
     box-shadow: 0 15px 35px rgba(0,0,0,0.12);
@@ -1361,6 +1368,7 @@ footer {
     align-items: center;
     justify-content: center;
     margin-right: 20px;
+    margin-bottom: 20px;
     flex-shrink: 0;
     font-size: 1.2rem;
     transition: all 0.4s ease;
