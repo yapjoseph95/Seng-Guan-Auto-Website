@@ -58,6 +58,10 @@ body {
     background-color: #f8f9fa;
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 .container {
     width: 90%;
     max-width: var(--max-width);
@@ -1368,10 +1372,12 @@ footer {
     align-items: center;
     justify-content: center;
     margin-right: 20px;
-    margin-bottom: 20px;
-    flex-shrink: 0;
-    font-size: 1.2rem;
     transition: all 0.4s ease;
+    flex-shrink: 0;
+}
+
+.list-icon i {
+    font-size: 24px; /* 图标固定大小 */
 }
 
 .choose-list li:hover .list-icon {
@@ -1518,6 +1524,7 @@ footer {
     
     .choose-list li {
         flex-direction: column;
+        align-items: center;
         text-align: center;
     }
     
@@ -1525,4 +1532,16 @@ footer {
         margin-right: 0;
         margin-bottom: 15px;
     }
+
+    .list-icon {
+        margin-right: 0;
+        margin-bottom: 15px;
+        width: 50px !important;
+        height: 50px !important;
+    }
+
+    .list-icon i {
+    font-size: 24px !important; /* 强制固定，不会跟着缩 */
+    }
+
 }
