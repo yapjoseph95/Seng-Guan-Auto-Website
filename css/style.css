@@ -970,6 +970,11 @@ footer {
     color: var(--primary-color);
     line-height: 1;
     margin-bottom: 5px;
+    transition: transform 0.3s ease;
+}
+
+.highlight-item:hover .highlight-number {
+  transform: scale(1.1);
 }
 
 .highlight-text {
@@ -1297,13 +1302,13 @@ footer {
 }
 
 /* Why Choose Us Section */
-.why-choose-us {
+.why-choose {
     padding: 100px 0;
     background: linear-gradient(135deg, #f8f9fa 0%, #fff 50%, #f8f9fa 100%);
     position: relative;
 }
 
-.why-choose-us::before {
+.why-choose::before {
     content: '';
     position: absolute;
     top: 0;
@@ -1343,6 +1348,11 @@ footer {
     color: var(--primary-color);
     line-height: 1;
     margin-bottom: 5px;
+    transition: transform 0.3s ease;
+}
+
+.stat-item:hover .stat-number {
+  transform: scale(1.1);
 }
 
 .stat-label {
@@ -1526,7 +1536,7 @@ footer {
     .about-story,
     .our-values,
     .our-team,
-    .why-choose-us {
+    .why-choose {
         padding: 60px 0;
     }
     

@@ -42,21 +42,21 @@
     </section>
 
     <!-- Our Story Section -->
-    <section class="about-story">
+    <section class="about-story" data-animate="count">
         <div class="container about-grid">
             <div class="about-content">
                 <h2>Our Story</h2>
                 <div class="story-highlight">
                     <div class="highlight-item">
-                        <span class="highlight-number">1995</span>
+                        <span class="highlight-number" data-target="1995">1270</span>
                         <span class="highlight-text">Founded</span>
                     </div>
                     <div class="highlight-item">
-                        <span class="highlight-number">30+</span>
+                        <span class="highlight-number" data-target="30" data-plus="true">0</span>
                         <span class="highlight-text">Years Experience</span>
                     </div>
                     <div class="highlight-item">
-                        <span class="highlight-number">3000+</span>
+                        <span class="highlight-number" data-target="3000" data-plus="true">2170</span>
                         <span class="highlight-text">Happy Customers</span>
                     </div>
                 </div>
@@ -205,7 +205,7 @@
     </section>
 
     <!-- Why Choose Us Section -->
-    <section class="why-choose-us">
+    <section class="why-choose" data-animate="count">
         <div class="container">
             <div class="section-header">
                 <h2>Why Choose <span class="nowrap">Seng Guan Auto?</span></h2>
@@ -215,11 +215,11 @@
                 <div class="choose-content">
                     <div class="stats-row">
                         <div class="stat-item">
-                            <span class="stat-number">30+</span>
+                            <span class="stat-number" data-target="30" data-plus="true">0</span>
                             <span class="stat-label">Years in Business</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-number">3000+</span>
+                            <span class="stat-number" data-target="3000" data-plus="true">2170</span>
                             <span class="stat-label">Happy Customers</span>
                         </div>
                         <div class="stat-item">
@@ -360,5 +360,70 @@
     </footer>
 
     <script src="js/script.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const DEFAULT_DURATION = 1400; // 动画时长（ms），可按需调整
+
+  // 将某个 section 中所有带 data-target 的数字做动画
+  const animateSection = (section) => {
+    const counters = section.querySelectorAll('[data-target]'); // ← 只选带 data-target 的元素
+    counters.forEach(counter => {
+      // 防止重复执行
+      if (counter.dataset.animated === "true") return;
+
+      const rawTarget = counter.getAttribute("data-target");
+      const target = parseInt(rawTarget, 10);
+      if (isNaN(target)) {
+        // 如果 data-target 不是数值就跳过
+        return;
+      }
+
+      // 是否需要在结尾加 '+'
+      const plus = counter.dataset.plus === "true";
+
+      // 起始值：如果当前文本内含数字就以它为起点，否则从 0 开始
+      const startFromText = parseInt(String(counter.textContent).replace(/\D/g, ""), 10);
+      const start = isNaN(startFromText) ? 0 : startFromText;
+
+      const duration = parseInt(counter.dataset.duration, 10) || DEFAULT_DURATION;
+      const startTime = performance.now();
+
+      const step = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // ease-out 效果（可改为线性）
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const current = Math.floor(start + (target - start) * ease);
+        counter.textContent = current + (progress === 1 && plus ? "+" : "");
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          counter.textContent = target + (plus ? "+" : "");
+          counter.dataset.animated = "true";
+        }
+      };
+
+      // 立即启动动画
+      requestAnimationFrame(step);
+    });
+  };
+
+  // IntersectionObserver：监听所有带 data-animate="count" 的 section
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        animateSection(entry.target);
+        obs.unobserve(entry.target); // 只触发一次
+      }
+    });
+  }, {
+    threshold: 0.25 // 25% 可见时触发 —— 你也可以改成 0.4 或 0.1
+  });
+
+  document.querySelectorAll('section[data-animate="count"]').forEach(sec => observer.observe(sec));
+});
+</script>
+
 </body>
 </html>
