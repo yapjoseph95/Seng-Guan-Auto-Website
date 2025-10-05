@@ -1,15 +1,20 @@
 export async function onRequestPost(context) {
   try {
-    const data = await context.request.formData();
+    // ✅ 改為讀取 JSON
+    const data = await context.request.json();
 
-    const name = data.get("name");
-    const email = data.get("email");
-    const phone = data.get("phone");
-    const inquiry = data.get("inquiry-type");
-    const message = data.get("message");
+    const name = data.name;
+    const email = data.email;
+    const phone = data.phone;
+    const inquiry = data.inquiry;
+    const message = data.message;
+    const turnstileToken = data["cf-turnstile-response"];
 
     if (!name || !email || !message) {
-      return new Response(JSON.stringify({ success: false, error: "Missing required fields" }), {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Missing required fields" 
+      }), {
         status: 400,
         headers: { 
           "Content-Type": "application/json",
@@ -18,6 +23,45 @@ export async function onRequestPost(context) {
       });
     }
 
+    // ✅ 驗證 Turnstile token
+    if (!turnstileToken) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Turnstile verification required" 
+      }), {
+        status: 400,
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+      });
+    }
+
+    const turnstileVerify = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        secret: context.env.TURNSTILE_SECRET_KEY, // ← 需要在 Worker 設置環境變數
+        response: turnstileToken,
+      }),
+    });
+
+    const turnstileResult = await turnstileVerify.json();
+    
+    if (!turnstileResult.success) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Turnstile verification failed" 
+      }), {
+        status: 400,
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+      });
+    }
+
+    // ✅ 發送郵件
     const mailResponse = await fetch("https://api.mailchannels.net/tx/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -25,13 +69,13 @@ export async function onRequestPost(context) {
         personalizations: [
           {
             to: [{ 
-              email: "support@sengguanauto.com.my",  // ✅ 改成你的邮箱
+              email: "support@sengguanauto.com.my",
               name: "Seng Guan Auto" 
             }],
           },
         ],
         from: {
-          email: "noreply@sengguanauto.com.my",  // ✅ 用你的域名
+          email: "noreply@sengguanauto.com.my",
           name: "Seng Guan Auto Contact Form",
         },
         reply_to: {

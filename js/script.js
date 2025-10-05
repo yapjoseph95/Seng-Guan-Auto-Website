@@ -228,9 +228,11 @@ function calculateLoan() {
 }
 
 // Contact Form validation + Cloudflare Worker submission + Turnstile check
-// ✅ Contact Form validation + Cloudflare Turnstile + Worker 邮件提交
-async function validateContactForm() {
-    const form = document.getElementById('contact-form');
+// ✅ 使用 addEventListener 而不是 onsubmit
+document.getElementById('contact-form').addEventListener('submit', async function(e) {
+    e.preventDefault(); // ← 關鍵：阻止默認提交
+    
+    const form = this;
     const name = document.getElementById('name').value.trim();
     const email = document.getElementById('email').value.trim();
     const phone = document.getElementById('phone').value.trim();
@@ -242,7 +244,7 @@ async function validateContactForm() {
     let isValid = true;
     document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
 
-    // ✅ 前端表单验证
+    // ✅ 前端驗證
     if (name === '') {
         document.getElementById('name-error').textContent = 'Name is required';
         isValid = false;
@@ -273,18 +275,18 @@ async function validateContactForm() {
     }
 
     if (!turnstileResponse) {
-        alert("⚠️ Please complete the verification first.");
+        alert("Please complete the verification first.");
         isValid = false;
     }
 
-    if (!isValid) return false;
+    if (!isValid) return;
 
-    // ✅ 提交中按钮状态
+    // ✅ 按鈕狀態
     const originalBtnText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
 
-    // ✅ 组装要发送的数据
+    // ✅ 組裝 JSON payload
     const payload = {
         name,
         email,
@@ -306,7 +308,7 @@ async function validateContactForm() {
         if (data.success) {
             form.reset();
 
-            // ✅ 重新加载 Turnstile
+            // ✅ 重置 Turnstile
             if (typeof turnstile !== 'undefined') {
                 turnstile.reset();
             }
@@ -318,18 +320,16 @@ async function validateContactForm() {
             setTimeout(() => successMsg.style.opacity = 1, 50);
             window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
         } else {
-            alert("❌ Failed to send message: " + (data.error || "Unknown error"));
-            console.error("Error details:", data.details || data);
+            alert("Failed to send message: " + (data.error || "Unknown error"));
+            console.error("Error details:", data);
         }
 
     } catch (err) {
         console.error("Fetch error:", err);
-        alert("⚠️ An error occurred: " + err.message);
+        alert("An error occurred: " + err.message);
     } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
     }
-
-    return false;
-}
+});
 
