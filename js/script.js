@@ -227,8 +227,9 @@ function calculateLoan() {
     document.getElementById('total-interest').textContent = 'RM ' + totalInterest.toFixed(2);
 }
 
-// Contact Form validation + Cloudflare submission + loading button
-function validateContactForm() {
+// Contact Form validation + Cloudflare Worker submission + Turnstile check
+// ✅ Contact Form validation + Cloudflare Turnstile + Worker 邮件提交
+async function validateContactForm() {
     const form = document.getElementById('contact-form');
     const name = document.getElementById('name').value.trim();
     const email = document.getElementById('email').value.trim();
@@ -236,10 +237,12 @@ function validateContactForm() {
     const inquiry = document.getElementById('inquiry-type').value.trim();
     const message = document.getElementById('message').value.trim();
     const submitBtn = form.querySelector('button[type="submit"]');
-    
+    const turnstileResponse = document.querySelector('[name="cf-turnstile-response"]')?.value;
+
     let isValid = true;
     document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
-    
+
+    // ✅ 前端表单验证
     if (name === '') {
         document.getElementById('name-error').textContent = 'Name is required';
         isValid = false;
@@ -269,22 +272,45 @@ function validateContactForm() {
         isValid = false;
     }
 
+    if (!turnstileResponse) {
+        alert("⚠️ Please complete the verification first.");
+        isValid = false;
+    }
+
     if (!isValid) return false;
 
+    // ✅ 提交中按钮状态
     const originalBtnText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
 
-    const formData = new FormData(form);
+    // ✅ 组装要发送的数据
+    const payload = {
+        name,
+        email,
+        phone,
+        inquiry,
+        message,
+        "cf-turnstile-response": turnstileResponse
+    };
 
-    fetch("/contact", {
-        method: "POST",
-        body: formData,
-    })
-    .then(response => response.json())
-    .then(data => {
+    try {
+        const response = await fetch("https://mail-api.yapjoseph95.workers.dev", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
         if (data.success) {
             form.reset();
+
+            // ✅ 重新加载 Turnstile
+            if (typeof turnstile !== 'undefined') {
+                turnstile.reset();
+            }
+
             const successMsg = document.getElementById('success-message');
             successMsg.style.display = 'block';
             successMsg.style.opacity = 0;
@@ -292,20 +318,18 @@ function validateContactForm() {
             setTimeout(() => successMsg.style.opacity = 1, 50);
             window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
         } else {
-            alert("Failed to send message: " + (data.error || "Unknown error"));
-            if (data.details) {
-                console.error("Error details:", data.details);
-            }
+            alert("❌ Failed to send message: " + (data.error || "Unknown error"));
+            console.error("Error details:", data.details || data);
         }
-    })
-    .catch(err => {
+
+    } catch (err) {
         console.error("Fetch error:", err);
-        alert("An error occurred: " + err.message);
-    })
-    .finally(() => {
+        alert("⚠️ An error occurred: " + err.message);
+    } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
-    });
+    }
 
     return false;
 }
+
