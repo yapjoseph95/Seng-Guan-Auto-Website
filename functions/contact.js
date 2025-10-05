@@ -75,7 +75,7 @@ export async function onRequestPost(context) {
           },
         ],
         from: {
-          email: "noreply@sengguanauto.com.my",
+          email: "no-reply@sengguanauto.com.my",
           name: "Seng Guan Auto Contact Form",
         },
         reply_to: {
