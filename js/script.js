@@ -228,6 +228,7 @@ function calculateLoan() {
 }
 
 // Contact Form validation + Cloudflare submission + loading button
+// ✅ 修复后的验证函数
 function validateContactForm() {
     const form = document.getElementById('contact-form');
     const name = document.getElementById('name').value.trim();
@@ -235,7 +236,6 @@ function validateContactForm() {
     const phone = document.getElementById('phone').value.trim();
     const inquiry = document.getElementById('inquiry-type').value.trim();
     const message = document.getElementById('message').value.trim();
-    const successMsg = document.getElementById('success-message');
     const submitBtn = form.querySelector('button[type="submit"]');
     
     let isValid = true;
@@ -272,41 +272,13 @@ function validateContactForm() {
 
     if (!isValid) return false;
 
-    // ✅ 设置按钮 loading 状态
+    // ✅ 设置 loading 状态
     const originalBtnText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
 
-    // ✅ Cloudflare Pages form submission
-    const formData = new FormData(form);
-
-    fetch("/__forms/contact-form", { // ✅ Cloudflare 自动识别表单提交
-        method: "POST",
-        body: formData,
-    })
-    .then(response => {
-        if (response.ok) {
-            form.reset();
-            successMsg.style.display = 'block';
-            successMsg.style.opacity = 0;
-            successMsg.style.transition = 'opacity 0.5s ease';
-            setTimeout(() => successMsg.style.opacity = 1, 50);
-            window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
-        } else {
-            alert("Failed to send message. Please try again later.");
-        }
-    })
-    .catch(() => {
-        alert("An error occurred. Please try again.");
-    })
-    .finally(() => {
-        // ✅ 恢复按钮状态
-        submitBtn.disabled = false;
-        submitBtn.textContent = originalBtnText;
-    });
-
-    return false; // 阻止页面刷新
+    // ✅ 让表单正常提交，Cloudflare 会自动处理
+    return true;
 }
-
 
 
