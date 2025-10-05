@@ -561,7 +561,7 @@ input:checked + .slider {
 /* CTA Section */
 .cta-section {
     padding: 80px 0;
-    background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url('https://via.placeholder.com/1920x600') no-repeat center center/cover;
+    background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url('../resources/background.jpg') no-repeat center center/cover;
     color: #fff;
     text-align: center;
 }
