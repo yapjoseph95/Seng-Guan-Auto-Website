@@ -228,121 +228,84 @@ function calculateLoan() {
 }
 
 // Contact Form validation + Cloudflare submission + loading button
-export async function onRequestPost(context) {
-  try {
-    const data = await context.request.formData();
-
-    const name = data.get("name");
-    const email = data.get("email");
-    const phone = data.get("phone");
-    const inquiry = data.get("inquiry-type");
-    const message = data.get("message");
-
-    // 🔒 防止空输入
-    if (!name || !email || !message) {
-      return new Response(JSON.stringify({ success: false, error: "Missing required fields" }), {
-        status: 400,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
-    }
-
-    // 📧 发送邮件到 MailChannels
-    const mailResponse = await fetch("https://api.mailchannels.net/tx/v1/send", {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        personalizations: [
-          {
-            to: [{ 
-              email: "support@sengguanauto.com.my",  // ✅ 改成你的真实邮箱
-              name: "Seng Guan Auto" 
-            }],
-          },
-        ],
-        from: {
-          email: "noreply@sengguanauto.com.my",  // ✅ 必须用你的域名
-          name: "Seng Guan Auto Contact Form",
-        },
-        reply_to: {
-          email: email,
-          name: name,
-        },
-        subject: `New Inquiry from ${name} (${inquiry || "General"})`,
-        content: [
-          {
-            type: "text/html",
-            value: `
-              <h2>New Contact Form Submission</h2>
-              <p><strong>Name:</strong> ${name}</p>
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Phone:</strong> ${phone || "N/A"}</p>
-              <p><strong>Inquiry Type:</strong> ${inquiry || "N/A"}</p>
-              <p><strong>Message:</strong></p>
-              <p>${message.replace(/\n/g, '<br>')}</p>
-            `,
-          },
-        ],
-      }),
-    });
-
-    // 📝 记录 MailChannels 响应（用于调试）
-    const responseText = await mailResponse.text();
-    console.log("MailChannels response:", mailResponse.status, responseText);
-
-    if (!mailResponse.ok) {
-      return new Response(JSON.stringify({ 
-        success: false, 
-        error: "Mail send failed",
-        details: responseText  // ✅ 返回详细错误
-      }), {
-        status: 500,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
-    });
-
-  } catch (err) {
-    // 📝 记录错误（用于调试）
-    console.error("Function error:", err.message, err.stack);
+function validateContactForm() {
+    const form = document.getElementById('contact-form');
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const inquiry = document.getElementById('inquiry-type').value.trim();
+    const message = document.getElementById('message').value.trim();
+    const submitBtn = form.querySelector('button[type="submit"]');
     
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: err.message 
-    }), {
-      status: 500,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      },
+    let isValid = true;
+    document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
+    
+    if (name === '') {
+        document.getElementById('name-error').textContent = 'Name is required';
+        isValid = false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        document.getElementById('email-error').textContent = 'Valid email is required';
+        isValid = false;
+    }
+
+    if (phone !== '') {
+        const phoneRegex = /^[0-9+\-\s]{8,15}$/;
+        if (!phoneRegex.test(phone)) {
+            document.getElementById('phone-error').textContent = 'Please enter a valid phone number';
+            isValid = false;
+        }
+    }
+
+    if (inquiry === '') {
+        document.getElementById('inquiry-error').textContent = 'Please select an inquiry type';
+        isValid = false;
+    }
+
+    if (message === '') {
+        document.getElementById('message-error').textContent = 'Message is required';
+        isValid = false;
+    }
+
+    if (!isValid) return false;
+
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    const formData = new FormData(form);
+
+    fetch("/contact", {
+        method: "POST",
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            form.reset();
+            const successMsg = document.getElementById('success-message');
+            successMsg.style.display = 'block';
+            successMsg.style.opacity = 0;
+            successMsg.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => successMsg.style.opacity = 1, 50);
+            window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
+        } else {
+            alert("Failed to send message: " + (data.error || "Unknown error"));
+            if (data.details) {
+                console.error("Error details:", data.details);
+            }
+        }
+    })
+    .catch(err => {
+        console.error("Fetch error:", err);
+        alert("An error occurred: " + err.message);
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
     });
-  }
+
+    return false;
 }
-
-// ✅ 处理 OPTIONS 请求（CORS）
-export async function onRequestOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
-}
-
-

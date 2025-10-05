@@ -8,41 +8,40 @@ export async function onRequestPost(context) {
     const inquiry = data.get("inquiry-type");
     const message = data.get("message");
 
-    // 🔒 防止空输入
     if (!name || !email || !message) {
       return new Response(JSON.stringify({ success: false, error: "Missing required fields" }), {
         status: 400,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*" // ✅ 添加 CORS
+          "Access-Control-Allow-Origin": "*"
         },
       });
     }
 
-    // 📧 MailChannels API (Cloudflare Pages 专用)
     const mailResponse = await fetch("https://api.mailchannels.net/tx/v1/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         personalizations: [
           {
-            to: [{ email: "support@sengguanauto.com.my", name: "Seng Guan Auto" }], // 👈 改成你的邮箱
-            dkim_domain: "sengguanauto.com.my", // ✅ 必须添加你的域名
-            dkim_selector: "mailchannels", // ✅ DKIM 选择器
+            to: [{ 
+              email: "support@sengguanauto.com.my",  // ✅ 改成你的邮箱
+              name: "Seng Guan Auto" 
+            }],
           },
         ],
         from: {
-          email: "noreply@sengguanauto.com.my", // ⚠️ 必须用你自己的域名
+          email: "noreply@sengguanauto.com.my",  // ✅ 用你的域名
           name: "Seng Guan Auto Contact Form",
         },
         reply_to: {
-          email: email, // ✅ 用户邮箱放这里
+          email: email,
           name: name,
         },
         subject: `New Inquiry from ${name} (${inquiry || "General"})`,
         content: [
           {
-            type: "text/html", // ✅ 改用 HTML 格式更美观
+            type: "text/html",
             value: `
               <h2>New Contact Form Submission</h2>
               <p><strong>Name:</strong> ${name}</p>
@@ -57,10 +56,15 @@ export async function onRequestPost(context) {
       }),
     });
 
+    const responseText = await mailResponse.text();
+    console.log("MailChannels response:", mailResponse.status, responseText);
+
     if (!mailResponse.ok) {
-      const errorText = await mailResponse.text();
-      console.error("MailChannels error:", errorText);
-      return new Response(JSON.stringify({ success: false, error: "Mail send failed" }), {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: "Mail send failed",
+        details: responseText
+      }), {
         status: 500,
         headers: { 
           "Content-Type": "application/json",
@@ -76,9 +80,14 @@ export async function onRequestPost(context) {
         "Access-Control-Allow-Origin": "*"
       },
     });
+
   } catch (err) {
-    console.error("Function error:", err);
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
+    console.error("Function error:", err.message, err.stack);
+    
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: err.message 
+    }), {
       status: 500,
       headers: { 
         "Content-Type": "application/json",
@@ -88,9 +97,9 @@ export async function onRequestPost(context) {
   }
 }
 
-// ✅ 处理 OPTIONS 请求（CORS 预检）
 export async function onRequestOptions() {
   return new Response(null, {
+    status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
