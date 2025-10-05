@@ -280,7 +280,7 @@ function validateContactForm() {
     // ✅ Cloudflare Pages form submission
     const formData = new FormData(form);
 
-    fetch("/", { // ✅ Cloudflare 自动识别表单提交
+    fetch("/__forms/contact-form", { // ✅ Cloudflare 自动识别表单提交
         method: "POST",
         body: formData,
     })
