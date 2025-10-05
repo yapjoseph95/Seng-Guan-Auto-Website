@@ -236,22 +236,25 @@ function validateContactForm() {
     const phone = document.getElementById('phone').value.trim();
     const inquiry = document.getElementById('inquiry-type').value.trim();
     const message = document.getElementById('message').value.trim();
-    const submitBtn = form.querySelector('button[type="submit"]');
+    const submitBtn = form.querySelector('button[type="submit"]'); // ✅ 只在这里声明一次
     
     let isValid = true;
     document.querySelectorAll('.error-message').forEach(el => el.textContent = '');
     
+    // 验证名字
     if (name === '') {
         document.getElementById('name-error').textContent = 'Name is required';
         isValid = false;
     }
 
+    // 验证邮箱
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         document.getElementById('email-error').textContent = 'Valid email is required';
         isValid = false;
     }
 
+    // 验证电话（可选）
     if (phone !== '') {
         const phoneRegex = /^[0-9+\-\s]{8,15}$/;
         if (!phoneRegex.test(phone)) {
@@ -260,11 +263,13 @@ function validateContactForm() {
         }
     }
 
+    // 验证询问类型
     if (inquiry === '') {
         document.getElementById('inquiry-error').textContent = 'Please select an inquiry type';
         isValid = false;
     }
 
+    // 验证消息
     if (message === '') {
         document.getElementById('message-error').textContent = 'Message is required';
         isValid = false;
@@ -272,13 +277,42 @@ function validateContactForm() {
 
     if (!isValid) return false;
 
-    // ✅ 设置 loading 状态
+    // ✅ 设置 loading 状态（使用已经声明的 submitBtn）
     const originalBtnText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
 
-    // ✅ 让表单正常提交，Cloudflare 会自动处理
-    return true;
+    // ✅ 用 fetch 提交到 Cloudflare Function
+    const formData = new FormData(form);
+
+    fetch("/functions/contact", {
+        method: "POST",
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            form.reset();
+            const successMsg = document.getElementById('success-message');
+            successMsg.style.display = 'block';
+            successMsg.style.opacity = 0;
+            successMsg.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => successMsg.style.opacity = 1, 50);
+            window.scrollTo({ top: successMsg.offsetTop - 100, behavior: 'smooth' });
+        } else {
+            alert("Failed to send message: " + (data.error || "Unknown error"));
+        }
+    })
+    .catch(err => {
+        alert("An error occurred: " + err.message);
+    })
+    .finally(() => {
+        // ✅ 恢复按钮状态
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+    });
+
+    return false; // 阻止表单默认提交
 }
 
 
