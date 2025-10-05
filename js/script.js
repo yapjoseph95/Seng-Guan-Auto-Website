@@ -285,7 +285,7 @@ function validateContactForm() {
     // ✅ 用 fetch 提交到 Cloudflare Function
     const formData = new FormData(form);
 
-    fetch("/functions/contact", {
+    fetch("/contact", {
         method: "POST",
         body: formData,
     })
