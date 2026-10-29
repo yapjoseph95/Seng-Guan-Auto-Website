@@ -229,7 +229,8 @@ function calculateLoan() {
 
 // Contact Form validation + Cloudflare Worker submission + Turnstile check
 // ✅ 使用 addEventListener 而不是 onsubmit
-document.getElementById('contact-form').addEventListener('submit', async function(e) {
+const contactForm = document.getElementById('contact-form');
+contactForm?.addEventListener('submit', async function(e) {
     e.preventDefault(); // ← 關鍵：阻止默認提交
     
     const form = this;
@@ -333,3 +334,14 @@ document.getElementById('contact-form').addEventListener('submit', async functio
     }
 });
 
+// Load the Seng Guan Auto Lime Chat widget across all static pages.
+(() => {
+    if (document.getElementById('lime-chat-widget-loader')) return;
+
+    const widgetScript = document.createElement('script');
+    widgetScript.id = 'lime-chat-widget-loader';
+    widgetScript.src = 'https://beta.kwoob.com/widget.js';
+    widgetScript.async = true;
+    widgetScript.dataset.widgetId = 'lcw_2104dc5cd4cd3d7fd9827e16e095d2cc';
+    document.head.appendChild(widgetScript);
+})();
