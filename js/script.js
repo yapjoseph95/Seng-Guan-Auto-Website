@@ -333,3 +333,14 @@ document.getElementById('contact-form').addEventListener('submit', async functio
     }
 });
 
+// Load the Seng Guan Auto Lime Chat widget across all static pages.
+(() => {
+    if (document.getElementById('lime-chat-widget-loader')) return;
+
+    const widgetScript = document.createElement('script');
+    widgetScript.id = 'lime-chat-widget-loader';
+    widgetScript.src = 'https://beta.kwoob.com/widget.js';
+    widgetScript.async = true;
+    widgetScript.dataset.widgetId = 'lcw_2104dc5cd4cd3d7fd9827e16e095d2cc';
+    document.head.appendChild(widgetScript);
+})();
