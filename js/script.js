@@ -229,7 +229,8 @@ function calculateLoan() {
 
 // Contact Form validation + Cloudflare Worker submission + Turnstile check
 // ✅ 使用 addEventListener 而不是 onsubmit
-document.getElementById('contact-form').addEventListener('submit', async function(e) {
+const contactForm = document.getElementById('contact-form');
+contactForm?.addEventListener('submit', async function(e) {
     e.preventDefault(); // ← 關鍵：阻止默認提交
     
     const form = this;
