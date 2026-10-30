@@ -340,7 +340,7 @@ contactForm?.addEventListener('submit', async function(e) {
 
     const widgetScript = document.createElement('script');
     widgetScript.id = 'lime-chat-widget-loader';
-    widgetScript.src = 'https://beta.kwoob.com/widget.js';
+    widgetScript.src = 'https://beta.kwoob.com/widget.js?v=20261030-ui-fix-2';
     widgetScript.async = true;
     widgetScript.dataset.widgetId = 'lcw_2104dc5cd4cd3d7fd9827e16e095d2cc';
     document.head.appendChild(widgetScript);
