@@ -1576,3 +1576,14 @@ footer {
     }
 
 }
+
+/* Keep the Lime Chat launcher above the existing WhatsApp button. */
+lime-chat-widget-host {
+    bottom: 102px !important;
+}
+
+@media (max-width: 768px) {
+    lime-chat-widget-host {
+        bottom: 82px !important;
+    }
+}
