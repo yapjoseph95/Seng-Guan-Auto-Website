@@ -315,8 +315,101 @@ function SiteHeader({
         <a className="header-contact header-contact--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer">
           <WhatsAppGlyph /> <span>Ask about a car</span>
         </a>
+        <CustomerServiceWidget enabled={variant.id === 'greenlight'} />
       </div>
     </header>
+  )
+}
+
+function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!enabled) {
+      setOpen(false)
+      setReady(false)
+      return
+    }
+
+    setReady(false)
+    let widgetShadow: ShadowRoot | null = null
+    const originalAttachShadow = Element.prototype.attachShadow
+    const patchedAttachShadow: typeof Element.prototype.attachShadow = function (this: Element, init) {
+      const shadow = originalAttachShadow.call(this, init)
+      if (this.localName === 'lime-chat-widget-host' && init.mode === 'closed') widgetShadow = shadow
+      return shadow
+    }
+    Element.prototype.attachShadow = patchedAttachShadow
+
+    const script = document.createElement('script')
+    script.src = 'https://beta.kwoob.com/widget.js'
+    script.dataset.widgetId = 'lcw_2104dc5cd4cd3d7fd9827e16e095d2cc'
+    script.async = true
+
+    let restoreTimer = 0
+    const restoreAttachShadow = () => {
+      if (Element.prototype.attachShadow === patchedAttachShadow) Element.prototype.attachShadow = originalAttachShadow
+      window.clearTimeout(restoreTimer)
+    }
+    const styleWidget = () => {
+      restoreAttachShadow()
+      const shadow = widgetShadow
+      if (!shadow) return
+
+      const host = document.querySelector<HTMLElement>('lime-chat-widget-host[data-widget-id="lcw_2104dc5cd4cd3d7fd9827e16e095d2cc"]')
+      host?.style.setProperty('right', '22px', 'important')
+      host?.style.setProperty('bottom', '22px', 'important')
+
+      const style = document.createElement('style')
+      style.textContent = [
+        '.launcher { width: 54px !important; height: 54px !important; border: 1px solid #f25a54 !important; border-radius: 7px !important; background: #e6322b !important; box-shadow: 0 10px 30px rgb(0 0 0 / 36%) !important; }',
+        '.launcher:hover { background: #c92823 !important; box-shadow: 0 12px 34px rgb(0 0 0 / 42%) !important; }',
+        '.launcher:focus-visible { outline-color: #f25a54 !important; }',
+        '.panel { border: 1px solid #303438 !important; border-radius: 8px !important; box-shadow: 0 18px 58px rgb(0 0 0 / 52%) !important; }',
+        'iframe { border-radius: 7px !important; }',
+        '@media (max-width: 760px) {',
+        '  :host { right: 0 !important; bottom: 0 !important; width: 0 !important; height: 0 !important; }',
+        '  .launcher { display: none !important; }',
+        '  .panel { position: fixed !important; top: 80px !important; right: 12px !important; bottom: auto !important; width: min(390px, calc(100vw - 24px)) !important; height: min(610px, calc(100dvh - 96px)) !important; transform-origin: top right !important; }',
+        '}',
+      ].join('\n')
+      shadow.append(style)
+      setReady(true)
+    }
+
+    script.addEventListener('load', styleWidget, { once: true })
+    script.addEventListener('error', () => {
+      restoreAttachShadow()
+      setReady(false)
+    }, { once: true })
+    restoreTimer = window.setTimeout(restoreAttachShadow, 15000)
+    document.head.append(script)
+
+    const trigger = () => {
+      const launcher = widgetShadow?.querySelector<HTMLButtonElement>('.launcher')
+      if (!launcher) return
+      launcher.click()
+      setOpen(launcher.getAttribute('aria-expanded') === 'true')
+    }
+    const button = buttonRef.current
+    button?.addEventListener('click', trigger)
+
+    return () => {
+      button?.removeEventListener('click', trigger)
+      restoreAttachShadow()
+      script.remove()
+      document.querySelector('lime-chat-widget-host[data-widget-id="lcw_2104dc5cd4cd3d7fd9827e16e095d2cc"]')?.remove()
+    }
+  }, [enabled])
+
+  if (!enabled) return null
+
+  return (
+    <button ref={buttonRef} className="header-customer-service" type="button" aria-label="Open customer service chat" aria-expanded={open} disabled={!ready}>
+      <MessageCircle aria-hidden="true" size={18} />
+    </button>
   )
 }
 
