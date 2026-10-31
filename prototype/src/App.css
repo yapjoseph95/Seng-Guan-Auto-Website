@@ -689,6 +689,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 }
 
 @media (max-width: 760px) {
+  .site-atmosphere { background: linear-gradient(145deg, #070809 0%, #0b0c0e 40%, #130b0d 56%, #2c0d12 72%, #4b1017 90%); }
   .prototype-app { padding-bottom: calc(144px + env(safe-area-inset-bottom)); }
   .header-inner { position: relative; width: calc(100% - 32px); min-height: 72px; }
   .brand { min-width: 0; }
