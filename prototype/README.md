@@ -15,6 +15,7 @@ pnpm dev
 Open the local address printed by Vite. The selector stays fixed at the bottom of the page. Use its arrows, the select menu, or the keyboard left/right arrows to compare directions. The URL contains `variant` and `page`, so a particular option can be shared directly:
 
 ```text
+?variant=greenlight&page=home
 ?variant=lot-712&page=home
 ?variant=spec-ledger&page=cars
 ?variant=monthly-key&page=finance
