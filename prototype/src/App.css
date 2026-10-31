@@ -129,8 +129,11 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .hero-copy { position: relative; z-index: 2; }
 
 /* Showroom Redline: bold dealership identity, full-width car image, and direct stock links. */
-.prototype-app[data-variant="greenlight"] { font-family: var(--body); }
-.prototype-app[data-variant="greenlight"] .site-header { background: #111315; border-color: #282b2f; }
+.prototype-app[data-variant="greenlight"] {
+  font-family: var(--body);
+  background: linear-gradient(135deg, #070809 0%, #0b0c0e 58%, #130b0d 78%, #2c0d12 92%, #4b1017 100%);
+}
+.prototype-app[data-variant="greenlight"] .site-header { background: rgb(17 19 21 / 90%); border-color: #282b2f; }
 .prototype-app[data-variant="greenlight"] .main-nav a,
 .prototype-app[data-variant="greenlight"] .brand-caption { color: #b9bec3; }
 .prototype-app[data-variant="greenlight"] .main-nav a:hover,
@@ -139,7 +142,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .prototype-app[data-variant="greenlight"] .brand-mark--dark { background: transparent; border: 0; border-radius: 0; }
 .prototype-app[data-variant="greenlight"] .hero--showroom {
   width: 100%; min-height: 630px; padding: 76px max(30px, calc((100% - 1320px) / 2));
-  display: flex; align-items: center; color: #fff; background: #0c0e10;
+  display: flex; align-items: center; color: #fff; background: transparent;
 }
 .showroom-image { position: absolute; z-index: -1; inset: 0 0 0 auto; width: min(72%, 1050px); overflow: hidden; }
 .showroom-image::after { position: absolute; inset: 0; content: ""; background: linear-gradient(90deg, #0c0e10 0%, rgb(12 14 16 / 90%) 10%, rgb(12 14 16 / 35%) 49%, rgb(12 14 16 / 15%) 100%), linear-gradient(0deg, rgb(12 14 16 / 78%), transparent 45%); }
@@ -181,14 +184,15 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .prototype-app[data-variant="greenlight"] .showroom-actions .button--outline-light { color: #f5f5f3; border-color: #666b70; }
 .showroom-whatsapp { position: absolute; right: max(28px, calc((100% - 1320px) / 2)); bottom: 36px; min-height: 45px; padding: 0 15px; display: inline-flex; align-items: center; gap: 9px; color: #fff; background: #171a1d; border: 1px solid #41464b; border-radius: 5px; font-size: 11px; font-weight: 750; text-decoration: none; }
 .showroom-whatsapp svg:first-child { color: #f25a54; }
-.prototype-app[data-variant="greenlight"] .section-vehicles { background: #101214; }
+.prototype-app[data-variant="greenlight"] .section-vehicles { background: rgb(16 18 20 / 86%); }
+.prototype-app[data-variant="greenlight"] .visit-teaser { background: rgb(23 26 29 / 88%); }
 .prototype-app[data-variant="greenlight"] .section-heading { color: #fff; }
 .prototype-app[data-variant="greenlight"] .section-label { color: #f25a54; }
 .prototype-app[data-variant="greenlight"] .vehicle-card { overflow: hidden; background: #171a1d; border: 1px solid #2d3237; border-radius: 6px; }
 .prototype-app[data-variant="greenlight"] .vehicle-photo { border-radius: 0; }
 .prototype-app[data-variant="greenlight"] .vehicle-info h3,
 .prototype-app[data-variant="greenlight"] .vehicle-info strong { color: #fff; }
-.prototype-app[data-variant="greenlight"] .site-footer { color: #f4f4f2; background: #171a1d; border-color: #303438; }
+.prototype-app[data-variant="greenlight"] .site-footer { color: #f4f4f2; background: rgb(23 26 29 / 88%); border-color: #303438; }
 .prototype-app[data-variant="greenlight"] .site-footer .footer-contact a,
 .prototype-app[data-variant="greenlight"] .site-footer .footer-links button { color: #b9bec3; }
 
