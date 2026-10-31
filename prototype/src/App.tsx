@@ -239,6 +239,24 @@ function SiteHeader({
   setMenuOpen: (open: boolean) => void
 }) {
   const brandLogo = variant.id === 'greenlight' ? darkLogo : logo
+  const navRef = useRef<HTMLElement>(null)
+  const navIndicatorRef = useRef<HTMLSpanElement>(null)
+
+  useGSAP(() => {
+    const nav = navRef.current
+    const indicator = navIndicatorRef.current
+    const activeLink = nav?.querySelector<HTMLAnchorElement>('a[aria-current="page"]')
+    if (!nav || !indicator || !activeLink || !window.matchMedia('(min-width: 761px)').matches) return
+
+    gsap.to(indicator, {
+      x: activeLink.offsetLeft,
+      width: activeLink.offsetWidth,
+      duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 0.42,
+      ease: 'power3.out',
+      overwrite: true,
+    })
+  }, { dependencies: [activePage], scope: navRef })
+
   return (
     <header className={`site-header site-header--${variant.id}`}>
       <div className="header-inner">
@@ -249,7 +267,7 @@ function SiteHeader({
         <button className="menu-toggle" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
         </button>
-        <nav className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
+        <nav ref={navRef} className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
           {pages.map((page) => (
             <a key={page.id} href={navTo(page.id)} onClick={interceptRoute(page.id)} aria-current={activePage === page.id ? 'page' : undefined}>
               {page.label}
@@ -258,6 +276,7 @@ function SiteHeader({
           <a className="nav-inventory" href={contact.inventory} target="_blank" rel="noreferrer">
             Current listings <ArrowUpRight aria-hidden="true" size={15} />
           </a>
+          <span className="nav-indicator" ref={navIndicatorRef} aria-hidden="true" />
         </nav>
         <a className="header-contact" href={contact.whatsapp} target="_blank" rel="noreferrer">
           <MessageCircle aria-hidden="true" size={17} /> <span>Ask about a car</span>
