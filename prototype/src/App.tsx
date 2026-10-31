@@ -773,6 +773,7 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
   const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <footer className={`site-footer site-footer--${variant.id}`}>
+      <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
       <div className="footer-main">
         <div className="footer-brand">
           <div className="footer-brand-lockup">
@@ -796,7 +797,6 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
           <div className="footer-hours"><Clock size={16} aria-hidden="true" /><div>{contact.hours.map(([day, hours]) => <span key={day}><b>{day}:</b> {hours}</span>)}</div></div>
         </div>
       </div>
-      <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
       <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">Live inventory on Carlist <ArrowUpRight size={14} aria-hidden="true" /></a></div>
     </footer>
   )
