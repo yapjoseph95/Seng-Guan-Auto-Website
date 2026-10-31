@@ -131,7 +131,7 @@
 .showroom-image::after { z-index: 1; }
 .showroom-image .showroom-photo { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; filter: saturate(.78) contrast(1.12); opacity: 0; transform: scale(1.06); transition: opacity 900ms ease-in-out; will-change: transform, opacity; }
 .showroom-image .showroom-photo--visible { opacity: 1; }
-.featured-showcase { min-height: 420px; margin-bottom: 26px; display: grid; grid-template-columns: .9fr 1.1fr; overflow: hidden; background: #171a1d; border: 1px solid #2d3237; border-radius: 6px; }
+.featured-showcase { min-height: 420px; margin-bottom: 26px; display: grid; grid-template-columns: .9fr 1.1fr; overflow: hidden; background: transparent; border: 0; border-radius: 0; }
 .featured-showcase-copy { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: clamp(28px, 5vw, 60px); }
 .featured-showcase-copy h2 { max-width: 9ch; margin: 0 0 18px; color: #fff; }
 .featured-showcase-copy > p:not(.section-label) { max-width: 32ch; margin: 0 0 22px; color: #b9bec3; font-size: 14px; line-height: 1.65; }
