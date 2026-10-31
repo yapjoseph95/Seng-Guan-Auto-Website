@@ -107,6 +107,9 @@
 .main-nav .nav-indicator { position: absolute; bottom: 0; left: 0; width: 0; height: 2px; background: var(--brand); pointer-events: none; }
 .main-nav .nav-inventory { gap: 6px; margin-left: 3px; color: var(--brand); font-weight: 700; }
 .header-contact { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; gap: 9px; color: #fff !important; background: var(--brand); border-radius: var(--radius); font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform 160ms ease, filter 160ms ease; }
+.header-contact--whatsapp { background: #25d366; }
+.header-contact.header-contact--whatsapp:hover { background: #1ebe5d; filter: none; }
+.header-contact--whatsapp svg { width: 17px; height: 17px; flex: none; }
 .header-contact:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .menu-toggle { display: none; min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); cursor: pointer; }
 

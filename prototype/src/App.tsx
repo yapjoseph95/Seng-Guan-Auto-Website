@@ -297,8 +297,8 @@ function SiteHeader({
           </a>
           <span className="nav-indicator" ref={navIndicatorRef} aria-hidden="true" />
         </nav>
-        <a className="header-contact" href={contact.whatsapp} target="_blank" rel="noreferrer">
-          <MessageCircle aria-hidden="true" size={17} /> <span>Ask about a car</span>
+        <a className="header-contact header-contact--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer">
+          <WhatsAppGlyph /> <span>Ask about a car</span>
         </a>
       </div>
     </header>
