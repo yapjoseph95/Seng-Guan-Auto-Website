@@ -579,11 +579,19 @@ function StoryTeaser({ variant, goToPage }: { variant: Direction; goToPage: (pag
   )
 }
 
+function WhatsAppGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M20.52 3.48A11.82 11.82 0 0 0 12.1 0C5.55 0 .22 5.33.22 11.9c0 2.1.55 4.14 1.59 5.95L.12 24l6.3-1.66a11.9 11.9 0 0 0 5.68 1.45h.01c6.56 0 11.9-5.34 11.9-11.9a11.82 11.82 0 0 0-3.49-8.41Zm-8.42 18.3h-.01a9.9 9.9 0 0 1-5.04-1.38l-.36-.22-3.74.98 1-3.64-.24-.38a9.85 9.85 0 0 1-1.51-5.25c0-5.46 4.44-9.9 9.9-9.9a9.84 9.84 0 0 1 7 2.9 9.83 9.83 0 0 1 2.9 7c0 5.45-4.44 9.89-9.9 9.89Zm5.43-7.4c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.23-.64.08-.3-.15-1.26-.47-2.4-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.34.45-.52.15-.17.2-.3.3-.49.1-.2.05-.38-.03-.53-.07-.15-.67-1.61-.91-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.87 1.21 3.07c.15.2 2.09 3.2 5.07 4.49.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.08-.13-.27-.2-.57-.35Z" />
+    </svg>
+  )
+}
+
 function VisitTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
   return (
     <section className="section visit-teaser">
       <div><p className="section-label">A conversation starts here</p><h2>Have a car in mind?</h2><p>Ask about a vehicle, arrange a visit, or talk through the next step with the Seng Guan Auto team.</p></div>
-      <div className="visit-actions"><a className="button button--primary" href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={17} aria-hidden="true" /> Ask on WhatsApp</a><button className="button button--plain" onClick={() => goToPage('contact')}>Contact details</button></div>
+      <div className="visit-actions"><a className="button button--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer"><WhatsAppGlyph /> Ask on WhatsApp</a><button className="button button--plain" onClick={() => goToPage('contact')}>Contact details</button></div>
     </section>
   )
 }

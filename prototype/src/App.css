@@ -215,6 +215,9 @@
 .button:hover { transform: translateY(-1px); }
 .button--primary { color: #fff !important; background: var(--brand); }
 .button--primary:hover { filter: brightness(1.08); }
+.button--whatsapp { color: #fff !important; background: #25d366; border-color: #25d366; }
+.button--whatsapp:hover { color: #fff !important; background: #1ebe5d; border-color: #1ebe5d; }
+.button--whatsapp svg { width: 18px; height: 18px; flex: none; }
 .button--plain { color: var(--ink); background: transparent; border-color: var(--line); }
 .button--plain:hover, .button--soft:hover { border-color: var(--brand); }
 .button--soft { color: var(--brand); background: color-mix(in srgb, var(--brand) 7%, var(--paper)); border-color: transparent; }
