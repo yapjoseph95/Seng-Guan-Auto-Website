@@ -723,9 +723,22 @@ function ContactPage({ variant }: { variant: Direction }) {
 
 function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
   const brandLogo = variant.id === 'greenlight' ? darkLogo : logo
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`
+  const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <footer className={`site-footer site-footer--${variant.id}`}>
-      <div className="footer-main"><div className="footer-brand"><span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span><p>Quality used cars · Banting, Selangor</p></div><div className="footer-links"><strong>Explore</strong>{pages.slice(1, 5).map((page) => <button key={page.id} onClick={() => goToPage(page.id)}>{page.label}</button>)}</div><div className="footer-contact"><strong>Get in touch</strong><a href={contact.phoneHref}>{contact.phone}</a><a href={`mailto:${contact.email}`}>{contact.email}</a><a href={contact.whatsapp} target="_blank" rel="noreferrer">WhatsApp <ArrowUpRight size={14} aria-hidden="true" /></a></div></div>
+      <div className="footer-main">
+        <div className="footer-brand">
+          <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
+          <p className="footer-address">{contact.address}</p>
+          <nav className="footer-directions" aria-label="Showroom directions">
+            <a href={googleMapsUrl} target="_blank" rel="noreferrer">Google Maps <ArrowUpRight size={14} aria-hidden="true" /></a>
+            <a href={wazeUrl} target="_blank" rel="noreferrer">Waze <ArrowUpRight size={14} aria-hidden="true" /></a>
+          </nav>
+        </div>
+        <div className="footer-links"><strong>Explore</strong>{pages.slice(1, 5).map((page) => <button key={page.id} onClick={() => goToPage(page.id)}>{page.label}</button>)}</div>
+        <div className="footer-contact"><strong>Get in touch</strong><a href={contact.phoneHref}>{contact.phone}</a><a href={`mailto:${contact.email}`}>{contact.email}</a><a href={contact.whatsapp} target="_blank" rel="noreferrer">WhatsApp <ArrowUpRight size={14} aria-hidden="true" /></a></div>
+      </div>
       <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">Live inventory on Carlist <ArrowUpRight size={14} aria-hidden="true" /></a></div>
     </footer>
   )

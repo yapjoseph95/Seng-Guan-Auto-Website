@@ -494,6 +494,10 @@
 .site-footer { padding: 48px max(28px, calc((100% - var(--content)) / 2)) 18px; color: var(--ink); background: var(--paper); border-top: 1px solid var(--line); }
 .footer-main { display: grid; grid-template-columns: 1.4fr .7fr .9fr; gap: 5vw; padding-bottom: 35px; }
 .footer-brand p { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
+.footer-brand .footer-address { max-width: 38ch; line-height: 1.55; }
+.footer-directions { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.footer-directions a { min-height: 28px; display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; text-decoration: none; }
+.footer-directions a:hover { color: var(--brand); }
 .footer-links, .footer-contact { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .footer-links strong, .footer-contact strong { margin-bottom: 5px; color: var(--ink); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 .footer-links button, .footer-contact a { min-height: 28px; padding: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); background: none; border: 0; font-size: 12px; text-decoration: none; cursor: pointer; }
