@@ -118,6 +118,20 @@ function App() {
   useGSAP(() => {
     const media = gsap.matchMedia()
     media.add('(prefers-reduced-motion: no-preference)', () => {
+      if (route.variant === 'greenlight') {
+        gsap.fromTo('.site-atmosphere', { y: 0 }, {
+          y: -36,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: appRef.current,
+            start: 'top top',
+            end: 'bottom bottom',
+            scrub: 1.2,
+            invalidateOnRefresh: true,
+          },
+        })
+      }
+
       gsap.fromTo('#main-content', { autoAlpha: 0, y: 12 }, {
         autoAlpha: 1,
         y: 0,
@@ -216,6 +230,7 @@ function App() {
 
   return (
     <div className="prototype-app" data-variant={variant.id} ref={appRef} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
+      {variant.id === 'greenlight' && <div className="site-atmosphere" aria-hidden="true" />}
       <a className="skip-link" href="#main-content">Skip to content</a>
       <SiteHeader
         variant={variant}
