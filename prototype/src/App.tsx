@@ -768,6 +768,8 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
       <div className="footer-main">
         <div className="footer-brand">
           <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
+          <p className="footer-company">Seng Guan Auto Sdn. Bhd.</p>
+          <p className="footer-registration">Company No. 202301019072 (1512994-A)</p>
           <p className="footer-address">{contact.address}</p>
           <nav className="footer-directions" aria-label="Showroom directions">
             <a href={googleMapsUrl} target="_blank" rel="noreferrer">Google Maps <ArrowUpRight size={14} aria-hidden="true" /></a>
