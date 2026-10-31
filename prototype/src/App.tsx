@@ -108,6 +108,13 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [notice])
 
+  useEffect(() => {
+    const snapEnabled = route.page === 'home' || route.page === 'about'
+    if (snapEnabled) document.documentElement.dataset.scrollSnap = 'sections'
+    else delete document.documentElement.dataset.scrollSnap
+    return () => { delete document.documentElement.dataset.scrollSnap }
+  }, [route.page])
+
   useGSAP(() => {
     const media = gsap.matchMedia()
     media.add('(prefers-reduced-motion: no-preference)', () => {

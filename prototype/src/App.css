@@ -111,6 +111,15 @@
 .menu-toggle { display: none; min-width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); cursor: pointer; }
 
 .page { min-height: 60vh; }
+html[data-scroll-snap="sections"] { scroll-snap-type: y proximity; scroll-padding-top: 88px; }
+html[data-scroll-snap="sections"] .page--home > .hero,
+html[data-scroll-snap="sections"] .page--home > .home-flow > .section,
+html[data-scroll-snap="sections"] .page--about .content-page--about > .page-intro,
+html[data-scroll-snap="sections"] .page--about .content-page--about > .about-feature,
+html[data-scroll-snap="sections"] .page--about .content-page--about > .about-values,
+html[data-scroll-snap="sections"] .page--about .content-page--about > .team-section,
+html[data-scroll-snap="sections"] .page--about .content-page--about > .about-services,
+html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-teaser { scroll-snap-align: start; }
 .hero { position: relative; isolation: isolate; width: min(var(--content), calc(100% - 56px)); min-height: 570px; margin: 0 auto; overflow: hidden; }
 .hero h1 { max-width: 10.5ch; margin-bottom: 21px; font-family: var(--display); font-size: clamp(3.4rem, 6.4vw, 6rem); font-weight: 700; line-height: .94; letter-spacing: -.025em; }
 .hero p { max-width: 48ch; color: var(--muted); font-size: 16px; line-height: 1.65; }
@@ -187,6 +196,7 @@
   .showroom-art-copy { right: 26px; bottom: 38px; left: 38px; }
 }
 @media (max-width: 680px) {
+  html[data-scroll-snap="sections"] { scroll-padding-top: 72px; }
   .prototype-app[data-variant="greenlight"] .hero--showroom { min-height: 650px; padding: 50px 24px 120px; align-items: flex-start; }
   .prototype-app[data-variant="greenlight"] .showroom-image { inset: auto 0 0; width: 100%; height: 55%; }
   .prototype-app[data-variant="greenlight"] .showroom-image::after { background: linear-gradient(180deg, #0c0e10 0%, rgb(12 14 16 / 72%) 28%, rgb(12 14 16 / 10%) 100%); }
@@ -204,6 +214,7 @@
   .showroom-whatsapp { right: 22px; bottom: 27px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  html[data-scroll-snap="sections"] { scroll-snap-type: none; }
   .showroom-gallery-track { animation: none; }
   .showroom-image .showroom-photo { transition: none; transform: none; will-change: auto; }
   .prototype-app button:not(:disabled), .prototype-app a.button, .prototype-app .header-contact,
