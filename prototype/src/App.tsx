@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -33,6 +33,14 @@ function readRoute(): RouteState {
 
 function isPlainLeftClick(event: MouseEvent<HTMLAnchorElement>) {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+}
+
+function preventImageDrag(event: DragEvent<HTMLDivElement>) {
+  if (event.target instanceof Element && event.target.closest('img')) event.preventDefault()
+}
+
+function preventImageContextMenu(event: MouseEvent<HTMLDivElement>) {
+  if (event.target instanceof Element && event.target.closest('img')) event.preventDefault()
 }
 
 function App() {
@@ -196,7 +204,7 @@ function App() {
   }
 
   return (
-    <div className="prototype-app" data-variant={variant.id} ref={appRef}>
+    <div className="prototype-app" data-variant={variant.id} ref={appRef} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
       <a className="skip-link" href="#main-content">Skip to content</a>
       <SiteHeader
         variant={variant}
