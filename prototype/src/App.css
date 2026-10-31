@@ -121,7 +121,7 @@
 .prototype-app[data-variant="greenlight"] .brand-caption { color: #b9bec3; }
 .prototype-app[data-variant="greenlight"] .main-nav a:hover,
 .prototype-app[data-variant="greenlight"] .main-nav a[aria-current="page"] { color: #fff; }
-.prototype-app[data-variant="greenlight"] .brand-mark { border: 2px solid #fff; }
+.prototype-app[data-variant="greenlight"] .brand-mark--dark { background: transparent; border: 0; border-radius: 0; }
 .prototype-app[data-variant="greenlight"] .hero--showroom {
   width: 100%; min-height: 630px; padding: 76px max(30px, calc((100% - 1320px) / 2));
   display: flex; align-items: center; color: #fff; background: #0c0e10;

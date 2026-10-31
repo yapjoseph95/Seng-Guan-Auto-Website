@@ -8,6 +8,7 @@ import {
   Menu, MessageCircle, Phone, Search, SlidersHorizontal, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
+import darkLogo from './assets/logo-dark.svg'
 import showroom from './assets/showroom.jpg'
 import { contact, directions, faqItems, pages, vehicles, type Direction, type PageId, type Vehicle } from './data'
 import './App.css'
@@ -237,11 +238,12 @@ function SiteHeader({
   menuOpen: boolean
   setMenuOpen: (open: boolean) => void
 }) {
+  const brandLogo = variant.id === 'greenlight' ? darkLogo : logo
   return (
     <header className={`site-header site-header--${variant.id}`}>
       <div className="header-inner">
         <a className="brand" href={navTo('home')} onClick={interceptRoute('home')} aria-label="Seng Guan Auto home">
-          <span className="brand-mark"><img src={logo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
+          <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
           <span className="brand-caption">Quality used cars · Banting</span>
         </a>
         <button className="menu-toggle" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
@@ -720,9 +722,10 @@ function ContactPage({ variant }: { variant: Direction }) {
 }
 
 function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const brandLogo = variant.id === 'greenlight' ? darkLogo : logo
   return (
     <footer className={`site-footer site-footer--${variant.id}`}>
-      <div className="footer-main"><div className="footer-brand"><span className="brand-mark"><img src={logo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span><p>Quality used cars · Banting, Selangor</p></div><div className="footer-links"><strong>Explore</strong>{pages.slice(1, 5).map((page) => <button key={page.id} onClick={() => goToPage(page.id)}>{page.label}</button>)}</div><div className="footer-contact"><strong>Get in touch</strong><a href={contact.phoneHref}>{contact.phone}</a><a href={`mailto:${contact.email}`}>{contact.email}</a><a href={contact.whatsapp} target="_blank" rel="noreferrer">WhatsApp <ArrowUpRight size={14} aria-hidden="true" /></a></div></div>
+      <div className="footer-main"><div className="footer-brand"><span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span><p>Quality used cars · Banting, Selangor</p></div><div className="footer-links"><strong>Explore</strong>{pages.slice(1, 5).map((page) => <button key={page.id} onClick={() => goToPage(page.id)}>{page.label}</button>)}</div><div className="footer-contact"><strong>Get in touch</strong><a href={contact.phoneHref}>{contact.phone}</a><a href={`mailto:${contact.email}`}>{contact.email}</a><a href={contact.whatsapp} target="_blank" rel="noreferrer">WhatsApp <ArrowUpRight size={14} aria-hidden="true" /></a></div></div>
       <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">Live inventory on Carlist <ArrowUpRight size={14} aria-hidden="true" /></a></div>
     </footer>
   )
