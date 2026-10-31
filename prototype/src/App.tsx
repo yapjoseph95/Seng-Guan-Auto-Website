@@ -739,7 +739,7 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
     if (!counter || !impact) return
     const target = Number(counter.dataset.countTo)
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      counter.textContent = `${target.toLocaleString()}+`
+      counter.textContent = `${target}+`
       return
     }
     const value = { count: 0 }
@@ -747,7 +747,7 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
       count: target,
       duration: 2.1,
       ease: 'power2.out',
-      onUpdate: () => { counter.textContent = `${Math.floor(value.count).toLocaleString()}+` },
+      onUpdate: () => { counter.textContent = `${Math.floor(value.count)}+` },
       scrollTrigger: { trigger: impact, start: 'top 82%', once: true },
     })
   }, { scope: aboutRef })
