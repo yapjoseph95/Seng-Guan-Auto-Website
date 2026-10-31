@@ -10,6 +10,9 @@ import {
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
 import showroom from './assets/showroom.jpg'
+import angKinGuanPortrait from '../../resources/team/1.jpg'
+import johnAngPortrait from '../../resources/team/2.jpg'
+import angZiWeiPortrait from '../../resources/team/john.jpg'
 import { contact, directions, faqItems, pages, vehicles, type Direction, type PageId, type Vehicle } from './data'
 import './App.css'
 
@@ -715,16 +718,38 @@ function FinancePage({ variant }: { variant: Direction }) {
 
 function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
   const team = [
-    ['Ang Kin Guan', 'Founder & CEO'],
-    ['John Ang', 'Managing Director'],
-    ['Ang Zi Wei', 'Operations Director'],
+    {
+      name: 'Ang Kin Guan', role: 'Founder & CEO', experience: '30+', photo: angKinGuanPortrait,
+      bio: 'With over 30 years in the automotive industry, Mr. Ang founded Seng Guan Auto with a vision to transform the used car buying experience in Malaysia.',
+    },
+    {
+      name: 'John Ang', role: 'Managing Director', experience: '18+', photo: johnAngPortrait,
+      bio: 'John oversees daily operations and ensures that every vehicle meets our strict quality standards before reaching our showroom floor.',
+    },
+    {
+      name: 'Ang Zi Wei', role: 'Operations Director', experience: '15+', photo: angZiWeiPortrait,
+      bio: 'Zi Wei leads our sales team with a customer-first approach, focusing on understanding client needs rather than pushing for quick sales.',
+    },
   ]
   return (
     <div className={`content-page content-page--about content-page--${variant.id}`}>
       <PageIntro eyebrow="Seng Guan Auto Sdn. Bhd." title="A local showroom in Banting." description="Get to know the dealership, then use the live listing page for up-to-date car details." />
       <section className="about-feature"><div className="about-feature-image"><img src={showroom} alt="Seng Guan Auto showroom in Banting" width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">Visit in person</p><h2>Good questions belong beside the car.</h2><p>Take a closer look at a vehicle, ask about its condition and terms, and get the information you need before deciding on your next step.</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">Open the address in Maps <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
       <section className="approach-section"><div className="section-heading"><div><p className="section-label">A clear buying conversation</p><h2>Start with what you need to know.</h2></div></div><div className="approach-list"><article><span>Look closely</span><h3>Ask about the vehicle</h3><p>Confirm the condition and features of the car you are considering.</p></article><article><span>Compare openly</span><h3>Review the terms</h3><p>Check current price, loan details, and any warranty terms in writing.</p></article><article><span>Take your time</span><h3>Choose the next step</h3><p>Talk to the team, arrange a visit, or return to the listings when you are ready.</p></article></div></section>
-      <section className="team-section"><div><p className="section-label">The people you can contact</p><h2>Meet the team.</h2></div><ul>{team.map(([name, role]) => <li key={name}><strong>{name}</strong><span>{role}</span></li>)}</ul></section>
+      <section className="team-section">
+        <div className="team-heading"><h2>Meet Our Team</h2><p>The passionate people behind Seng Guan Auto&apos;s success</p></div>
+        <div className="team-grid">
+          {team.map((member) => (
+            <article className="team-card" key={member.name}>
+              <div className="team-photo"><img src={member.photo} alt={member.name} width="150" height="150" loading="lazy" /></div>
+              <h3>{member.name}</h3>
+              <p className="team-role">{member.role}</p>
+              <div className="team-experience"><strong>{member.experience}</strong><span>Years Experience</span></div>
+              <p className="team-bio">{member.bio}</p>
+            </article>
+          ))}
+        </div>
+      </section>
       <VisitTeaser goToPage={goToPage} />
     </div>
   )
