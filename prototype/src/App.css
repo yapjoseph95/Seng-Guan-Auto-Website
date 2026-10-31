@@ -508,9 +508,10 @@
 .footer-brand p { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
 .footer-brand-lockup { display: flex; align-items: center; gap: 18px; }
 .footer-brand-lockup .brand-mark { flex: none; }
-.footer-brand .footer-slogan { max-width: 230px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
-.footer-brand .footer-company { margin-top: 12px; color: var(--ink); font-size: 12px; font-weight: 700; }
+.footer-legal-lockup { min-width: 0; }
+.footer-brand .footer-company { margin: 0; color: var(--ink); font-size: 12px; font-weight: 700; }
 .footer-brand .footer-registration { margin-top: 4px; font-size: 11px; }
+.footer-brand .footer-slogan { max-width: 300px; margin-top: 12px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .footer-address-row { display: flex; align-items: flex-start; gap: 9px; margin-top: 12px; }
 .footer-address-row > svg { margin-top: 2px; color: var(--brand); flex: none; }
 .footer-brand .footer-address { max-width: 38ch; margin: 0; line-height: 1.55; }
@@ -518,7 +519,7 @@
 .footer-directions a { min-height: 28px; display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; text-decoration: none; }
 .footer-directions a:hover { color: var(--brand); }
 .footer-directions a > svg:first-child { color: var(--brand); }
-.footer-socials { display: flex; gap: 10px; margin-top: 14px; }
+.footer-socials { display: flex; gap: 10px; margin-top: 2px; }
 .footer-social-link { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; color: #f4f4f2; background: #303438; border-radius: 50%; transition: color 160ms ease, background-color 160ms ease, transform 160ms ease; }
 .footer-social-link svg { width: 19px; height: 19px; }
 .footer-social-link:hover { color: #fff; background: #25d366; transform: translateY(-2px); }

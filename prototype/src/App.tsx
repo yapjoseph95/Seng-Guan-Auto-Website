@@ -769,17 +769,16 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
         <div className="footer-brand">
           <div className="footer-brand-lockup">
             <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
-            <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
+            <div className="footer-legal-lockup">
+              <p className="footer-company">Seng Guan Auto Sdn. Bhd.</p>
+              <p className="footer-registration">Company No. 202301019072 (1512994-A)</p>
+            </div>
           </div>
-          <p className="footer-company">Seng Guan Auto Sdn. Bhd.</p>
-          <p className="footer-registration">Company No. 202301019072 (1512994-A)</p>
+          <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
           <div className="footer-address-row"><MapPin size={17} aria-hidden="true" /><p className="footer-address">{contact.address}</p></div>
           <nav className="footer-directions" aria-label="Showroom directions">
             <a href={googleMapsUrl} target="_blank" rel="noreferrer"><MapPin size={15} aria-hidden="true" /> Google Maps <ArrowUpRight size={14} aria-hidden="true" /></a>
             <a href={wazeUrl} target="_blank" rel="noreferrer"><Navigation size={15} aria-hidden="true" /> Waze <ArrowUpRight size={14} aria-hidden="true" /></a>
-          </nav>
-          <nav className="footer-socials" aria-label="Social media">
-            <a className="footer-social-link" href={contact.whatsapp} target="_blank" rel="noreferrer" aria-label="Chat with Seng Guan Auto on WhatsApp"><WhatsAppGlyph /></a>
           </nav>
         </div>
         <div className="footer-links"><strong>Explore</strong>{pages.slice(1, 5).map((page) => <button key={page.id} onClick={() => goToPage(page.id)}>{page.label}</button>)}</div>
@@ -788,6 +787,9 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
           <a href={contact.phoneHref}><Phone size={16} aria-hidden="true" /> {contact.phone}</a>
           <a href={`mailto:${contact.email}`}><Mail size={16} aria-hidden="true" /> {contact.email}</a>
           <div className="footer-hours"><Clock size={16} aria-hidden="true" /><div>{contact.hours.map(([day, hours]) => <span key={day}><b>{day}:</b> {hours}</span>)}</div></div>
+          <nav className="footer-socials" aria-label="Social media">
+            <a className="footer-social-link" href={contact.whatsapp} target="_blank" rel="noreferrer" aria-label="Chat with Seng Guan Auto on WhatsApp"><WhatsAppGlyph /></a>
+          </nav>
         </div>
       </div>
       <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">Live inventory on Carlist <ArrowUpRight size={14} aria-hidden="true" /></a></div>
