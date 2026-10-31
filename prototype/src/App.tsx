@@ -718,6 +718,7 @@ function FinancePage({ variant }: { variant: Direction }) {
 }
 
 function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const aboutRef = useRef<HTMLDivElement>(null)
   const team = [
     {
       name: 'Ang Kin Guan', role: 'Founder & CEO', experience: '30+', photo: angKinGuanPortrait,
@@ -732,10 +733,33 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
       bio: 'Zi Wei leads our sales team with a customer-first approach, focusing on understanding client needs rather than pushing for quick sales.',
     },
   ]
+  useGSAP(() => {
+    const counter = aboutRef.current?.querySelector<HTMLElement>('[data-count-to="3000"]')
+    const impact = aboutRef.current?.querySelector<HTMLElement>('.about-impact')
+    if (!counter || !impact) return
+    const target = Number(counter.dataset.countTo)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      counter.textContent = `${target.toLocaleString()}+`
+      return
+    }
+    const value = { count: 0 }
+    gsap.fromTo(value, { count: 0 }, {
+      count: target,
+      duration: 2.1,
+      ease: 'power2.out',
+      onUpdate: () => { counter.textContent = `${Math.floor(value.count).toLocaleString()}+` },
+      scrollTrigger: { trigger: impact, start: 'top 82%', once: true },
+    })
+  }, { scope: aboutRef })
   return (
-    <div className={`content-page content-page--about content-page--${variant.id}`}>
+    <div ref={aboutRef} className={`content-page content-page--about content-page--${variant.id}`}>
       <PageIntro eyebrow="About Seng Guan Auto" title="A local showroom in Banting." description="Your trusted partner in quality used cars since 1995. Get to know the people and principles behind Seng Guan Auto." />
       <section className="about-feature"><div className="about-feature-image"><img src={showroom} alt="Seng Guan Auto showroom in Banting" width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">Our story</p><h2>Built on trust since 1995.</h2><p>What began as a small family business grew from a simple aim: offer quality pre-owned cars at fair prices and treat every customer with care.</p><p>For more than 30 years, Seng Guan Auto has focused on transparency, integrity and customer satisfaction. Founded by Ang Kin Guan, the business continues with his sons and the values it started with: honesty, quality and putting people first.</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">Visit our Banting showroom <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
+      <div className="about-impact" aria-label="Seng Guan Auto at a glance">
+        <div><strong>1995</strong><span>Established in Banting</span></div>
+        <div><strong>30+</strong><span>Years in used cars</span></div>
+        <div><strong data-count-to="3000" aria-label="More than 3,000 customers">3000+</strong><span>Customers</span></div>
+      </div>
       <section className="about-values">
         <div className="about-section-heading"><p className="section-label">What guides us</p><h2>Our core values.</h2><p>Simple principles shape how we prepare cars and work with the people who visit us.</p></div>
         <div className="about-values-list">
@@ -746,14 +770,14 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
         </div>
       </section>
       <section className="team-section">
-        <div className="team-heading"><h2>Meet Our Team</h2><p>The passionate people behind Seng Guan Auto&apos;s success</p></div>
+        <div className="team-heading"><p className="section-label">The people behind the business</p><h2>Meet our team.</h2><p>Local knowledge and experience, built over many years in Banting.</p></div>
         <div className="team-grid">
           {team.map((member) => (
             <article className="team-card" key={member.name}>
               <div className="team-photo"><img src={member.photo} alt={member.name} width="150" height="150" loading="lazy" /></div>
               <h3>{member.name}</h3>
               <p className="team-role">{member.role}</p>
-              <div className="team-experience"><strong>{member.experience}</strong><span>Years Experience</span></div>
+              <p className="team-experience"><strong>{member.experience}</strong><span>years experience</span></p>
               <p className="team-bio">{member.bio}</p>
             </article>
           ))}
