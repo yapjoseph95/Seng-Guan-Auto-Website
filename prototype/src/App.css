@@ -122,6 +122,7 @@
 .prototype-app[data-variant="greenlight"] .brand-caption { color: #b9bec3; }
 .prototype-app[data-variant="greenlight"] .main-nav a:hover,
 .prototype-app[data-variant="greenlight"] .main-nav a[aria-current="page"] { color: #fff; }
+.prototype-app[data-variant="greenlight"] .brand-caption { display: block; max-width: 210px; font-size: 10px; line-height: 1.35; }
 .prototype-app[data-variant="greenlight"] .brand-mark--dark { background: transparent; border: 0; border-radius: 0; }
 .prototype-app[data-variant="greenlight"] .hero--showroom {
   width: 100%; min-height: 630px; padding: 76px max(30px, calc((100% - 1320px) / 2));
@@ -505,6 +506,9 @@
 .site-footer { padding: 48px max(28px, calc((100% - var(--content)) / 2)) 18px; color: var(--ink); background: var(--paper); border-top: 1px solid var(--line); }
 .footer-main { display: grid; grid-template-columns: 1.4fr .7fr .9fr; gap: 5vw; padding-bottom: 35px; }
 .footer-brand p { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
+.footer-brand-lockup { display: flex; align-items: center; gap: 18px; }
+.footer-brand-lockup .brand-mark { flex: none; }
+.footer-brand .footer-slogan { max-width: 230px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .footer-brand .footer-company { margin-top: 12px; color: var(--ink); font-size: 12px; font-weight: 700; }
 .footer-brand .footer-registration { margin-top: 4px; font-size: 11px; }
 .footer-brand .footer-address { margin-top: 12px; }
@@ -614,10 +618,20 @@
   .result-count { grid-column: 2; grid-row: 1; }
 }
 
+@media (min-width: 941px) and (max-width: 1080px) {
+  .prototype-app[data-variant="greenlight"] .brand { min-width: 0; }
+  .prototype-app[data-variant="greenlight"] .brand-caption { max-width: 145px; font-size: 9px; }
+}
+
+@media (max-width: 940px) {
+  .prototype-app[data-variant="greenlight"] .brand-caption { display: none; }
+}
+
 @media (max-width: 760px) {
   .prototype-app { padding-bottom: calc(144px + env(safe-area-inset-bottom)); }
   .header-inner { position: relative; width: calc(100% - 32px); min-height: 72px; }
   .brand { min-width: 0; }
+  .brand-caption { display: none !important; }
   .brand-mark { width: 100px; height: 47px; }
   .brand-mark img { width: 90px; }
   .menu-toggle { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; }

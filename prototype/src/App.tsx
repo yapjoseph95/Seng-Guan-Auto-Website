@@ -262,7 +262,7 @@ function SiteHeader({
       <div className="header-inner">
         <a className="brand" href={navTo('home')} onClick={interceptRoute('home')} aria-label="Seng Guan Auto home">
           <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
-          <span className="brand-caption">Quality used cars · Banting</span>
+          <span className="brand-caption">Your trusted partner in quality used cars since 1995.</span>
         </a>
         <button className="menu-toggle" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
@@ -767,7 +767,10 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
     <footer className={`site-footer site-footer--${variant.id}`}>
       <div className="footer-main">
         <div className="footer-brand">
-          <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
+          <div className="footer-brand-lockup">
+            <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
+            <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
+          </div>
           <p className="footer-company">Seng Guan Auto Sdn. Bhd.</p>
           <p className="footer-registration">Company No. 202301019072 (1512994-A)</p>
           <p className="footer-address">{contact.address}</p>
