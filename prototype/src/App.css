@@ -375,6 +375,7 @@
 .story-photo { height: 335px; overflow: hidden; }
 .story-copy h2 { max-width: 8ch; margin: 0 0 16px; }
 .story-copy p:not(.section-label) { max-width: 48ch; color: var(--muted); line-height: 1.7; }
+.story-directions { display: flex; flex-wrap: wrap; gap: 8px 24px; }
 .visit-teaser { padding: 61px 4vw; display: flex; align-items: center; justify-content: space-between; gap: 35px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .visit-teaser > div:first-child { max-width: 580px; }
 .visit-teaser h2 { margin-bottom: 12px; }

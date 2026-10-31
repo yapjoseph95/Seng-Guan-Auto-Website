@@ -5,7 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
   ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Calculator,
   CarFront, Check, ChevronDown, CircleHelp, Gauge, Mail, MapPin,
-  Menu, MessageCircle, Phone, Search, SlidersHorizontal, X,
+  Menu, MessageCircle, Navigation, Phone, Search, SlidersHorizontal, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
@@ -560,10 +560,21 @@ function FinanceTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
 }
 
 function StoryTeaser({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`
+  const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <section className={`section story-teaser${variant.id === 'night-shift' ? ' nightshift-proof' : ''}`}>
       <div className="story-photo"><img src={showroom} alt="Seng Guan Auto's dealership in Banting" width="1072" height="603" loading="lazy" /></div>
-      <div className="story-copy"><p className="section-label">The place behind the name</p><h2>Find us in Banting.</h2><p>Visit Seng Guan Auto at Lot 712, Batu 18, Jln Klang Banting. Browse the current listings first, then contact the team if you would like to see a vehicle.</p><button className="text-link" onClick={() => goToPage('about')}>About the dealership <ArrowRight size={17} aria-hidden="true" /></button></div>
+      <div className="story-copy"><p className="section-label">The place behind the name</p><h2>Find us in Banting.</h2><p>Visit Seng Guan Auto at Lot 712, Batu 18, Jln Klang Banting. Browse the current listings first, then contact the team if you would like to see a vehicle.</p>
+        {variant.id === 'greenlight' ? (
+          <div className="story-directions">
+            <a className="text-link" href={googleMapsUrl} target="_blank" rel="noreferrer"><MapPin size={17} aria-hidden="true" /> Google Maps</a>
+            <a className="text-link" href={wazeUrl} target="_blank" rel="noreferrer"><Navigation size={17} aria-hidden="true" /> Waze</a>
+          </div>
+        ) : (
+          <button className="text-link" onClick={() => goToPage('about')}>About the dealership <ArrowRight size={17} aria-hidden="true" /></button>
+        )}
+      </div>
     </section>
   )
 }
