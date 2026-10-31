@@ -568,8 +568,8 @@ function StoryTeaser({ variant, goToPage }: { variant: Direction; goToPage: (pag
       <div className="story-copy"><p className="section-label">The place behind the name</p><h2>Find us in Banting.</h2><p>Visit Seng Guan Auto at Lot 712, Batu 18, Jln Klang Banting. Browse the current listings first, then contact the team if you would like to see a vehicle.</p>
         {variant.id === 'greenlight' ? (
           <div className="story-directions">
-            <a className="text-link" href={googleMapsUrl} target="_blank" rel="noreferrer"><MapPin size={17} aria-hidden="true" /> Google Maps</a>
-            <a className="text-link" href={wazeUrl} target="_blank" rel="noreferrer"><Navigation size={17} aria-hidden="true" /> Waze</a>
+            <a className="button button--plain story-direction-link story-direction-link--maps" href={googleMapsUrl} target="_blank" rel="noreferrer"><MapPin size={17} aria-hidden="true" /> Google Maps</a>
+            <a className="button button--plain story-direction-link story-direction-link--waze" href={wazeUrl} target="_blank" rel="noreferrer"><Navigation size={17} aria-hidden="true" /> Waze</a>
           </div>
         ) : (
           <button className="text-link" onClick={() => goToPage('about')}>About the dealership <ArrowRight size={17} aria-hidden="true" /></button>

@@ -376,6 +376,12 @@
 .story-copy h2 { max-width: 8ch; margin: 0 0 16px; }
 .story-copy p:not(.section-label) { max-width: 48ch; color: var(--muted); line-height: 1.7; }
 .story-directions { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.prototype-app[data-variant="greenlight"] .story-directions .button { min-height: 48px; border-radius: 6px; font-size: 13px; font-weight: 800; }
+.prototype-app[data-variant="greenlight"] .story-directions .button--plain { color: #f5f5f3; background: #171a1d; border-color: #41464b; }
+.prototype-app[data-variant="greenlight"] .story-directions .button--plain:hover { color: #fff; background: #22262a; border-color: #e6322b; }
+.story-direction-link svg { color: #f25a54; transition: transform 170ms ease; }
+.story-direction-link:hover svg { transform: translateY(-1px); }
+.story-direction-link--waze:hover svg { transform: translate(2px, -2px); }
 .visit-teaser { padding: 61px 4vw; display: flex; align-items: center; justify-content: space-between; gap: 35px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .visit-teaser > div:first-child { max-width: 580px; }
 .visit-teaser h2 { margin-bottom: 12px; }
