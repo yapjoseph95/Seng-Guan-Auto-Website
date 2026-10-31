@@ -5,7 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
   ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator,
   CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, HeartHandshake, Mail, MapPin,
-  Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
+  Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
   SlidersHorizontal, Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
@@ -361,6 +361,9 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
       const host = document.querySelector<HTMLElement>('lime-chat-widget-host[data-widget-id="lcw_2104dc5cd4cd3d7fd9827e16e095d2cc"]')
       host?.style.setProperty('right', '22px', 'important')
       host?.style.setProperty('bottom', '22px', 'important')
+      const launcher = shadow.querySelector<HTMLButtonElement>('.launcher')
+      const headsetIcon = buttonRef.current?.querySelector('svg')
+      if (launcher && headsetIcon) launcher.replaceChildren(headsetIcon.cloneNode(true))
 
       const style = document.createElement('style')
       style.textContent = [
@@ -408,7 +411,7 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
 
   return (
     <button ref={buttonRef} className="header-customer-service" type="button" aria-label="Open customer service chat" aria-expanded={open} disabled={!ready}>
-      <MessageCircle aria-hidden="true" size={18} />
+      <Headset aria-hidden="true" size={18} />
     </button>
   )
 }
