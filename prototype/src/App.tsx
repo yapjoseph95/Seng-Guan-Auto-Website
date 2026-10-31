@@ -774,7 +774,6 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
               <p className="footer-registration">Company No. 202301019072 (1512994-A)</p>
             </div>
           </div>
-          <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
           <div className="footer-address-row"><MapPin size={17} aria-hidden="true" /><p className="footer-address">{contact.address}</p></div>
           <nav className="footer-directions" aria-label="Showroom directions">
             <a href={googleMapsUrl} target="_blank" rel="noreferrer"><MapPin size={15} aria-hidden="true" /> Google Maps <ArrowUpRight size={14} aria-hidden="true" /></a>
@@ -787,11 +786,9 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
           <a href={contact.phoneHref}><Phone size={16} aria-hidden="true" /> {contact.phone}</a>
           <a href={`mailto:${contact.email}`}><Mail size={16} aria-hidden="true" /> {contact.email}</a>
           <div className="footer-hours"><Clock size={16} aria-hidden="true" /><div>{contact.hours.map(([day, hours]) => <span key={day}><b>{day}:</b> {hours}</span>)}</div></div>
-          <nav className="footer-socials" aria-label="Social media">
-            <a className="footer-social-link" href={contact.whatsapp} target="_blank" rel="noreferrer" aria-label="Chat with Seng Guan Auto on WhatsApp"><WhatsAppGlyph /></a>
-          </nav>
         </div>
       </div>
+      <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
       <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">Live inventory on Carlist <ArrowUpRight size={14} aria-hidden="true" /></a></div>
     </footer>
   )
