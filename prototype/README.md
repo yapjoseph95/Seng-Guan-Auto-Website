@@ -2,6 +2,8 @@
 
 An interactive, front-end-only design comparison for the existing Seng Guan Auto website. Each direction shares the same six routes while changing the visual system, first-screen composition, and home-page content order.
 
+This client review deployment uses a separate branch and Cloudflare project so it can be compared with the existing live site without replacing it.
+
 ## Run locally
 
 ```sh
