@@ -3,9 +3,10 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
-  ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Calculator,
-  CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, Mail, MapPin,
-  Menu, MessageCircle, Navigation, Phone, Search, SlidersHorizontal, X,
+  ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator,
+  CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, HeartHandshake, Mail, MapPin,
+  Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
+  SlidersHorizontal, Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
@@ -733,9 +734,17 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
   ]
   return (
     <div className={`content-page content-page--about content-page--${variant.id}`}>
-      <PageIntro eyebrow="Seng Guan Auto Sdn. Bhd." title="A local showroom in Banting." description="Get to know the dealership, then use the live listing page for up-to-date car details." />
-      <section className="about-feature"><div className="about-feature-image"><img src={showroom} alt="Seng Guan Auto showroom in Banting" width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">Visit in person</p><h2>Good questions belong beside the car.</h2><p>Take a closer look at a vehicle, ask about its condition and terms, and get the information you need before deciding on your next step.</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">Open the address in Maps <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
-      <section className="approach-section"><div className="section-heading"><div><p className="section-label">A clear buying conversation</p><h2>Start with what you need to know.</h2></div></div><div className="approach-list"><article><span>Look closely</span><h3>Ask about the vehicle</h3><p>Confirm the condition and features of the car you are considering.</p></article><article><span>Compare openly</span><h3>Review the terms</h3><p>Check current price, loan details, and any warranty terms in writing.</p></article><article><span>Take your time</span><h3>Choose the next step</h3><p>Talk to the team, arrange a visit, or return to the listings when you are ready.</p></article></div></section>
+      <PageIntro eyebrow="About Seng Guan Auto" title="A local showroom in Banting." description="Your trusted partner in quality used cars since 1995. Get to know the people and principles behind Seng Guan Auto." />
+      <section className="about-feature"><div className="about-feature-image"><img src={showroom} alt="Seng Guan Auto showroom in Banting" width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">Our story</p><h2>Built on trust since 1995.</h2><p>What began as a small family business grew from a simple aim: offer quality pre-owned cars at fair prices and treat every customer with care.</p><p>For more than 30 years, Seng Guan Auto has focused on transparency, integrity and customer satisfaction. Founded by Ang Kin Guan, the business continues with his sons and the values it started with: honesty, quality and putting people first.</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">Visit our Banting showroom <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
+      <section className="about-values">
+        <div className="about-section-heading"><p className="section-label">What guides us</p><h2>Our core values.</h2><p>Simple principles shape how we prepare cars and work with the people who visit us.</p></div>
+        <div className="about-values-list">
+          <article><span className="about-value-icon"><HeartHandshake size={21} aria-hidden="true" /></span><div><h3>Integrity</h3><p>We believe in honest, transparent dealings at every step.</p></div></article>
+          <article><span className="about-value-icon"><Award size={21} aria-hidden="true" /></span><div><h3>Quality</h3><p>We inspect vehicles before offering them for sale.</p></div></article>
+          <article><span className="about-value-icon"><CarFront size={21} aria-hidden="true" /></span><div><h3>Customer first</h3><p>We listen to what matters to you and help you make an informed choice.</p></div></article>
+          <article><span className="about-value-icon"><ShieldCheck size={21} aria-hidden="true" /></span><div><h3>Trust</h3><p>We work to earn confidence through dependable service over time.</p></div></article>
+        </div>
+      </section>
       <section className="team-section">
         <div className="team-heading"><h2>Meet Our Team</h2><p>The passionate people behind Seng Guan Auto&apos;s success</p></div>
         <div className="team-grid">
@@ -748,6 +757,17 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
               <p className="team-bio">{member.bio}</p>
             </article>
           ))}
+        </div>
+      </section>
+      <section className="about-services">
+        <div className="about-services-heading"><p className="section-label">Support for the journey</p><h2>More help, from first look to handover.</h2><p>Talk with the team about the details that matter for the car you have in mind.</p></div>
+        <div className="about-services-list">
+          <article><Search size={20} aria-hidden="true" /><div><h3>Vehicle inspection</h3><p>We inspect vehicles before they reach the showroom.</p></div></article>
+          <article><ReceiptText size={20} aria-hidden="true" /><div><h3>Clear pricing</h3><p>Review the vehicle price and terms with the team.</p></div></article>
+          <article><ShieldCheck size={20} aria-hidden="true" /><div><h3>Warranty options</h3><p>Ask about optional warranty coverage for selected vehicles.</p></div></article>
+          <article><Wrench size={20} aria-hidden="true" /><div><h3>After-sales support</h3><p>Get help from the team after your purchase.</p></div></article>
+          <article><Calculator size={20} aria-hidden="true" /><div><h3>Financing assistance</h3><p>Discuss financing options and estimate your monthly payment.</p></div></article>
+          <article><RefreshCw size={20} aria-hidden="true" /><div><h3>Trade-in enquiries</h3><p>Speak with us about trading in your current vehicle.</p></div></article>
         </div>
       </section>
       <VisitTeaser goToPage={goToPage} />
@@ -765,9 +785,9 @@ function FaqPage({ variant }: { variant: Direction }) {
         <div className="faq-groups">{categories.map((category) => <section key={category} id={`faq-${category.toLowerCase()}`} className="faq-group"><h2>{category}</h2>{faqItems.filter((item) => item.category === category).map((item) => {
           const index = faqItems.indexOf(item)
           const expanded = open === index
-          return <article className={`faq-item${expanded ? ' is-open' : ''}`} key={item.question}><h3><button type="button" aria-expanded={expanded} aria-controls={`faq-answer-${index}`} onClick={() => setOpen(expanded ? null : index)}>{item.question}<ChevronDown size={18} aria-hidden="true" /></button></h3><div id={`faq-answer-${index}`} className="faq-answer" hidden={!expanded}><p>{item.answer}</p></div></article>
+          return <article className={`faq-item${expanded ? ' is-open' : ''}`} key={item.question}><h3><button type="button" aria-expanded={expanded} aria-controls={`faq-answer-${index}`} onClick={() => setOpen(expanded ? null : index)}>{item.question}<ChevronDown size={18} aria-hidden="true" /></button></h3><div id={`faq-answer-${index}`} className="faq-answer" aria-hidden={!expanded}><div className="faq-answer-inner"><p>{item.answer}</p></div></div></article>
         })}</section>)}
-          <section className="faq-contact" id="faq-contact"><div><p className="section-label">Still deciding?</p><h2>Ask about the car you have in mind.</h2></div><a className="button button--primary" href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={17} aria-hidden="true" /> Chat on WhatsApp</a></section>
+          <section className="faq-contact" id="faq-contact"><div><p className="section-label">Still deciding?</p><h2>Ask about the car you have in mind.</h2></div><a className="button button--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer"><WhatsAppGlyph /> Chat on WhatsApp</a></section>
         </div>
       </div>
     </div>
