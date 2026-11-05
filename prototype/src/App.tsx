@@ -167,7 +167,6 @@ function App() {
           .fromTo('.showroom-copy h1', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, '<0.08')
           .fromTo('.showroom-copy > p:not(.showroom-kicker)', { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, '<0.12')
           .fromTo('.showroom-actions .button', { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.1 }, '<0.1')
-          .fromTo('.showroom-whatsapp', { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1 }, '<0.12')
 
         gsap.fromTo('.showroom-photo', { yPercent: -2, scale: 1.06 }, {
           yPercent: 5,
@@ -656,7 +655,6 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
             <p>Explore the featured selection from Seng Guan Auto. Check current availability and details on our live listings.</p>
             <div className="hero-actions showroom-actions"><button className="button button--primary" onClick={() => goToPage('cars')}>Browse vehicles <ArrowRight size={17} aria-hidden="true" /></button><button className="button button--outline-light" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" /> Loan calculator</button></div>
           </div>
-          <a className="showroom-whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer"><MessageCircle size={16} aria-hidden="true" /> Ask us about a car <ArrowUpRight size={14} aria-hidden="true" /></a>
         </section>
       )
     default:
