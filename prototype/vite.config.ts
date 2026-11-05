@@ -4,7 +4,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  base: "./",
+  base: "/",
   build: { assetsInlineLimit: 10_000_000 },
   resolve: {
     alias: {

@@ -147,12 +147,12 @@ export const contact = {
 }
 
 export const faqItems = [
-  { category: 'Vehicles', question: 'What vehicles are featured on this site?', answer: 'The prototype uses the 8 vehicle examples from the current homepage. For live stock, prices, and mileage, open the Seng Guan Auto listings on Carlist.' },
+  { category: 'Vehicles', question: 'What vehicles are featured on this site?', answer: 'This site features a selection of vehicles from Seng Guan Auto. For live stock, prices, and mileage, open the Seng Guan Auto listings on Carlist.' },
   { category: 'Vehicles', question: 'Can I arrange a test drive?', answer: 'Contact the dealership by phone or WhatsApp to ask about the vehicle you are interested in and arrange a suitable time.' },
   { category: 'Financing', question: 'Can I estimate a monthly payment?', answer: 'Use the on-page calculator to create an illustrative estimate from the car price, down payment, rate, and loan term you enter. Confirm actual rates and terms with the dealership and finance provider.' },
-  { category: 'Financing', question: 'What documents might I need?', answer: 'The current site lists identity, driving licence, and income or employment documents as common requirements. Ask the team which documents apply to your situation.' },
+  { category: 'Financing', question: 'What documents might I need?', answer: 'Common requirements include identity, driving licence, and income or employment documents. Ask the team which documents apply to your situation.' },
   { category: 'Financing', question: 'How long does loan approval take?', answer: 'Timing depends on the finance provider and application. Contact the team for guidance on a specific vehicle and application.' },
-  { category: 'Services', question: 'Can you help with insurance and registration?', answer: 'The current site says the team can help with vehicle registration and insurance. Confirm the steps and any fees before proceeding.' },
+  { category: 'Services', question: 'Can you help with insurance and registration?', answer: 'Our team can help with vehicle registration and insurance. Confirm the steps and any fees before proceeding.' },
   { category: 'Services', question: 'Can I ask about a trade-in?', answer: 'Contact the dealership with your current vehicle details to discuss whether a trade-in can be considered.' },
   { category: 'Warranty', question: 'What warranty applies to a specific car?', answer: 'Coverage may depend on the vehicle and the policy. Ask for the written terms for that vehicle before making a decision.' },
 ]

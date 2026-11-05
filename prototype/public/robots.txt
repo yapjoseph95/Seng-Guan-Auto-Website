@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://sengguanauto.com.my/sitemap.xml

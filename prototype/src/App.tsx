@@ -21,17 +21,20 @@ gsap.registerPlugin(ScrollTrigger, useGSAP)
 
 type RouteState = { variant: string; page: PageId }
 
+const isOfficialSite = import.meta.env.VITE_OFFICIAL_SITE === 'true'
+const publicPaths: Record<PageId, string> = { home: '/', cars: '/cars', finance: '/financing', about: '/about', faq: '/faq', contact: '/contact' }
+
 const defaultRoute: RouteState = { variant: 'greenlight', page: 'home' }
 
 function readRoute(): RouteState {
   const fileHash = window.location.protocol === 'file:' ? window.location.hash.replace(/^#\??/, '') : ''
   const params = new URLSearchParams(fileHash || window.location.search)
-  const variant = directions.some((item) => item.id === params.get('variant'))
+  const variant = !isOfficialSite && directions.some((item) => item.id === params.get('variant'))
     ? params.get('variant')!
     : defaultRoute.variant
   const page = pages.some((item) => item.id === params.get('page'))
     ? params.get('page') as PageId
-    : defaultRoute.page
+    : (Object.entries(publicPaths).find(([, path]) => path === window.location.pathname.replace(/\.html$/, '').replace(/\/$/, '') || path === '/' && window.location.pathname === '/')?.[0] as PageId | undefined) ?? defaultRoute.page
   return { variant, page }
 }
 
@@ -58,7 +61,11 @@ function App() {
 
   const updateRoute = (next: RouteState, push = true) => {
     const url = new URL(window.location.href)
-    if (window.location.protocol === 'file:') {
+    if (isOfficialSite) {
+      url.pathname = publicPaths[next.page]
+      url.search = ''
+      url.hash = ''
+    } else if (window.location.protocol === 'file:') {
       const hash = new URLSearchParams({ variant: next.variant, page: next.page })
       url.search = ''
       url.hash = hash.toString()
@@ -82,6 +89,7 @@ function App() {
       if (window.location.protocol === 'file:') setRoute(readRoute())
     }
     const onKeyDown = (event: KeyboardEvent) => {
+      if (isOfficialSite) return
       const target = event.target as HTMLElement | null
       const isEditing = target?.matches('input, textarea, select, [contenteditable="true"]')
       if (isEditing || event.altKey || event.metaKey || event.ctrlKey) return
@@ -208,7 +216,7 @@ function App() {
     }
   }
 
-  const navTo = (page: PageId) => window.location.protocol === 'file:'
+  const navTo = (page: PageId) => isOfficialSite ? publicPaths[page] : window.location.protocol === 'file:'
     ? `#variant=${variant.id}&page=${page}`
     : `?variant=${variant.id}&page=${page}`
   const interceptRoute = (page: PageId) => (event: MouseEvent<HTMLAnchorElement>) => {
@@ -229,7 +237,7 @@ function App() {
   }
 
   return (
-    <div className="prototype-app" data-variant={variant.id} ref={appRef} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
+    <div className={`prototype-app${isOfficialSite ? ' is-official-site' : ''}`} data-variant={variant.id} ref={appRef} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
       {variant.id === 'greenlight' && <div className="site-atmosphere" aria-hidden="true" />}
       <a className="skip-link" href="#main-content">Skip to content</a>
       <SiteHeader
@@ -244,7 +252,7 @@ function App() {
         {pageContent()}
       </main>
       <SiteFooter variant={variant} goToPage={goToPage} />
-      <PrototypeDock
+      {!isOfficialSite && <PrototypeDock
         variant={variant}
         currentPage={route.page}
         goToVariant={goToVariant}
@@ -256,7 +264,7 @@ function App() {
           setSavedDirection(variant.id)
           showNotice(`${variant.name} marked for review in this session.`)
         }}
-      />
+      />}
       <div className="notice" aria-live="polite" aria-atomic="true">{notice}</div>
     </div>
   )
@@ -678,7 +686,7 @@ function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (
       ) : (
         <div className="section-heading"><div><p className="section-label">A few to get you started</p><h2>Featured vehicles</h2></div><button className="text-link" onClick={() => goToPage('cars')}>See all featured cars <ArrowRight size={17} aria-hidden="true" /></button></div>
       )}
-      <p className="data-note">Sample cars from the existing homepage. Live prices and availability are on <a href={contact.inventory} target="_blank" rel="noreferrer">Carlist</a>.</p>
+      <p className="data-note">Featured vehicles from Seng Guan Auto. Live prices and availability are on <a href={contact.inventory} target="_blank" rel="noreferrer">Carlist</a>.</p>
     </section>
   )
 }
@@ -766,7 +774,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
 
   return (
     <div className={`content-page content-page--cars content-page--${variant.id}`}>
-      <PageIntro eyebrow="The featured selection" title="Find a car to look closer at." description="Search the sample vehicles shown on the existing homepage. Open Carlist for the live listing, price, and availability." />
+      <PageIntro eyebrow="The featured selection" title="Find a car to look closer at." description="Explore our featured vehicles. Open Carlist for current stock, prices, mileage, and availability." />
       <section className="inventory-browser" aria-label="Featured vehicle browser">
         <div className="inventory-tools">
           <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">Search featured vehicles</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search make or model…" type="search" /></label>
@@ -776,7 +784,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
           <span className="result-count"><SlidersHorizontal size={15} aria-hidden="true" /> {filtered.length} featured {filtered.length === 1 ? 'car' : 'cars'}</span>
         </div>
         {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>No featured cars match that search.</h2><p>Try another model or select “All makes”.</p><button className="button button--primary" onClick={() => { setSearch(''); setMake('All makes') }}>Reset filters</button></div>}
-        <p className="data-note">Prototype sample only. <a href={contact.inventory} target="_blank" rel="noreferrer">See current listings and availability on Carlist <ArrowUpRight size={13} aria-hidden="true" /></a></p>
+        <p className="data-note">Featured selection. <a href={contact.inventory} target="_blank" rel="noreferrer">See current listings and availability on Carlist <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
     </div>
   )
@@ -940,7 +948,7 @@ function ContactPage({ variant }: { variant: Direction }) {
   const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(contact.address)}`
   return (
     <div className={`content-page content-page--contact content-page--${variant.id}`}>
-      <PageIntro eyebrow="Come by or get in touch" title="Let’s talk about your next car." description="Choose the contact path that works for you. This prototype does not collect or store messages." />
+      <PageIntro eyebrow="Come by or get in touch" title="Let’s talk about your next car." description="Ask about a car, arrange a visit, or speak with the Seng Guan Auto team." />
       <div className="contact-layout">
         <div className="contact-methods">
           <a className="contact-method" href={contact.phoneHref}><span className="contact-method-icon"><Phone size={19} aria-hidden="true" /></span><span><small>Call the showroom</small><strong>{contact.phone}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
@@ -949,7 +957,7 @@ function ContactPage({ variant }: { variant: Direction }) {
         </div>
         <section className="address-panel"><div className="address-map"><img src={showroom} alt="Seng Guan Auto showroom frontage" width="1072" height="603" loading="lazy" /><a href={mapUrl} target="_blank" rel="noreferrer" className="map-label"><MapPin size={17} aria-hidden="true" /> Open map <ArrowUpRight size={14} aria-hidden="true" /></a></div><div className="address-copy"><p className="section-label">Seng Guan Auto Sdn. Bhd.</p><h2>Find us in Banting.</h2><p>{contact.address}</p><a className="text-link" href={mapUrl} target="_blank" rel="noreferrer">Get directions <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
       </div>
-      <section className="hours-section"><div><p className="section-label">Showroom hours</p><h2>Plan a visit.</h2></div><dl>{contact.hours.map(([day, hours]) => <div key={day}><dt>{day}</dt><dd>{hours}</dd></div>)}</dl><p className="hours-note">Hours shown from the current site. Please confirm before travelling.</p></section>
+      <section className="hours-section"><div><p className="section-label">Showroom hours</p><h2>Plan a visit.</h2></div><dl>{contact.hours.map(([day, hours]) => <div key={day}><dt>{day}</dt><dd>{hours}</dd></div>)}</dl><p className="hours-note">Please confirm opening hours with the team before travelling.</p></section>
     </div>
   )
 }

@@ -859,3 +859,6 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 @media (prefers-reduced-motion: reduce) {
   .prototype-app *, .prototype-app *::before, .prototype-app *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* The published site ends at the footer; the review toolbar remains on the review branch. */
+.prototype-app.is-official-site { padding-bottom: 0; }
