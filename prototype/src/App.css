@@ -862,3 +862,34 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 
 /* The published site ends at the footer; the review toolbar remains on the review branch. */
 .prototype-app.is-official-site { padding-bottom: 0; }
+
+/* Home sections occupy the visible viewport below the sticky navigation. */
+:root { --site-header-height: 89px; }
+html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height); }
+.prototype-app[data-variant="greenlight"] .page--home {
+  --home-screen-height: calc(100svh - var(--site-header-height));
+  --home-screen-height: calc(100dvh - var(--site-header-height));
+}
+.prototype-app[data-variant="greenlight"] .page--home > .hero--showroom,
+.home-flow--greenlight > .section {
+  box-sizing: border-box;
+  min-height: var(--home-screen-height);
+}
+.home-flow--greenlight { width: 100%; }
+.home-flow--greenlight > .section {
+  padding: clamp(28px, 5dvh, 64px) max(30px, calc((100% - 1320px) / 2));
+  align-content: center;
+}
+.home-flow--greenlight > .section-vehicles { display: flex; flex-direction: column; justify-content: center; }
+.home-flow--greenlight .featured-showcase { min-height: 0; margin-bottom: 20px; }
+.home-flow--greenlight .featured-display { min-height: clamp(260px, calc(var(--home-screen-height) - 180px), 640px); }
+.home-flow--greenlight > .visit-teaser { border-radius: 0; border-right: 0; border-left: 0; }
+@media (max-width: 760px) {
+  :root { --site-header-height: 73px; }
+  .home-flow--greenlight > .section { padding: 28px 24px; }
+  .home-flow--greenlight > .visit-teaser { justify-content: center; }
+}
+@media (max-width: 680px) {
+  .home-flow--greenlight .featured-showcase-copy { padding: 0 0 24px; }
+  .home-flow--greenlight .featured-display { min-height: clamp(220px, 36svh, 360px); }
+}
