@@ -3,6 +3,29 @@
   "name": "seng-guan-auto-website",
   "pages_build_output_dir": "./dist",
   "compatibility_date": "2026-11-06",
-  "d1_databases": [{"binding":"DB","database_name":"seng-guan-auto-inventory","database_id":"1e179b61-81a9-45dd-a012-ea3d1e5249a4","migrations_dir":"migrations"}],
-  "r2_buckets": [{"binding":"PHOTOS","bucket_name":"seng-guan-auto-vehicle-photos"}]
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "seng-guan-auto-inventory",
+      "database_id": "1e179b61-81a9-45dd-a012-ea3d1e5249a4",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "seng-guan-auto-vehicle-photos"
+    }
+  ],
+  "vars": {
+    "SUPABASE_URL": "https://goekzghpvctbtzugaacy.supabase.co",
+    "SUPABASE_ANON_KEY": "sb_publishable_lZqs6GEdM5e0_bb6qxiAcA_NGfAcetQ"
+  },
+  "env": {
+    "preview": {
+      "vars": {},
+      "d1_databases": [],
+      "r2_buckets": []
+    }
+  }
 }

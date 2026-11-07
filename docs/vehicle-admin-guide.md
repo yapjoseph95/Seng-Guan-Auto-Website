@@ -14,7 +14,7 @@
 - 将 Site URL 设为 `https://sengguanauto.com.my`，邮箱验证码设为 6 位、10 分钟有效。
 - 在 Authentication 的邮件模板中选择 Magic Link，使用主题 `Seng Guan Auto 登录验证码` 和 [验证码邮件模板](vehicle-admin-otp.html)。模板使用 `{{ .Token }}` 显示验证码。
 - 使用 Resend 官方集成配置自定义 SMTP 和已验证的发信域名 `sengguanauto.com.my`。发送密钥只保存在 SMTP 设置中。
-- Cloudflare Pages 正式环境需要 `SUPABASE_URL`、`SUPABASE_ANON_KEY`（项目的 publishable key）及 `ADMIN_EMAILS`。
+- `wrangler.jsonc` 配置生产环境的 `SUPABASE_URL` 和公开的 `SUPABASE_ANON_KEY`。管理员名单 `ADMIN_EMAILS` 保存在 Cloudflare Pages 正式环境的密钥设置中。
 
 ## 新增车辆
 
