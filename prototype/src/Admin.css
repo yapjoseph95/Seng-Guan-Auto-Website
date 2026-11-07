@@ -150,15 +150,28 @@
 .admin-preview-gallery { display: grid; gap: 10px; min-width: 0; }
 .admin-preview-image {
   display: block;
-  width: min(100%, 72dvh);
+  width: 100%;
   aspect-ratio: var(--vehicle-photo-ratio);
-  margin-inline: auto;
   object-fit: contain;
   border: 1px solid #34393f;
   border-radius: 7px;
   background: #101214;
 }
-.admin-preview-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.admin-preview-frame { position: relative; width: min(100%, 72dvh); margin-inline: auto; }
+.inventory-admin .admin-preview-edge {
+  position: absolute; inset-block: 1px; width: clamp(44px, 16%, 100px); padding: 0;
+  border: 0; border-radius: 6px; background: transparent; touch-action: manipulation;
+}
+.admin-preview-edge--previous { left: 1px; }
+.admin-preview-edge--next { right: 1px; }
+.inventory-admin .admin-preview-edge:hover { background: rgb(0 0 0 / 18%); }
+.inventory-admin .admin-preview-edge:focus-visible { outline-offset: -3px; }
+.inventory-admin .admin-preview-edge:active { transform: none; }
+.admin-preview-edge svg { width: 32px; height: 32px; padding: 6px; border-radius: 50%; background: rgb(0 0 0 / 66%); }
+.admin-preview-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; }
+.admin-preview-controls > div { display: flex; align-items: center; gap: 6px; }
+.inventory-admin .admin-preview-controls button { min-width: 44px; padding-inline: 10px; }
+.admin-preview-controls button[data-watermarked=true], .admin-preview-controls .admin-preview-delete { color: #ff9a93; }
 .admin-preview-controls span { min-width: 5ch; text-align: center; font-size: 13px; color: #c4cbd2; }
 .admin-preview-thumbnails {
   position: relative;

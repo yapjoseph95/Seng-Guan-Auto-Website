@@ -208,7 +208,6 @@ export function PhotoWatermarkEditor({ photoUrl, initial, request, onApply, onCl
    {mark && <div className="admin-watermark-sliders">
     {([
      ['scale','Watermark size',10], ['opacity','Watermark opacity',0],
-     ['x','Horizontal position',0], ['y','Vertical position',0],
     ] as const).map(([key,label,min]) => <label key={key}>
      <span>{t(label)} <span aria-hidden="true">{Math.round(mark[key]*100)}%</span></span>
      <input type="range" aria-label={t(label)} aria-valuetext={`${Math.round(mark[key]*100)}%`} min={min} max={100} step={1} value={Math.round(mark[key]*100)} disabled={busy}

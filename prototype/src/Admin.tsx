@@ -46,11 +46,16 @@ function discardPhoto(id: string) {
  void api(`staged-photos/${id}`,{method:'DELETE'}).catch(() => {})
 }
 
-function PreviewGallery({ photos, index, onSelect }: {
+type PreviewGalleryProps = {
  photos: AdminPhoto[]
  index: number
  onSelect: (id: string) => void
-}) {
+ onWatermark: (photo: AdminPhoto) => void
+ onRemove: (photo: AdminPhoto) => void
+ busy: boolean
+}
+
+function PreviewGallery({ photos, index, onSelect, onWatermark, onRemove, busy }: PreviewGalleryProps) {
  const { t } = useLocale()
  const thumbnails = useRef<HTMLDivElement>(null)
  const photo = photos[index]
@@ -72,15 +77,35 @@ function PreviewGallery({ photos, index, onSelect }: {
  const move = (offset: number) => onSelect(photos[(index + offset + photos.length) % photos.length].id)
 
  return <div className="admin-preview-gallery">
-  <img className="admin-preview-image" src={photo.url} alt={t('车辆照片 {number}', { number: index + 1 })} draggable={false} />
+  <div className="admin-preview-frame">
+   <img className="admin-preview-image" src={photo.url} alt={t('车辆照片 {number}', { number: index + 1 })} draggable={false} />
+   {photos.length > 1 && <>
+    <button type="button" className="admin-preview-edge admin-preview-edge--previous"
+     aria-label={t('Previous photo')} onClick={() => move(-1)}><ChevronLeft size={20} aria-hidden="true" /></button>
+    <button type="button" className="admin-preview-edge admin-preview-edge--next"
+     aria-label={t('Next photo')} onClick={() => move(1)}><ChevronRight size={20} aria-hidden="true" /></button>
+   </>}
+  </div>
   <div className="admin-preview-controls">
-   {photos.length > 1 && <button type="button" aria-label={t('Previous photo')} onClick={() => move(-1)}>
-    <ChevronLeft size={20} aria-hidden="true" />
-   </button>}
-   <span aria-live="polite">{index + 1} / {photos.length}</span>
-   {photos.length > 1 && <button type="button" aria-label={t('Next photo')} onClick={() => move(1)}>
-    <ChevronRight size={20} aria-hidden="true" />
-   </button>}
+   <div>
+    {photos.length > 1 && <button type="button" aria-label={t('Previous photo')} onClick={() => move(-1)}>
+     <ChevronLeft size={20} aria-hidden="true" />
+    </button>}
+    <span aria-live="polite">{index + 1} / {photos.length}</span>
+    {photos.length > 1 && <button type="button" aria-label={t('Next photo')} onClick={() => move(1)}>
+     <ChevronRight size={20} aria-hidden="true" />
+    </button>}
+   </div>
+   <div>
+    <button type="button" aria-label={t('Edit watermark for photo {number}', { number:index + 1 })}
+     data-watermarked={!!photo.watermark} disabled={busy} onClick={() => onWatermark(photo)}>
+     <Stamp size={18} aria-hidden="true" />
+    </button>
+    <button type="button" aria-label={t('删除照片 {number}', { number:index + 1 })}
+     className="admin-preview-delete" disabled={busy} onClick={() => onRemove(photo)}>
+     <Trash2 size={18} aria-hidden="true" />
+    </button>
+   </div>
   </div>
   <div className="admin-preview-thumbnails" ref={thumbnails}>
    {photos.map((item, position) => <button key={item.id} type="button"
@@ -92,10 +117,7 @@ function PreviewGallery({ photos, index, onSelect }: {
  </div>
 }
 
-function PhotoPreview({ photos, index, onSelect, mobileOpen, onClose }: {
- photos: AdminPhoto[]
- index: number
- onSelect: (id: string) => void
+function PhotoPreview({ mobileOpen, onClose, ...gallery }: PreviewGalleryProps & {
  mobileOpen: boolean
  onClose: () => void
 }) {
@@ -110,14 +132,14 @@ function PhotoPreview({ photos, index, onSelect, mobileOpen, onClose }: {
  return <>
   <aside className="admin-photo-preview" aria-label={t('照片预览')}>
    <h3>{t('照片预览')}</h3>
-   <PreviewGallery photos={photos} index={index} onSelect={onSelect} />
+   <PreviewGallery {...gallery} />
   </aside>
   <dialog ref={dialog} className="admin-mobile-photo-preview" aria-label={t('照片预览')} onClose={onClose}
    onClick={event => { if (event.target === event.currentTarget) onClose() }}>
    <header><span>{t('照片预览')}</span>
     <button type="button" aria-label={t('关闭照片预览')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
    </header>
-   {mobileOpen && <PreviewGallery photos={photos} index={index} onSelect={onSelect} />}
+   {mobileOpen && <PreviewGallery {...gallery} />}
   </dialog>
  </>
 }
@@ -320,7 +342,7 @@ export default function Admin() {
   }
  }
  const removePhoto = (photo: AdminPhoto) => {
-  if (!edit || !window.confirm(t('删除这张照片？'))) return
+  if (!edit || busy || !window.confirm(t('删除这张照片？'))) return
   const staged = stagedPhotos.current.get(photo.id)
   if (staged) {
    URL.revokeObjectURL(staged)
@@ -330,7 +352,11 @@ export default function Admin() {
   const rendered = watermarkChanges.current.get(photo.id)?.url
   if (rendered) URL.revokeObjectURL(rendered)
   watermarkChanges.current.delete(photo.id)
-  update({ photos:edit.photos.filter(item => item.id !== photo.id) })
+  const remaining = edit.photos.filter(item => item.id !== photo.id)
+  if (previewPhoto?.id === photo.id) {
+   setPreviewId((remaining[previewNumber] ?? remaining.at(-1))?.id ?? null)
+  }
+  update({ photos:remaining })
   setError('')
   setNotice('')
  }
@@ -428,8 +454,8 @@ export default function Admin() {
    {notice&&<p className="admin-success"><Check size={17} aria-hidden="true"/>{t(notice)}</p>}
   </div>
   {edit&&<div className="admin-overlay"><div className="admin-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title">
-   <PhotoPreview photos={edit.photos} index={previewNumber} onSelect={setPreviewId}
-    mobileOpen={mobilePreviewOpen} onClose={() => setMobilePreviewOpen(false)} />
+   <PhotoPreview photos={edit.photos} index={previewNumber} onSelect={setPreviewId} busy={!!busy}
+    onWatermark={photo => setWatermarkPhotoId(photo.id)} onRemove={removePhoto} mobileOpen={mobilePreviewOpen} onClose={() => setMobilePreviewOpen(false)} />
    <section className="admin-editor"><div className="admin-editor-heading"><div><p>{t(edit.id?'EDIT VEHICLE':'NEW VEHICLE')}</p><h2 id="vehicle-editor-title">{t(edit.id?'编辑车辆':'新增车辆')}</h2></div><button aria-label={t("关闭编辑")} onClick={close} disabled={!!busy}><X/></button></div>
    <form onSubmit={save}><fieldset disabled={!!busy}>
     <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/{maxVehiclePhotos}</span></h3><p>{t('选好照片后会立即上传。拖动可调整顺序，第一张为封面。保存后，照片和车辆资料会一起更新到官网。')}</p>

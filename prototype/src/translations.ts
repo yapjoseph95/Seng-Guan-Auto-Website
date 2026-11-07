@@ -503,8 +503,6 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "No watermark": ["No watermark", "Tiada tera air", "无水印"],
   "Watermark size": ["Watermark size", "Saiz tera air", "水印大小"],
   "Watermark opacity": ["Watermark opacity", "Kelegapan tera air", "水印不透明度"],
-  "Horizontal position": ["Horizontal position", "Kedudukan mendatar", "水平位置"],
-  "Vertical position": ["Vertical position", "Kedudukan menegak", "垂直位置"],
   "Edit photo watermark": ["Edit photo watermark", "Sunting tera air foto", "编辑照片水印"],
   "Edit watermark for photo {number}": ["Edit watermark for photo {number}", "Sunting tera air untuk foto {number}", "编辑第 {number} 张照片的水印"],
   "Apply to photo": ["Apply to photo", "Guna pada foto", "应用到照片"],
