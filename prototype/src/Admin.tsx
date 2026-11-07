@@ -1,6 +1,6 @@
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { CarFront, Check, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { CarFront, Check, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import type { VehicleStatus } from './data'
 import logo from './assets/logo-dark.svg'
 import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
@@ -36,10 +36,56 @@ function releasePhotos(staged: Map<string, StagedPhoto>) {
  staged.clear()
 }
 
-function PhotoPreview({ photo, number, total, mobileOpen, onClose }: {
- photo: AdminPhoto | undefined
- number: number
- total: number
+function PreviewGallery({ photos, index, onSelect }: {
+ photos: AdminPhoto[]
+ index: number
+ onSelect: (id: string) => void
+}) {
+ const { t } = useLocale()
+ const thumbnails = useRef<HTMLDivElement>(null)
+ const photo = photos[index]
+
+ useEffect(() => {
+  const strip = thumbnails.current
+  const current = strip?.children[index] as HTMLButtonElement | undefined
+  if (!strip || !current) return
+  const start = current.offsetLeft
+  const end = start + current.offsetWidth
+  if (start < strip.scrollLeft) strip.scrollLeft = start
+  else if (end > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = end - strip.clientWidth
+ }, [index, photos.length])
+
+ if (!photo) return <div className="admin-photo-preview-empty">
+  <Image size={32} aria-hidden="true" />{t('添加照片后可预览。')}
+ </div>
+
+ const move = (offset: number) => onSelect(photos[(index + offset + photos.length) % photos.length].id)
+
+ return <div className="admin-preview-gallery">
+  <img className="admin-preview-image" src={photo.url} alt={t('车辆照片 {number}', { number: index + 1 })} draggable={false} />
+  <div className="admin-preview-controls">
+   {photos.length > 1 && <button type="button" aria-label={t('Previous photo')} onClick={() => move(-1)}>
+    <ChevronLeft size={20} aria-hidden="true" />
+   </button>}
+   <span aria-live="polite">{index + 1} / {photos.length}</span>
+   {photos.length > 1 && <button type="button" aria-label={t('Next photo')} onClick={() => move(1)}>
+    <ChevronRight size={20} aria-hidden="true" />
+   </button>}
+  </div>
+  <div className="admin-preview-thumbnails" ref={thumbnails}>
+   {photos.map((item, position) => <button key={item.id} type="button"
+    aria-label={t('预览照片 {number}', { number: position + 1 })}
+    aria-current={position === index ? 'true' : undefined} onClick={() => onSelect(item.id)}>
+    <img src={item.url} alt="" draggable={false} />
+   </button>)}
+  </div>
+ </div>
+}
+
+function PhotoPreview({ photos, index, onSelect, mobileOpen, onClose }: {
+ photos: AdminPhoto[]
+ index: number
+ onSelect: (id: string) => void
  mobileOpen: boolean
  onClose: () => void
 }) {
@@ -51,20 +97,17 @@ function PhotoPreview({ photo, number, total, mobileOpen, onClose }: {
   if (!mobileOpen && element?.open) element.close()
  }, [mobileOpen])
 
- const caption = photo ? t('车辆照片 {number}', { number }) : ''
  return <>
   <aside className="admin-photo-preview" aria-label={t('照片预览')}>
    <h3>{t('照片预览')}</h3>
-   {photo ? <img src={photo.url} alt={caption} draggable={false} /> :
-    <div className="admin-photo-preview-empty"><Image size={32} aria-hidden="true" />{t('添加照片后可预览。')}</div>}
-   {photo && <p>{caption} · {number}/{total}</p>}
+   <PreviewGallery photos={photos} index={index} onSelect={onSelect} />
   </aside>
   <dialog ref={dialog} className="admin-mobile-photo-preview" aria-label={t('照片预览')} onClose={onClose}
    onClick={event => { if (event.target === event.currentTarget) onClose() }}>
-   <header><span>{t('照片预览')} · {number}/{total}</span>
+   <header><span>{t('照片预览')}</span>
     <button type="button" aria-label={t('关闭照片预览')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
    </header>
-   {mobileOpen && photo && <img src={photo.url} alt={caption} draggable={false} />}
+   {mobileOpen && <PreviewGallery photos={photos} index={index} onSelect={onSelect} />}
   </dialog>
  </>
 }
@@ -319,7 +362,7 @@ export default function Admin() {
    {!loading&&!visible.length&&<div className="admin-empty"><CarFront size={32}/><h2>{t(query?'没有找到这辆车':'这里将展示你的车辆')}</h2><p>{t(query?'试试其他车型或品牌。':'点击「新增车辆」，填写资料并上传照片。')}</p></div>}
   </main>
   {edit&&<div className="admin-overlay"><div className="admin-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title">
-   <PhotoPreview photo={previewPhoto} number={previewNumber + 1} total={edit.photos.length}
+   <PhotoPreview photos={edit.photos} index={previewNumber} onSelect={setPreviewId}
     mobileOpen={mobilePreviewOpen} onClose={() => setMobilePreviewOpen(false)} />
    <section className="admin-editor"><div className="admin-editor-heading"><div><p>{t(edit.id?'EDIT VEHICLE':'NEW VEHICLE')}</p><h2 id="vehicle-editor-title">{t(edit.id?'编辑车辆':'新增车辆')}</h2></div><button aria-label={t("关闭编辑")} onClick={close} disabled={!!busy}><X/></button></div>
    <form onSubmit={save}><fieldset disabled={!!busy}>

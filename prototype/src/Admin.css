@@ -143,7 +143,35 @@
 }
 .admin-mobile-photo-preview::backdrop { background: rgb(0 0 0 / 85%); }
 .admin-mobile-photo-preview header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; }
-.admin-mobile-photo-preview img { display: block; width: 100%; max-height: calc(100dvh - 106px); object-fit: contain; }
+.admin-preview-gallery { display: grid; gap: 10px; min-width: 0; }
+.admin-preview-image {
+  display: block;
+  width: 100%;
+  height: min(54dvh, 100vw);
+  object-fit: contain;
+  border: 1px solid #34393f;
+  border-radius: 7px;
+  background: #101214;
+}
+.admin-preview-controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.admin-preview-controls span { min-width: 5ch; text-align: center; font-size: 13px; color: #c4cbd2; }
+.admin-preview-thumbnails {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px;
+}
+.inventory-admin .admin-preview-thumbnails button {
+  flex: 0 0 64px;
+  height: 48px;
+  min-height: 0;
+  padding: 2px;
+  border-radius: 5px;
+}
+.admin-preview-thumbnails img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 3px; }
+.inventory-admin .admin-preview-thumbnails button[aria-current="true"] { border-color: #f25a54; box-shadow: 0 0 0 1px #f25a54; }
+.inventory-admin .admin-preview-thumbnails button:focus-visible { outline-offset: -3px; }
 
 @media (min-width: 761px) {
   .admin-edit-dialog .admin-editor { width: min(760px, 72vw); flex: none; }
@@ -155,17 +183,10 @@
     justify-content: center;
     gap: 12px;
     padding: clamp(16px, 2.2vw, 40px);
+    overflow-y: auto;
   }
-  .admin-photo-preview h3, .admin-photo-preview p { margin: 0; font-size: 13px; color: #c4cbd2; }
-  .admin-photo-preview img {
-    display: block;
-    width: 100%;
-    max-height: 76dvh;
-    object-fit: contain;
-    border: 1px solid #34393f;
-    border-radius: 7px;
-    background: #101214;
-  }
+  .admin-photo-preview h3 { margin: 0; font-size: 13px; color: #c4cbd2; }
+  .admin-photo-preview .admin-preview-image { height: min(60dvh, 42vw); }
   .admin-photo-preview-empty {
     display: grid;
     place-items: center;
