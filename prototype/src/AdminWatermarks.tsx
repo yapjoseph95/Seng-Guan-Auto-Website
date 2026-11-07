@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
-import { ChevronLeft, ChevronRight, Upload, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Pencil, Upload, X } from 'lucide-react'
 import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkAsset, type WatermarkDefaults, type WatermarkLibraryData, type WatermarkPlacement } from '../shared/watermarks'
 import { maxPhotoBytes } from '../shared/vehicle-photos'
 import { useLocale } from './locale'
@@ -89,13 +89,17 @@ function WatermarkSliders({value,disabled,onChange,defaults = false}: {
  </div>
 }
 
-function WatermarkAssetSettings({asset,fallback,disabled,saving,onSave}: {
+function WatermarkAssetSettings({asset,fallback,disabled,saving,onSave,onRename}: {
  asset:WatermarkAsset; fallback:WatermarkDefaults; disabled:boolean; saving:boolean
  onSave:(id:string,defaults:WatermarkDefaults) => Promise<void>
+ onRename:(id:string,name:string) => Promise<void>
 }) {
  const { t } = useLocale()
  const saved = {...fallback,...asset.defaults}
  const [draft,setDraft] = useState(saved)
+ const [nameDraft,setNameDraft] = useState<string | null>(null)
+ const [nameError,setNameError] = useState('')
+ const renameButton = useRef<HTMLButtonElement>(null)
  const [error,setError] = useState('')
  const [notice,setNotice] = useState('')
  const [previewSize,setPreviewSize] = useState<Size>()
@@ -116,11 +120,53 @@ function WatermarkAssetSettings({asset,fallback,disabled,saving,onSave}: {
   }
  }
 
+ const closeRename = () => {
+  setNameDraft(null)
+  setNameError('')
+  requestAnimationFrame(() => renameButton.current?.focus())
+ }
+
+ const submitName = async (event: FormEvent) => {
+  event.preventDefault()
+  const name = nameDraft?.trim()
+  if (disabled || !name || name === asset.name) return
+  setNameError('')
+  try {
+   await onRename(asset.id,name)
+   closeRename()
+  } catch (error) {
+   setNameError((error as Error).message)
+  }
+ }
+
  return <li>
   <img src={asset.url} alt="" onLoad={event => setAssetSize({
    width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight,
   })} />
-  <h3>{asset.name}</h3>
+  {nameDraft === null ? <div className="admin-watermark-name">
+   <h3>{asset.name}</h3>
+   <button ref={renameButton} type="button" aria-label={t('Rename watermark {name}',{name:asset.name})}
+    title={t('Rename watermark {name}',{name:asset.name})} disabled={disabled} onClick={() => setNameDraft(asset.name)}>
+    <Pencil size={16} aria-hidden="true" />
+   </button>
+  </div> : <form className="admin-watermark-rename" onSubmit={submitName}
+   onKeyDown={event => {
+    if (event.key !== 'Escape') return
+    event.preventDefault()
+    event.stopPropagation()
+    if (!disabled) closeRename()
+   }}>
+   <div className="admin-watermark-name">
+    <input autoFocus required maxLength={80} value={nameDraft} aria-label={t('Watermark name')}
+     disabled={disabled} onChange={event => { setNameDraft(event.target.value); setNameError('') }} />
+    <button type="submit" aria-label={t('Save watermark name')} title={t('Save watermark name')}
+     disabled={disabled || !nameDraft.trim() || nameDraft.trim() === asset.name}><Check size={16} aria-hidden="true" /></button>
+    <button type="button" aria-label={t('取消')} title={t('取消')} disabled={disabled} onClick={closeRename}>
+     <X size={16} aria-hidden="true" />
+    </button>
+   </div>
+   {nameError && <p className="admin-error" role="alert">{t(nameError)}</p>}
+  </form>}
   <div className="admin-watermark-default-preview">
    <img src={sampleVehiclePhoto} alt={t('Watermark preview on a sample vehicle')} onLoad={event => setPreviewSize({
     width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight,
@@ -203,6 +249,16 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
   }
  }
 
+ const renameAsset = async (id: string, name: string) => {
+  setBusy('rename:'+id)
+  try {
+   const saved = await request<{name:string}>('watermarks/'+id,{method:'PATCH',body:JSON.stringify({name})})
+   setAssets(current => current?.map(asset => asset.id === id ? {...asset,name:saved.name} : asset) ?? null)
+  } finally {
+   setBusy(null)
+  }
+ }
+
  return <WatermarkDialog title={t('Watermark settings')} busy={!!busy} onClose={onClose}>
   <form onSubmit={upload} className="admin-watermark-form">
    <p>{t('Upload a JPG, PNG or WebP image. Use a transparent PNG or WebP for a logo without a background.')}</p>
@@ -216,7 +272,7 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
    <p className="admin-watermark-library-note">{t('Defaults apply to newly added watermarks.')}</p>
    <ul className="admin-watermark-library" aria-label={t('Saved watermarks')}>
     {assets.map(asset => <WatermarkAssetSettings key={asset.id} asset={asset} fallback={defaults}
-     disabled={!!busy} saving={busy === asset.id} onSave={saveDefaults} />)}
+     disabled={!!busy} saving={busy === asset.id} onSave={saveDefaults} onRename={renameAsset} />)}
    </ul>
   </>}
  </WatermarkDialog>

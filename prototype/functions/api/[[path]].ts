@@ -148,7 +148,26 @@ function imageResponse(body: ReadableStream, type: string, admin: boolean) {
 
 const inRange = (n: unknown, min = 0): n is number => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= 1
 
+function watermarkName(value: unknown) {
+ const name = typeof value === 'string' ? value.trim() : ''
+ if (!name || name.length > 80) throw new HttpError(400,'Enter a watermark name up to 80 characters.')
+ return name
+}
+
 async function watermarkLibrary(request: Request, env: Env, id?: string) {
+ if (request.method === 'PATCH' && id) {
+  const name = watermarkName((await body(request)).name)
+  const result = await env.DB.prepare(
+   'UPDATE watermark_assets SET name=? WHERE id=? AND NOT EXISTS (SELECT 1 FROM watermark_assets WHERE name=? AND id<>?)'
+  ).bind(name,id,name,id).run()
+  if (!result.meta.changes) {
+   const asset = await env.DB.prepare('SELECT id FROM watermark_assets WHERE id=?').bind(id).first()
+   if (!asset) throw new HttpError(404,'Watermark not found.')
+   throw new HttpError(409,'A watermark with that name already exists.')
+  }
+  return json({name})
+ }
+
  if (request.method === 'PUT' && id) {
   const {scale,opacity,x,y} = await body(request)
   if (!inRange(scale,.1) || !inRange(opacity)) throw new HttpError(400,'Invalid watermark defaults.')
@@ -191,22 +210,21 @@ async function watermarkLibrary(request: Request, env: Env, id?: string) {
  const length = Number(request.headers.get('Content-Length'))
  if (!Number.isSafeInteger(length) || length <= 0 || length > maxPhotoBytes + 4096) throw new HttpError(413,'Watermark images must be under 7 MB.')
  const form = await request.formData().catch(() => { throw new HttpError(400,'Invalid request.') })
- const name = form.get('name')
- if (typeof name !== 'string' || !name.trim() || name.trim().length > 80) throw new HttpError(400,'Enter a watermark name up to 80 characters.')
+ const name = watermarkName(form.get('name'))
  const file = await checkedPhoto(form.get('file'))
  const assetId = crypto.randomUUID()
  const key = 'watermark-assets/'+assetId
  await env.PHOTOS.put(key,file,{httpMetadata:{contentType:file.type}})
  try {
   const result = await env.DB.prepare('INSERT INTO watermark_assets(id,name,content_type) VALUES(?,?,?) ON CONFLICT(name) DO NOTHING')
-   .bind(assetId,name.trim(),file.type).run()
+   .bind(assetId,name,file.type).run()
   if (!result.meta.changes) throw new HttpError(409,'A watermark with that name already exists.')
  } catch (error) {
   const saved = await env.DB.prepare('SELECT id FROM watermark_assets WHERE id=?').bind(assetId).first().catch(() => undefined)
   if (saved === null) await deletePhotoObjects(env,[key])
   throw error
  }
- return json({id:assetId,name:name.trim(),url:'/api/admin/watermarks/'+assetId},201)
+ return json({id:assetId,name,url:'/api/admin/watermarks/'+assetId},201)
 }
 
 function placement(value: unknown): WatermarkPlacement {

@@ -531,4 +531,6 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Default horizontal position": ["Default horizontal position","Kedudukan mendatar lalai","默认水平位置"],
   "Default vertical position": ["Default vertical position","Kedudukan menegak lalai","默认垂直位置"],
   "Watermark preview on a sample vehicle": ["Watermark preview on a sample vehicle","Pratonton tera air pada foto contoh","示例车辆照片上的水印预览"],
+  "Rename watermark {name}": ["Rename watermark {name}","Namakan semula tera air {name}","重命名水印 {name}"],
+  "Save watermark name": ["Save watermark name","Simpan nama tera air","保存水印名称"],
 }

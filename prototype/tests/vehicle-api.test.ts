@@ -379,3 +379,25 @@ test('watermark assets retain independent defaults and use the former shared def
  assert.deepEqual(refreshed.watermarks.find((item:any)=>item.id===asset.id).defaults,{scale:.6,opacity:.5,x:0,y:.42})
  assert.deepEqual(refreshed.watermarks.find((item:any)=>item.name==='Legacy fallback').defaults,{...defaults,x:.95,y:.95})
 })
+
+test('watermark rename validates names and preserves asset identity and defaults', async () => {
+ const id = crypto.randomUUID()
+ sql.prepare("INSERT INTO watermark_assets(id,name,content_type,default_scale) VALUES(?,?,'image/jpeg',.51)").run(id,'Rename this')
+ sql.prepare("INSERT INTO watermark_assets(id,name,content_type) VALUES(?,?,'image/jpeg')").run(crypto.randomUUID(),'Taken name')
+ const path = '/api/admin/watermarks/'+id
+ assert.equal((await call(path,'PATCH',{name:'New name'},false)).status,401)
+ assert.equal((await call(path,'PATCH',{name:'New name'},true,'https://attacker.test')).status,403)
+ assert.equal((await call(path,'PATCH',{name:'  '})).status,400)
+ assert.equal((await call(path,'PATCH',{name:'a'.repeat(81)})).status,400)
+ assert.equal((await call(path,'PATCH',{name:' TAKEN NAME '})).status,409)
+ assert.equal((await call('/api/admin/watermarks/'+crypto.randomUUID(),'PATCH',{name:'New name'})).status,404)
+ const renamed = await call(path,'PATCH',{name:' Updated name '})
+ assert.equal(renamed.status,200)
+ assert.deepEqual(await renamed.json(),{name:'Updated name'})
+ assert.equal((await call(path,'PATCH',{name:'UPDATED NAME'})).status,200)
+ const library = await (await call('/api/admin/watermarks')).json() as any
+ const item = library.watermarks.find((asset:any)=>asset.id===id)
+ assert.equal(item.name,'UPDATED NAME')
+ assert.equal(item.url,path)
+ assert.equal(item.defaults.scale,.51)
+})
