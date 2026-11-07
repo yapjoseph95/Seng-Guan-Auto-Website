@@ -730,7 +730,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
   const [copied, setCopied] = useState(false)
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
   const mileage = formatMileage(car.mileage,car.mileage_band,locale)
-  const status = car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : car.status === 'available' ? t('AVAILABLE') : null
+  const available = car.status === 'available'
+  const stamp = car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : null
+  const availableLabel = useRef<HTMLSpanElement>(null)
   const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!isPlainLeftClick(event) || (!isOfficialSite && !car.photos)) return
     event.preventDefault()
@@ -742,6 +744,18 @@ function VehicleCard({ car }: { car: Vehicle }) {
     const timer = window.setTimeout(() => setCopied(false), 2200)
     return () => window.clearTimeout(timer)
   }, [copied])
+
+  useEffect(() => {
+    const label = availableLabel.current
+    if (!label) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      label.dataset.pulse = 'true'
+      observer.disconnect()
+    })
+    observer.observe(label)
+    return () => observer.disconnect()
+  }, [available])
 
   const shareVehicle = async () => {
     const url = new URL(href, window.location.href).href
@@ -768,8 +782,11 @@ function VehicleCard({ car }: { car: Vehicle }) {
         <div className="vehicle-media">
           <div className="vehicle-photo">
             <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
+            {stamp && <span className={`vehicle-status vehicle-status--${car.status}`}>{stamp}</span>}
           </div>
-          {status && <span className={`vehicle-status vehicle-status--${car.status}`}>{status}</span>}
+          {(available || stamp) && <span className={`vehicle-status-bar${available ? ' vehicle-status-bar--available' : ''}`}>
+            {available ? <span ref={availableLabel}>{t('AVAILABLE')}</span> : t('NOT AVAILABLE')}
+          </span>}
         </div>
         <div className="vehicle-info">
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>

@@ -534,6 +534,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Rename watermark {name}": ["Rename watermark {name}","Namakan semula tera air {name}","重命名水印 {name}"],
   "Save watermark name": ["Save watermark name","Simpan nama tera air","保存水印名称"],
   "AVAILABLE": ["AVAILABLE","TERSEDIA","在售"],
+  "NOT AVAILABLE": ["NOT AVAILABLE","TIDAK TERSEDIA","不可购买"],
   "Share {name}": ["Share {name}","Kongsi {name}","分享 {name}"],
   "Copy this vehicle link": ["Copy this vehicle link","Salin pautan kenderaan ini","复制此车辆链接"],
 }
