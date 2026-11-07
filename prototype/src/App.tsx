@@ -4,10 +4,10 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
-  ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator,
+  ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator, CalendarDays,
   CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, HeartHandshake, Mail, MapPin,
   Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
-  SlidersHorizontal, Wrench, X,
+  Settings2, SlidersHorizontal, Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
@@ -722,23 +722,36 @@ function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (
   )
 }
 
-function VehicleCard({ car, compact = false }: { car: Vehicle; compact?: boolean }) {
+function VehicleCard({ car }: { car: Vehicle }) {
   const { t, locale } = useLocale()
   const [details, setDetails] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
-  const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => { if (!isPlainLeftClick(event)) return; if (isOfficialSite || car.photos) { event.preventDefault(); setDetails(true) } }
+  const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
+  const status = car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : null
+  const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!isPlainLeftClick(event) || (!isOfficialSite && !car.photos)) return
+    event.preventDefault()
+    setDetails(true)
+  }
+
   return (
-    <article className={`vehicle-card${compact ? ' vehicle-card--compact' : ''}`}>
-      <a className="vehicle-photo" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer" aria-label={t('View photos and details for {year} {name}', { year: car.year, name: car.name })}>
-        <img src={car.photo} alt={`${car.year} ${car.name}`} width="300" height="200" loading="lazy" />
-        <span className="vehicle-year">{car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : car.year}</span>
+    <article className="vehicle-card">
+      <a className="vehicle-card-link" href={href} onClick={viewDetails} target="_blank" rel="noreferrer"
+        aria-label={t('View photos and details for {year} {name}', { year: car.year, name: car.name })}>
+        <div className="vehicle-photo">
+          <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
+          {status && <span className="vehicle-status">{status}</span>}
+        </div>
+        <div className="vehicle-info">
+          <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
+          <div className="vehicle-specs">
+            <span><CalendarDays size={14} aria-hidden="true" /> {car.year}</span>
+            {car.mileage != null && <span><Gauge size={14} aria-hidden="true" /> {car.mileage.toLocaleString(locale)} km</span>}
+            {car.body && <span><CarFront size={14} aria-hidden="true" /> {t(car.body)}</span>}
+            {car.transmission && <span><Settings2 size={14} aria-hidden="true" /> {t(car.transmission)}</span>}
+          </div>
+          {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
+        </div>
       </a>
-      <div className="vehicle-info">
-        <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
-        {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
-        {car.mileage != null && <p>{car.mileage.toLocaleString(locale)} km</p>}
-        <div className="vehicle-specs"><span><CarFront size={14} aria-hidden="true" /> {t(car.body)}</span><span><Gauge size={14} aria-hidden="true" /> {t(car.transmission)}</span></div>
-        <a className="vehicle-link" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer">{t(isOfficialSite || car.photos ? 'View vehicle' : 'Check live details')} <ArrowUpRight size={15} aria-hidden="true" /></a>
-      </div>
       {details && <VehicleDetails car={car} onClose={() => setDetails(false)} />}
     </article>
   )
