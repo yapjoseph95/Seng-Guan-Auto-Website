@@ -401,3 +401,40 @@ test('watermark rename validates names and preserves asset identity and defaults
  assert.equal(item.url,path)
  assert.equal(item.defaults.scale,.51)
 })
+
+test('resetting range-only mileage retains exact and unrecorded mileage', () => {
+ const insert = sql.prepare("INSERT INTO vehicles(id,name,make,year,mileage,mileage_band,updated_at) VALUES(?,?,'Toyota',2020,?,?,'2026-01-01T00:00:00.000Z')")
+ insert.run('range','Range only',null,150000)
+ insert.run('exact','Exact mileage',128500,null)
+ insert.run('unknown','No mileage',null,null)
+ const migration = readFileSync(new URL('../migrations/0011_reset_range_only_mileage.sql',import.meta.url),'utf8')
+ sql.exec(migration)
+ const row = (id: string) => sql.prepare('SELECT mileage,mileage_band,updated_at FROM vehicles WHERE id=?').get(id)
+ const changed = row('range')!
+ assert.equal(changed.mileage,0)
+ assert.equal(changed.mileage_band,null)
+ assert.notEqual(changed.updated_at,'2026-01-01T00:00:00.000Z')
+ assert.equal(row('exact')?.mileage,128500)
+ assert.equal(row('unknown')?.mileage,null)
+ sql.exec(migration)
+ assert.equal(row('range')?.updated_at,changed.updated_at)
+})
+
+test('vehicle makes are canonicalized on save and grouped case-insensitively for existing stock', async () => {
+ const base = {name:'Make test',year:2020,status:'draft'}
+ const post = async (make: string) => {
+  const response = await call('/api/admin/vehicles','POST',{...base,make})
+  assert.equal(response.status,201)
+  return await response.json() as {id:string;make:string}
+ }
+ const exact = await post(' PERODUA ')
+ assert.equal(exact.make,'Perodua')
+ const custom = await post('Example Motors')
+ assert.equal((await post('example   MOTORS')).make,custom.make)
+ const edited = await call('/api/admin/vehicles/'+exact.id,'PUT',{...base,make:'bMw'})
+ assert.equal((await edited.json() as {make:string}).make,'BMW')
+ sql.prepare('UPDATE vehicles SET make=? WHERE id=?').run('pErOdUa',exact.id)
+ const migration = readFileSync(new URL('../migrations/0012_normalize_vehicle_makes.sql',import.meta.url),'utf8')
+ sql.exec(migration)
+ assert.equal(sql.prepare('SELECT make FROM vehicles WHERE id=?').get(exact.id)?.make,'Perodua')
+})

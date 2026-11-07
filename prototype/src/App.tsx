@@ -1,3 +1,4 @@
+import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
 import { formatPublicationDate } from './vehicle-date'
 import { formatMileage } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
@@ -889,7 +890,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
   const [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState<'published' | 'year' | 'price'>('published')
   const [ascending, setAscending] = useState(false)
-  const makes = Array.from(new Set(vehicles.map(car => car.make))).sort()
+  const makes = vehicleMakeOptions(vehicles.map(car => car.make))
   const years = Array.from(new Set(vehicles.map(car => String(car.year)))).sort((a, b) => Number(b) - Number(a))
   const invalidRange = Boolean(minPrice && maxPrice && Number(minPrice) > Number(maxPrice))
   const resetFilters = () => {
@@ -907,7 +908,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
       return car.published_at ? Date.parse(car.published_at) : null
     }
     return vehicles.filter(car => {
-      if (make && car.make !== make || year && String(car.year) !== year) return false
+      if (make && vehicleMakeKey(car.make) !== make || year && String(car.year) !== year) return false
       if (minPrice !== '' && (car.price == null || car.price < Number(minPrice))) return false
       if (maxPrice !== '' && (car.price == null || car.price > Number(maxPrice))) return false
       return `${car.make} ${car.year} ${car.name} ${car.body} ${t(car.body)}`.toLowerCase().includes(query)
@@ -931,7 +932,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
             <label><span id="inventory-make-label">{t("Filter by make")}</span>
               <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
                 <option value="">{t("All makes")}</option>
-                {makes.map(option => <option key={option}>{option}</option>)}
+                {makes.map(([key,option]) => <option key={key} value={key}>{option}</option>)}
               </select>
             </label>
             <label><span id="inventory-year-label">{t("Manufactured year")}</span>

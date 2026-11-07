@@ -1,5 +1,6 @@
+import { canonicalVehicleMake, vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
 import { formatPublicationDate } from './vehicle-date'
-import { formatMileage, isMileageBand, mileageBands, type MileageBand } from '../shared/vehicle-mileage'
+import type { MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { CarFront, Check, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Stamp, Trash2, X } from 'lucide-react'
@@ -147,11 +148,6 @@ function PhotoPreview({ mobileOpen, onClose, ...gallery }: PreviewGalleryProps &
 const statuses = { draft: '草稿', available: '在售', reserved: '已保留', sold: '已售' }
 const publishedStatuses = ['available', 'reserved', 'sold'] as const
 const editorStatuses = [...publishedStatuses, 'draft'] as const
-const commonMakes = [
- 'Audi', 'BMW', 'BYD', 'Chery', 'Ford', 'GWM', 'Honda', 'Hyundai', 'Isuzu', 'Jaecoo',
- 'Kia', 'Lexus', 'Mazda', 'Mercedes-Benz', 'MG', 'MINI', 'Mitsubishi', 'Nissan',
- 'Perodua', 'Peugeot', 'Porsche', 'Proton', 'Subaru', 'Suzuki', 'Toyota', 'Volkswagen', 'Volvo',
-]
 const amountFormat = new Intl.NumberFormat('en-MY')
 
 function VehicleAmountInput({ value, onChange }: {
@@ -393,6 +389,7 @@ export default function Admin() {
    setUpdatingStatus(null)
   }
  }
+ const makes = vehicleMakeOptions(vehicles.map(vehicle => vehicle.make),true)
  const search = query.trim().toLowerCase()
  const plateQuery = search.replace(/[\s-]+/g,'')
  const visible = vehicles.filter(vehicle => {
@@ -486,9 +483,13 @@ export default function Admin() {
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>
      <label>{t("品牌")}
       <input list="admin-makes" required maxLength={80} value={edit.make}
-       onChange={e=>update({make:e.target.value})} placeholder="Toyota" autoComplete="off" />
+       onChange={e=>update({make:e.target.value})}
+       onBlur={e => {
+        const make = makes.find(([key]) => key === vehicleMakeKey(e.target.value))?.[1] ?? canonicalVehicleMake(e.target.value)
+        if (make !== e.target.value) update({make})
+       }} placeholder="Toyota" autoComplete="off" />
       <datalist id="admin-makes">
-       {[...new Set([...commonMakes,...vehicles.map(vehicle => vehicle.make)])].sort().map(make => <option key={make} value={make} />)}
+       {makes.map(([key,make]) => <option key={key} value={make} />)}
       </datalist>
      </label>
      <label>{t("年份")}<input required type="number" min="1950" max={new Date().getFullYear()+1} value={edit.year} onChange={e=>update({year:Number(e.target.value)})}/></label>
@@ -497,14 +498,7 @@ export default function Admin() {
      </label>
      <label>{t("售价 (RM)")}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
      <label>{t("里程 (km)")}
-      <select value={edit.mileage_band ?? (edit.mileage == null ? '' : 'exact')} onChange={e => {
-       const value = Number(e.target.value)
-       if (e.target.value !== 'exact') update({ mileage:null, mileage_band:isMileageBand(value) ? value : null })
-      }}>
-       <option value="">{t('选择里程范围')}</option>
-       {edit.mileage != null && <option value="exact">{formatMileage(edit.mileage,null,locale)}</option>}
-       {mileageBands.map(band => <option key={band} value={band}>{formatMileage(null,band,locale)}</option>)}
-      </select>
+      <VehicleAmountInput value={edit.mileage} onChange={mileage => update({ mileage, mileage_band:null })} />
      </label>
      <label>{t("车身类型")}<select value={edit.body} onChange={e=>update({body:e.target.value})}>{['Sedan','SUV','MPV','Hatchback','Pickup','Coupe','Van','Wagon','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("排挡")}<select value={edit.transmission} onChange={e=>update({transmission:e.target.value})}>{['Automatic','Manual'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>

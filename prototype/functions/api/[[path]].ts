@@ -1,4 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
+import { canonicalVehicleMake, officialVehicleMake } from '../../shared/vehicle-makes'
 import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
 import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
@@ -46,7 +47,8 @@ function fields(data: Record<string, unknown>) {
  if (!['draft','available','reserved','sold'].includes(String(status))) throw new HttpError(400, 'Invalid publication status.')
  const mileageBand = data.mileage_band ?? null
  if (mileageBand !== null && !isMileageBand(mileageBand)) throw new HttpError(400,'Please check mileage.')
- return [text('name',160,true),text('make',80,true),year,text('body',60),text('fuel',60),text('transmission',60),number('price'),mileageBand === null ? number('mileage') : null,text('description',10000),status,data.featured === true ? 1 : 0,mileageBand]
+ const make = canonicalVehicleMake(text('make',80,true))
+ return [text('name',160,true),officialVehicleMake(make) ? null : make,make,year,text('body',60),text('fuel',60),text('transmission',60),number('price'),mileageBand === null ? number('mileage') : null,text('description',10000),status,data.featured === true ? 1 : 0,mileageBand]
 }
 const photoTypes = ['image/jpeg', 'image/png', 'image/webp']
 async function checkedPhoto(file: unknown) {
@@ -73,10 +75,11 @@ async function body(request: Request) {
  if (!request.headers.get('content-type')?.includes('application/json')) throw new HttpError(415, 'Expected JSON.')
  return parseBody(await limitedText(request,40000))
 }
-const insertVehicle = 'INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,mileage_band) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const storedMake = 'COALESCE((SELECT make FROM vehicles WHERE make = ? COLLATE NOCASE ORDER BY created_at,id LIMIT 1),?)'
+const insertVehicle = `INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,mileage_band) VALUES(?,?,${storedMake},?,?,?,?,?,?,?,?,?,?)`
 const timestamp = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 const nextUpdatedAt = `CASE WHEN ${timestamp} <= updated_at THEN strftime('%Y-%m-%dT%H:%M:%fZ',updated_at,'+0.001 seconds') ELSE ${timestamp} END`
-const updateVehicle = `UPDATE vehicles SET name=?,make=?,year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
+const updateVehicle = `UPDATE vehicles SET name=?,make=${storedMake},year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
 function preserveMileageBand(data: Record<string, unknown>) {
  return !Object.hasOwn(data,'mileage_band') && (data.mileage == null || data.mileage === '') ? 1 : 0
 }
