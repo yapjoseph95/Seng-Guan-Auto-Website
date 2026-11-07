@@ -2,7 +2,7 @@
 import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
 import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
-import { maxWatermarksPerPhoto, type WatermarkPlacement } from '../../shared/watermarks'
+import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkDefaults, type WatermarkPlacement } from '../../shared/watermarks'
 type Row = Record<string, unknown>
 const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at'
 const vehicleFields = (admin: boolean) => admin
@@ -146,7 +146,17 @@ function imageResponse(body: ReadableStream, type: string, admin: boolean) {
  }})
 }
 
+const inRange = (n: unknown, min = 0): n is number => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= 1
+
 async function watermarkLibrary(request: Request, env: Env, id?: string) {
+ if (request.method === 'PUT' && id === 'settings') {
+  const {scale,opacity} = await body(request)
+  if (!inRange(scale,.1) || !inRange(opacity)) throw new HttpError(400,'Invalid watermark defaults.')
+  await env.DB.prepare(
+   'INSERT INTO watermark_settings(id,scale,opacity) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET scale=excluded.scale,opacity=excluded.opacity'
+  ).bind(scale,opacity).run()
+  return json({scale,opacity})
+ }
  if (request.method === 'GET' && id) {
   const asset = await env.DB.prepare('SELECT content_type FROM watermark_assets WHERE id=?').bind(id).first<{content_type:string}>()
   const image = asset && await env.PHOTOS.get('watermark-assets/'+id)
@@ -155,7 +165,8 @@ async function watermarkLibrary(request: Request, env: Env, id?: string) {
  }
  if (request.method === 'GET') {
   const assets = await env.DB.prepare('SELECT id,name FROM watermark_assets ORDER BY name,id').all<{id:string;name:string}>()
-  return json({watermarks:assets.results.map(asset => ({...asset,url:'/api/admin/watermarks/'+asset.id}))})
+  const defaults = await env.DB.prepare('SELECT scale,opacity FROM watermark_settings WHERE id=1').first<WatermarkDefaults>()
+  return json({watermarks:assets.results.map(asset => ({...asset,url:'/api/admin/watermarks/'+asset.id})),defaults:defaults ?? defaultWatermarkSettings})
  }
  if (request.method !== 'POST' || id) throw new HttpError(405,'Method not allowed.')
  const length = Number(request.headers.get('Content-Length'))
@@ -181,7 +192,6 @@ async function watermarkLibrary(request: Request, env: Env, id?: string) {
 
 function placement(value: unknown): WatermarkPlacement {
  const item = value as Partial<WatermarkPlacement> | null
- const inRange = (n: unknown, min = 0): n is number => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= 1
  if (!item || typeof item.watermarkId !== 'string' || !newVehicleIdPattern.test(item.watermarkId)
   || !inRange(item.x) || !inRange(item.y) || !inRange(item.scale,.1) || !inRange(item.opacity)) {
   throw new HttpError(400,'Invalid watermark placement.')

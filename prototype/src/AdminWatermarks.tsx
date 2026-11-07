@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Upload, X } from 'lucide-react'
-import { maxWatermarksPerPhoto, type WatermarkAsset, type WatermarkPlacement } from '../shared/watermarks'
+import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkAsset, type WatermarkDefaults, type WatermarkLibraryData, type WatermarkPlacement } from '../shared/watermarks'
 import { maxPhotoBytes } from '../shared/vehicle-photos'
 import { useLocale } from './locale'
 import type { AdminPhoto } from './AdminPhotoGrid'
@@ -66,20 +66,47 @@ function WatermarkDialog({ title, onClose, busy = false, children }: {
  </dialog>
 }
 
+function WatermarkSliders({value,disabled,onChange,defaults = false}: {
+ value:WatermarkDefaults; disabled:boolean; onChange:(change:Partial<WatermarkDefaults>) => void; defaults?:boolean
+}) {
+ const { t } = useLocale()
+ return <div className="admin-watermark-sliders">
+  {([
+   ['scale',defaults ? 'Default watermark size' : 'Watermark size',10],
+   ['opacity',defaults ? 'Default watermark opacity' : 'Watermark opacity',0],
+  ] as const).map(([key,label,min]) => {
+   const percent = Math.round(value[key]*100)
+   return <label key={key}>
+    <span>{t(label)} <span aria-hidden="true">{percent}%</span></span>
+    <input type="range" aria-label={t(label)} aria-valuetext={`${percent}%`} min={min} max={100} step={1}
+     value={percent} disabled={disabled} onChange={event => onChange({[key]:Number(event.target.value)/100})} />
+   </label>
+  })}
+ </div>
+}
+
 export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest; onClose:() => void}) {
  const { t } = useLocale()
  const [assets,setAssets] = useState<WatermarkAsset[] | null>(null)
  const [name,setName] = useState('')
  const [file,setFile] = useState<File | null>(null)
- const [busy,setBusy] = useState(false)
+ const [busy,setBusy] = useState<'upload' | 'defaults' | null>(null)
+ const [defaults,setDefaults] = useState(defaultWatermarkSettings)
+ const [savedDefaults,setSavedDefaults] = useState<WatermarkDefaults | null>(null)
  const [error,setError] = useState('')
  const [notice,setNotice] = useState('')
  const fileInput = useRef<HTMLInputElement>(null)
 
  useEffect(() => {
   let active = true
-  request<{watermarks:WatermarkAsset[]}>('watermarks')
-   .then(data => { if (active) setAssets(data.watermarks) })
+  request<WatermarkLibraryData>('watermarks')
+   .then(data => {
+    if (!active) return
+    setAssets(data.watermarks)
+    const settings = data.defaults ?? defaultWatermarkSettings
+    setDefaults(settings)
+    setSavedDefaults(settings)
+   })
    .catch(error => { if (active) setError((error as Error).message) })
   return () => { active = false }
  }, [request])
@@ -89,7 +116,7 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
   if (!file || busy) return
   setError('')
   setNotice('')
-  setBusy(true)
+  setBusy('upload')
   try {
    if (file.size > maxPhotoBytes) throw new Error('Watermark images must be under 7 MB.')
    const bitmap = await createImageBitmap(file).catch(() => { throw new Error('The file is not a supported photo.') })
@@ -106,16 +133,43 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
   } catch (error) {
    setError((error as Error).message)
   } finally {
-   setBusy(false)
+   setBusy(null)
   }
  }
 
- return <WatermarkDialog title={t('Watermark settings')} busy={busy} onClose={onClose}>
+ const defaultsChanged = !!savedDefaults && (defaults.scale !== savedDefaults.scale || defaults.opacity !== savedDefaults.opacity)
+ const saveDefaults = async (event: FormEvent) => {
+  event.preventDefault()
+  if (busy || !defaultsChanged) return
+  setBusy('defaults')
+  setError('')
+  setNotice('')
+  try {
+   const saved = await request<WatermarkDefaults>('watermarks/settings',{method:'PUT',body:JSON.stringify(defaults)})
+   setDefaults(saved)
+   setSavedDefaults(saved)
+   setNotice('Watermark defaults saved.')
+  } catch (error) {
+   setError((error as Error).message)
+  } finally {
+   setBusy(null)
+  }
+ }
+
+ return <WatermarkDialog title={t('Watermark settings')} busy={!!busy} onClose={onClose}>
+  <form className="admin-watermark-form admin-watermark-defaults" onSubmit={saveDefaults}>
+   <p>{t('Defaults apply to newly added watermarks.')}</p>
+   <WatermarkSliders value={defaults} disabled={!!busy || !savedDefaults} defaults
+    onChange={change => setDefaults(current => ({...current,...change}))} />
+   <button className="admin-primary" disabled={!!busy || !defaultsChanged}>
+    {t(busy === 'defaults' ? 'Saving defaults…' : 'Save defaults')}
+   </button>
+  </form>
   <form onSubmit={upload} className="admin-watermark-form">
    <p>{t('Upload a JPG, PNG or WebP image. Use a transparent PNG or WebP for a logo without a background.')}</p>
-   <label>{t('Watermark name')}<input required maxLength={80} value={name} disabled={busy} onChange={event => setName(event.target.value)} /></label>
-   <label>{t('Watermark image')}<input ref={fileInput} required type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={event => setFile(event.target.files?.[0] ?? null)} /></label>
-   <button className="admin-primary" disabled={busy || !assets || !file || !name.trim()}><Upload size={17} aria-hidden="true" />{t(busy ? 'Uploading watermark…' : 'Upload watermark')}</button>
+   <label>{t('Watermark name')}<input required maxLength={80} value={name} disabled={!!busy} onChange={event => setName(event.target.value)} /></label>
+   <label>{t('Watermark image')}<input ref={fileInput} required type="file" accept="image/jpeg,image/png,image/webp" disabled={!!busy} onChange={event => setFile(event.target.files?.[0] ?? null)} /></label>
+   <button className="admin-primary" disabled={!!busy || !assets || !file || !name.trim()}><Upload size={17} aria-hidden="true" />{t(busy === 'upload' ? 'Uploading watermark…' : 'Upload watermark')}</button>
   </form>
   {error && <p className="admin-error" role="alert">{t(error)}</p>}
   {notice && <p role="status">{t(notice)}</p>}
@@ -140,6 +194,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
  const photoUrl = photo.original_url ?? photo.url
  const index = photos.findIndex(item => item.id === photo.id)
  const [assets,setAssets] = useState<WatermarkAsset[] | null>(null)
+ const [defaults,setDefaults] = useState(defaultWatermarkSettings)
  const [drafts,setDrafts] = useState(() => new Map<string,WatermarkPlacement[]>())
  const original = photoWatermarks(photo)
  const marks = drafts.get(photo.id) ?? original
@@ -163,8 +218,12 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
 
  useEffect(() => {
   let active = true
-  request<{watermarks:WatermarkAsset[]}>('watermarks')
-   .then(data => { if (active) setAssets(data.watermarks) })
+  request<WatermarkLibraryData>('watermarks')
+   .then(data => {
+    if (!active) return
+    setAssets(data.watermarks)
+    setDefaults(data.defaults ?? defaultWatermarkSettings)
+   })
    .catch(error => { if (active) setError((error as Error).message) })
   return () => { active = false }
  }, [request])
@@ -237,14 +296,14 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
  const addWatermark = (asset: WatermarkAsset, drop?: {x:number;y:number;frame:DOMRect}) => {
   if (!canAdd || !photoSize) return
   const placement = {watermarkId:asset.id,x:marks.length % 2 === 0 ? .95 : .05,
-   y:marks.length < 2 ? .95 : .05,scale:.28,opacity:.8}
+   y:marks.length < 2 ? .95 : .05,...defaults}
   const size = assetSizes[asset.id]
   if (drop && size) {
    const bounds = watermarkBounds(photoSize,size,placement)
    const width = bounds.width / photoSize.width
    const height = bounds.height / photoSize.height
-   placement.x = clamp(((drop.x-drop.frame.left)/drop.frame.width-width/2)/(1-width))
-   placement.y = clamp(((drop.y-drop.frame.top)/drop.frame.height-height/2)/(1-height))
+   placement.x = width < 1 ? clamp(((drop.x-drop.frame.left)/drop.frame.width-width/2)/(1-width)) : 0
+   placement.y = height < 1 ? clamp(((drop.y-drop.frame.top)/drop.frame.height-height/2)/(1-height)) : 0
   }
   setSelected(marks.length)
   updateMarks(previous => [...previous,placement])
@@ -371,15 +430,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
      {layers.map(({asset},i) => <button type="button" key={i} aria-pressed={selected === i}
       disabled={busy} onClick={() => setSelected(i)}>{i+1}. {asset?.name ?? t('Watermark')}</button>)}
     </div>
-    <div className="admin-watermark-sliders">
-     {([
-      ['scale','Watermark size',10], ['opacity','Watermark opacity',0],
-     ] as const).map(([key,label,min]) => <label key={key}>
-      <span>{t(label)} <span aria-hidden="true">{Math.round(mark[key]*100)}%</span></span>
-      <input type="range" aria-label={t(label)} aria-valuetext={`${Math.round(mark[key]*100)}%`} min={min} max={100} step={1}
-       value={Math.round(mark[key]*100)} disabled={busy} onChange={event => updatePlacement(selected,{[key]:Number(event.target.value)/100})} />
-     </label>)}
-    </div>
+    <WatermarkSliders value={mark} disabled={busy} onChange={change => updatePlacement(selected,change)} />
    </>}
    {error && <p className="admin-error" role="alert">{t(error)}</p>}
    <div className="admin-watermark-actions">

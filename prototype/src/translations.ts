@@ -521,4 +521,11 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Watermarks on this photo": ["Watermarks on this photo", "Tera air pada foto ini", "此照片的水印"],
   "Remove watermark {number}": ["Remove watermark {number}", "Buang tera air {number}", "移除第 {number} 个水印"],
   "Too many watermarks for this photo.": ["Too many watermarks for this photo.", "Foto ini telah mencapai had 10 tera air.", "这张照片已达到 10 个水印的上限。"],
+  "Default watermark size": ["Default watermark size", "Saiz tera air lalai", "默认水印大小"],
+  "Default watermark opacity": ["Default watermark opacity", "Kelegapan tera air lalai", "默认水印不透明度"],
+  "Defaults apply to newly added watermarks.": ["Defaults apply to newly added watermarks.", "Tetapan lalai digunakan untuk tera air yang baru ditambah.", "默认值适用于新添加的水印。"],
+  "Save defaults": ["Save defaults", "Simpan tetapan lalai", "保存默认值"],
+  "Saving defaults…": ["Saving defaults…", "Menyimpan tetapan lalai…", "正在保存默认值…"],
+  "Watermark defaults saved.": ["Watermark defaults saved.", "Tetapan lalai tera air disimpan.", "已保存水印默认值。"],
+  "Invalid watermark defaults.": ["Invalid watermark defaults.", "Tetapan lalai tera air tidak sah.", "水印默认值无效。"],
 }

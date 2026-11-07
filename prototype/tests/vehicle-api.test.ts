@@ -17,6 +17,7 @@ sql.exec(readFileSync(new URL('../migrations/0004_vehicle_mileage_band.sql',impo
 sql.exec(readFileSync(new URL('../migrations/0005_vehicle_publication.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0006_watermarks.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0007_watermark_layers.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0008_watermark_defaults.sql',import.meta.url),'utf8'))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
@@ -328,4 +329,22 @@ test('named watermarks stay private and a vehicle save publishes only the render
  assert.deepEqual(await (await call('/api/photos/'+photoId,'GET',undefined,false)).arrayBuffer(),await photo.arrayBuffer())
  assert.equal([...objects.keys()].filter(key=>key.startsWith('vehicle-watermarks/')).length,0)
  assert.equal((await call(path,'DELETE')).status,200)
+})
+
+test('watermark defaults are private, validated and persist independently of photos', async () => {
+ const library = '/api/admin/watermarks'
+ const settings = library+'/settings'
+ const defaults = async () => (await (await call(library)).json() as {defaults:unknown}).defaults
+ assert.deepEqual(await defaults(),{scale:.28,opacity:.8})
+ assert.equal((await call(settings,'PUT',{scale:.5,opacity:.6},false)).status,401)
+ assert.equal((await call(settings,'PUT',{scale:.5,opacity:.6},true,'https://attacker.test')).status,403)
+ assert.equal((await call(settings,'PUT',{scale:.09,opacity:.6})).status,400)
+ assert.equal((await call(settings,'PUT',{scale:.5,opacity:1.1})).status,400)
+ assert.deepEqual(await defaults(),{scale:.28,opacity:.8})
+ for (const values of [{scale:.4,opacity:.65},{scale:1,opacity:0}]) {
+  const response = await call(settings,'PUT',values)
+  assert.equal(response.status,200)
+  assert.deepEqual(await response.json(),values)
+  assert.deepEqual(await defaults(),values)
+ }
 })

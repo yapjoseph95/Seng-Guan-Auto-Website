@@ -329,3 +329,4 @@
  background: var(--admin-primary); border-color: var(--admin-primary);
 }
 .inventory-admin .admin-watermark-remove:active { transform: translate(35%,-35%) scale(.94); }
+.admin-watermark-defaults { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #3a4047; }
