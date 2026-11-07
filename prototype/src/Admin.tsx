@@ -236,8 +236,7 @@ export default function Admin() {
     method: edit.id ? 'PUT' : 'POST', body: form,
    })
    releasePhotos(stagedPhotos.current)
-   originalVehicle.current = { updatedAt:saved.updated_at, photoOrder:saved.photos.map(photo => photo.id), createId:original.createId }
-   setEdit(saved)
+   setEdit(null)
    setDirty(false)
    setVehicles(current => edit.id ? current.map(vehicle => vehicle.id === saved.id ? saved : vehicle) : [saved,...current])
    setNotice(saved.status === 'draft' ? '草稿已保存。' : '已保存，网站将显示最新资料。')
@@ -433,8 +432,8 @@ export default function Admin() {
      <label className="admin-wide">{t("车辆介绍")}<textarea rows={4} maxLength={10000} value={edit.description} onChange={e=>update({description:e.target.value})} placeholder={t("车况、配备及其他说明（内容会展示在官网）")}/></label>
      <label className="admin-checkbox admin-wide"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
     </div>
-   </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'尚未保存')}</span><button type="button" onClick={close} disabled={!!busy}>{t("返回")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
-   {error&&<p className="admin-error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}
+   </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'尚未保存')}</span><button type="button" onClick={close} disabled={!!busy}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
+   {error&&<p className="admin-error" role="alert">{t(error)}</p>}
    </form></section></div></div>}
   {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}
  </div>
