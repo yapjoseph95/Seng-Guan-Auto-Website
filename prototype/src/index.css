@@ -10,6 +10,7 @@
 @tailwind utilities;
 
 :root {
+  --vehicle-photo-ratio: 4 / 3;
   font-family: "DM Sans Variable", sans-serif;
   color: #202525;
   background: #f7f7f4;
