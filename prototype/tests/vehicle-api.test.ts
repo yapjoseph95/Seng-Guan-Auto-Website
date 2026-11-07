@@ -14,6 +14,8 @@ sql.exec(`
 `)
 sql.exec('BEGIN; '+reservedMigration+' COMMIT;')
 sql.exec(readFileSync(new URL('../migrations/0004_vehicle_mileage_band.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0005_vehicle_publication.sql',import.meta.url),'utf8'))
+assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
 assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[])
@@ -83,7 +85,13 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.equal((await call('/api/admin/vehicles','POST',{...sample,price:-1})).status,400)
  assert.equal((await call('/api/admin/vehicles','POST',{...sample,description:'x'.repeat(50000)})).status,413)
  assert.equal((await call('/api/admin/vehicles','POST',sample,true,'https://attacker.test')).status,403)
- const created=await call('/api/admin/vehicles','POST',sample);assert.equal(created.status,201);const draft=await created.json() as any;assert.equal(draft.status,'draft')
+ const created=await call('/api/admin/vehicles','POST',{...sample,plate_number:' wxy 1234 '})
+ assert.equal(created.status,201)
+ const draft=await created.json() as any
+ assert.equal(draft.status,'draft')
+ assert.equal(draft.published_at,null)
+ assert.equal(draft.plate_number,'WXY 1234')
+ assert.equal((await call('/api/admin/vehicles/'+draft.id,'PUT',{...sample,plate_number:'x'.repeat(33)})).status,400)
  assert.deepEqual((await (await call('/api/vehicles','GET',undefined,false)).json() as any).vehicles,[])
  assert.equal((await call('/api/admin/vehicles/'+draft.id,'PUT',sample)).status,400)
  assert.equal((await call('/api/admin/vehicles/'+draft.id,'PATCH',{status:'reserved'})).status,400)
@@ -95,7 +103,12 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.equal((await call('/api/admin/vehicles/'+draft.id,'PUT',{...sample,photoOrder:[ids[0],ids[0]]})).status,409)
  const publish=await call('/api/admin/vehicles/'+draft.id,'PUT',{...sample,photoOrder:[...ids].reverse()});assert.equal(publish.status,200);assert.equal((await publish.json() as any).photos[0].id,ids[1])
  const published=(await (await call('/api/vehicles','GET',undefined,false)).json() as any).vehicles;assert.equal(published.length,1);assert.equal(published[0].price,45000);assert.equal(published[0].description,'Test description');assert(!JSON.stringify(published).includes('object_key'))
+ const publicationDate = published[0].published_at
+ assert.ok(Number.isFinite(Date.parse(publicationDate)))
+ assert.equal(Object.hasOwn(published[0],'plate_number'),false)
+ assert.equal(JSON.stringify(published).includes('WXY 1234'),false)
  const adminPath='/api/admin/vehicles/'+draft.id
+ assert.equal((await (await call(adminPath)).json() as any).plate_number,'WXY 1234')
  assert.equal((await call(adminPath,'PUT',{...sample,status:'reserved'})).status,200)
  assert.equal((await call(adminPath,'PATCH',{status:'reserved'},false)).status,401)
  assert.equal((await call(adminPath,'PATCH',{status:'reserved'},true,'https://attacker.test')).status,403)
@@ -105,6 +118,8 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
   assert.equal(response.status,200)
   const publicVehicle=await (await call('/api/vehicles/'+draft.id,'GET',undefined,false)).json() as any
   assert.equal(publicVehicle.status,status)
+  assert.equal(publicVehicle.published_at,publicationDate)
+  assert.equal(Object.hasOwn(publicVehicle,'plate_number'),false)
   assert.equal(publicVehicle.name,sample.name)
   assert.equal(publicVehicle.price,sample.price)
   assert.equal(publicVehicle.mileage,sample.mileage)
@@ -144,7 +159,7 @@ test('a multipart save commits details, uploads, cover order and removals togeth
  const path='/api/admin/vehicles/'+createId
  const publicPath='/api/vehicles/'+createId
  const file=new File([readFileSync(new URL('../../resources/CarPhotos/1.jpg',import.meta.url))],'car.jpg',{type:'image/jpeg'})
- const details={createId,name:'Before',make:'Toyota',year:2020,status:'available'}
+ const details={createId,name:'Before',make:'Toyota',year:2020,status:'available',plate_number:'WXY 4321'}
  const create=(photos:string[])=>{
   const form=new FormData()
   form.set('vehicle',JSON.stringify({...details,photoOrder:photos}))
@@ -156,6 +171,9 @@ test('a multipart save commits details, uploads, cover order and removals togeth
  assert.equal(created.status,201)
  const first=await created.json() as any
  assert.equal(first.photo,'/api/admin/photos/initial-1')
+ assert.equal(first.plate_number,'WXY 4321')
+ assert.ok(Number.isFinite(Date.parse(first.published_at)))
+ assert.equal(Object.hasOwn(await (await call(publicPath,'GET',undefined,false)).json() as object,'plate_number'),false)
  assert.equal((await call('/api/admin/vehicles','POST',create(['initial-1','initial-2']))).status,409)
  const edit=()=>{
   const form=new FormData()

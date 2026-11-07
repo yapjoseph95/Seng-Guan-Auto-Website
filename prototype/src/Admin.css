@@ -239,3 +239,5 @@
 }
 
 @media(prefers-reduced-motion:no-preference){.admin-success{animation:admin-toast-in .18s ease-out}@keyframes admin-toast-in{from{opacity:0;transform:translateY(-8px)}}}
+
+.admin-published-date { margin: 0; color: #aeb6bf; font-size: 13px; }

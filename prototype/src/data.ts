@@ -127,6 +127,7 @@ export type Vehicle = {
   mileage?: number | null
   mileage_band?: MileageBand | null
   description?: string
+  published_at?: string | null
 }
 
 // Sample stock and descriptions copied from the existing homepage for layout evaluation.

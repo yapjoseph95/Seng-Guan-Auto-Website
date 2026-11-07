@@ -1,3 +1,4 @@
+import { formatPublicationDate } from './vehicle-date'
 import { formatMileage, isMileageBand, mileageBands, type MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
@@ -7,8 +8,8 @@ import logo from './assets/logo-dark.svg'
 import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
 import { maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
 import './Admin.css'
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;status:VehicleStatus;updated_at:string;featured:boolean;photos:AdminPhoto[];photo:string}
-const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',featured:true,photos:[],photo:''})
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;status:VehicleStatus;updated_at:string;published_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
+const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
  let response=await execute()
@@ -323,14 +324,21 @@ export default function Admin() {
    setUpdatingStatus(null)
   }
  }
- const visible=vehicles.filter(v=>(filter==='all'||v.status===filter)&&`${v.make} ${v.name} ${v.year}`.toLowerCase().includes(query.toLowerCase()))
+ const search = query.trim().toLowerCase()
+ const plateQuery = search.replace(/[\s-]+/g,'')
+ const visible = vehicles.filter(vehicle => {
+  if (filter !== 'all' && vehicle.status !== filter) return false
+  const details = `${vehicle.make} ${vehicle.name} ${vehicle.year}`.toLowerCase()
+  const plate = vehicle.plate_number?.toLowerCase().replace(/[\s-]+/g,'')
+  return details.includes(search) || (plateQuery && plate?.includes(plateQuery))
+ })
  return <div className="inventory-admin">
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
    <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div>
    <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}</div>
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
-   <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("搜索品牌、车型或年份")} aria-label={t("搜索车辆")}/></label>
+   <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
    {loading ? <p className="admin-empty"><LoaderCircle className="admin-spin" />{t('正在载入车辆…')}</p> : (
     <div className="admin-list">
      {visible.map(vehicle => (
@@ -352,6 +360,7 @@ export default function Admin() {
        <div className="admin-car-copy">
         <p>{vehicle.year} · {vehicle.make}{vehicle.featured && vehicle.status === 'available' ? ' · ' + t('首页推荐') : ''}</p>
         <h2>{vehicle.name}</h2>
+        {vehicle.plate_number&&<p>{vehicle.plate_number}</p>}
         <span>{vehicle.price === null ? t('售价未填写') : 'RM ' + vehicle.price.toLocaleString(locale)} · {t(
          vehicle.photos.length === 1 ? '{count} 张照片（单张）' : '{count} 张照片', { count: vehicle.photos.length },
         )}</span>
@@ -404,6 +413,7 @@ export default function Admin() {
      </div>}
     </section>
     <div className="admin-fields">
+     {edit.published_at&&<p className="admin-wide admin-published-date">{t('Published {date}', { date:formatPublicationDate(edit.published_at,locale) })}</p>}
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>
      <label>{t("品牌")}
       <input list="admin-makes" required maxLength={80} value={edit.make}
@@ -413,6 +423,9 @@ export default function Admin() {
       </datalist>
      </label>
      <label>{t("年份")}<input required type="number" min="1950" max={new Date().getFullYear()+1} value={edit.year} onChange={e=>update({year:Number(e.target.value)})}/></label>
+     <label className="admin-wide">{t('Plate number (internal only)')}
+      <input value={edit.plate_number ?? ''} maxLength={32} autoComplete="off" onChange={e=>update({plate_number:e.target.value})} />
+     </label>
      <label>{t("售价 (RM)")}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
      <label>{t("里程 (km)")}
       <select value={edit.mileage_band ?? (edit.mileage == null ? '' : 'exact')} onChange={e => {

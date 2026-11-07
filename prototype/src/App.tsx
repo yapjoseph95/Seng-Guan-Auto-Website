@@ -1,3 +1,4 @@
+import { formatPublicationDate } from './vehicle-date'
 import { formatMileage } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
@@ -5,7 +6,7 @@ import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
-  ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator, CalendarDays,
+  ArrowDown, ArrowUp, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator, CalendarDays,
   CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, HeartHandshake, Mail, MapPin,
   Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
   Settings2, SlidersHorizontal, Wrench, X,
@@ -752,6 +753,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
             {car.transmission && <span><Settings2 size={14} aria-hidden="true" /> {t(car.transmission)}</span>}
           </div>
           {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
+          {car.published_at && <time className="vehicle-published-date" dateTime={car.published_at}>
+            {t('Published {date}', { date: formatPublicationDate(car.published_at, locale) })}
+          </time>}
         </div>
       </a>
       {details && <VehicleDetails car={car} onClose={() => setDetails(false)} />}
@@ -823,13 +827,42 @@ function InventoryPage({ variant }: { variant: Direction }) {
   const vehicles = useVehicles()
   const inventoryStatus = useContext(InventoryStatusContext)
   const [search, setSearch] = useState('')
-  const [make, setMake] = useState('All makes')
-  const makes = ['All makes', ...Array.from(new Set(vehicles.map((item) => item.make)))]
-  const filtered = useMemo(() => vehicles.filter((car) => {
-    const matchesMake = make === 'All makes' || car.make === make
-    const text = `${car.year} ${car.name} ${car.body} ${t(car.body)}`.toLowerCase()
-    return matchesMake && text.includes(search.toLowerCase())
-  }), [make, search, vehicles, t])
+  const [make, setMake] = useState('')
+  const [year, setYear] = useState('')
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [sort, setSort] = useState<'published' | 'year' | 'price'>('published')
+  const [ascending, setAscending] = useState(false)
+  const makes = Array.from(new Set(vehicles.map(car => car.make))).sort()
+  const years = Array.from(new Set(vehicles.map(car => String(car.year)))).sort((a, b) => Number(b) - Number(a))
+  const invalidRange = Boolean(minPrice && maxPrice && Number(minPrice) > Number(maxPrice))
+  const resetFilters = () => {
+    setSearch('')
+    setMake('')
+    setYear('')
+    setMinPrice('')
+    setMaxPrice('')
+  }
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    const sortValue = (car: Vehicle) => {
+      if (sort === 'price') return car.price ?? null
+      if (sort === 'year') return Number(car.year)
+      return car.published_at ? Date.parse(car.published_at) : null
+    }
+    return vehicles.filter(car => {
+      if (make && car.make !== make || year && String(car.year) !== year) return false
+      if (minPrice !== '' && (car.price == null || car.price < Number(minPrice))) return false
+      if (maxPrice !== '' && (car.price == null || car.price > Number(maxPrice))) return false
+      return `${car.make} ${car.year} ${car.name} ${car.body} ${t(car.body)}`.toLowerCase().includes(query)
+    }).sort((a, b) => {
+      const first = sortValue(a)
+      const second = sortValue(b)
+      if (first === null) return second === null ? 0 : 1
+      if (second === null) return -1
+      return ascending ? first - second : second - first
+    })
+  }, [make, year, minPrice, maxPrice, search, sort, ascending, vehicles, t])
 
   return (
     <div className={`content-page content-page--cars content-page--${variant.id}`}>
@@ -837,12 +870,49 @@ function InventoryPage({ variant }: { variant: Direction }) {
       <section className="inventory-browser" aria-label={t("Featured vehicle browser")}>
         <div className="inventory-tools">
           <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">{t("Search featured vehicles")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search make or model…")} type="search" /></label>
-          <div className="make-filters" role="group" aria-label={t("Filter by make")}>
-            {makes.map((option) => <button key={option} type="button" className={make === option ? 'is-selected' : ''} aria-pressed={make === option} onClick={() => setMake(option)}>{option === 'All makes' ? t(option) : option}</button>)}
+          <span className="result-count" role="status"><SlidersHorizontal size={15} aria-hidden="true" /> {t(filtered.length === 1 ? '{count} featured car' : '{count} featured cars', { count: filtered.length })}</span>
+          <div className="inventory-refine">
+            <label><span id="inventory-make-label">{t("Filter by make")}</span>
+              <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
+                <option value="">{t("All makes")}</option>
+                {makes.map(option => <option key={option}>{option}</option>)}
+              </select>
+            </label>
+            <label><span id="inventory-year-label">{t("Manufactured year")}</span>
+              <select aria-labelledby="inventory-year-label" value={year} onChange={event => setYear(event.target.value)}>
+                <option value="">{t("All years")}</option>
+                {years.map(option => <option key={option}>{option}</option>)}
+              </select>
+            </label>
+            <label>{t("Min. price (RM)")}
+              <input type="number" min="0" step="1" inputMode="numeric" value={minPrice} onChange={event => setMinPrice(event.target.value)} aria-invalid={invalidRange} />
+            </label>
+            <label>{t("Max. price (RM)")}
+              <input type="number" min="0" step="1" inputMode="numeric" value={maxPrice} onChange={event => setMaxPrice(event.target.value)} aria-invalid={invalidRange} />
+            </label>
+            <div className="inventory-sort">
+              <label><span id="inventory-sort-label">{t("Sort by")}</span>
+                <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
+                  const value = event.target.value
+                  if (value === 'published' || value === 'year' || value === 'price') setSort(value)
+                }}>
+                  <option value="published">{t("Published date")}</option>
+                  <option value="year">{t("Manufactured year")}</option>
+                  <option value="price">{t("Selling price")}</option>
+                </select>
+              </label>
+              <button className="button button--plain inventory-sort-direction" type="button"
+                aria-label={t("Ascending order")} aria-pressed={ascending}
+                title={t(ascending ? "Ascending order" : "Descending order")}
+                onClick={() => setAscending(value => !value)}>
+                {ascending ? <ArrowUp size={18} aria-hidden="true" /> : <ArrowDown size={18} aria-hidden="true" />}
+              </button>
+            </div>
           </div>
-          <span className="result-count"><SlidersHorizontal size={15} aria-hidden="true" /> {t(filtered.length === 1 ? '{count} featured car' : '{count} featured cars', { count: filtered.length })}</span>
+          {invalidRange && <p className="inventory-range-error" role="alert">{t("Maximum price must be at least the minimum price.")}</p>}
+          {(search || make || year || minPrice || maxPrice) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
         </div>
-        {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another model or select “All makes”.')}</p><button className="button button--primary" onClick={() => { setSearch(''); setMake('All makes') }}>{t("Reset filters")}</button></div>}
+        {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
         <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
     </div>

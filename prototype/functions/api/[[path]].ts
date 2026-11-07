@@ -3,12 +3,16 @@ import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
 import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
 type Row = Record<string, unknown>
+const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at'
+const vehicleFields = (admin: boolean) => admin
+ ? 'vehicles.*, (SELECT plate_number FROM vehicle_private_details WHERE vehicle_id=vehicles.id) AS plate_number'
+ : publicVehicleFields
 const photoSelect = 'SELECT id,vehicle_id,position FROM photos WHERE vehicle_id = ? ORDER BY position,id'
 function formatVehicle(row: Row, photos: Row[], admin: boolean) {
  return { ...row, featured: !!row.featured, photos: photos.map(p => ({ ...p, url: `/api/${admin ? 'admin/' : ''}photos/${p.id}` })), photo: photos.length ? `/api/${admin ? 'admin/' : ''}photos/${photos[0].id}` : '' }
 }
 async function vehicle(env: Env, id: string, admin: boolean) {
- const row = await env.DB.prepare('SELECT * FROM vehicles WHERE id = ?' + (admin ? '' : " AND status != 'draft'")).bind(id).first<Row>()
+ const row = await env.DB.prepare('SELECT '+vehicleFields(admin)+' FROM vehicles WHERE id = ?' + (admin ? '' : " AND status != 'draft'")).bind(id).first<Row>()
  if (!row) throw new HttpError(404, 'Vehicle not found.')
  const photos = await env.DB.prepare(photoSelect).bind(id).all<Row>()
  return formatVehicle(row, photos.results, admin)
@@ -63,6 +67,16 @@ const nextUpdatedAt = `CASE WHEN ${timestamp} <= updated_at THEN strftime('%Y-%m
 const updateVehicle = `UPDATE vehicles SET name=?,make=?,year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
 function preserveMileageBand(data: Record<string, unknown>) {
  return !Object.hasOwn(data,'mileage_band') && (data.mileage == null || data.mileage === '') ? 1 : 0
+}
+
+function plateUpdate(env: Env, id: string, data: Row) {
+ if (!Object.hasOwn(data,'plate_number')) return []
+ const value = data.plate_number ?? ''
+ const plate = typeof value === 'string' ? value.trim().toUpperCase() : null
+ if (plate === null || plate.length > 32) throw new HttpError(400,'Please check the plate number.')
+ return [env.DB.prepare(
+  'INSERT INTO vehicle_private_details(vehicle_id,plate_number) VALUES(?,?) ON CONFLICT(vehicle_id) DO UPDATE SET plate_number=excluded.plate_number'
+ ).bind(id,plate)]
 }
 
 const photoIdPattern = /^[a-zA-Z0-9-]{1,80}$/
@@ -125,6 +139,7 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
  const values = fields(data)
  const id = existingId ?? data.createId
  if (typeof id !== 'string' || (!existingId && !newVehicleIdPattern.test(id))) throw new HttpError(400,'Invalid request.')
+ const privateUpdates = plateUpdate(env,id,data)
  const order = photoIds(data.photoOrder)
  if (data.status && data.status !== 'draft' && !order.length) throw new HttpError(400,'Upload at least one photo before publishing.')
 
@@ -174,6 +189,7 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
  } else {
   statements.push(env.DB.prepare(insertVehicle).bind(id,...values))
  }
+ statements.push(...privateUpdates)
  for (const photo of removed) {
   statements.push(env.DB.prepare('DELETE FROM photos WHERE id=? AND vehicle_id=?').bind(photo.id,id))
  }
@@ -245,7 +261,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   const id = parts[1]
   if (request.method === 'GET') {
    if (id) return json(await vehicle(env,id,admin))
-   const rows = await env.DB.prepare('SELECT * FROM vehicles'+(admin?'':" WHERE status!='draft'")+' ORDER BY created_at DESC,id LIMIT 500').all<Row>()
+   const rows = await env.DB.prepare('SELECT '+vehicleFields(admin)+' FROM vehicles'+(admin?'':" WHERE status!='draft'")+' ORDER BY created_at DESC,id LIMIT 500').all<Row>()
    const photos = await env.DB.prepare('SELECT p.id,p.vehicle_id,p.position FROM photos p JOIN vehicles v ON v.id=p.vehicle_id'+(admin?'':" WHERE v.status!='draft'")+' ORDER BY p.position,p.id').all<Row>()
    const grouped = new Map<string,Row[]>()
    for(const photo of photos.results) { const key=String(photo.vehicle_id); const list=grouped.get(key)||[]; list.push(photo); grouped.set(key,list) }
@@ -259,7 +275,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   if (!id && request.method === 'POST') {
    const data = await body(request); data.status = 'draft'
    const id = crypto.randomUUID()
-   await env.DB.prepare(insertVehicle).bind(id,...fields(data)).run()
+   await env.DB.batch([env.DB.prepare(insertVehicle).bind(id,...fields(data)),...plateUpdate(env,id,data)])
    return json(await vehicle(env,id,true),201)
   }
   if (!id) throw new HttpError(404,'Vehicle not found.')
@@ -305,7 +321,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM photos WHERE vehicle_id=?').bind(id).first<{n:number}>()
     if(!count?.n)throw new HttpError(400,'Upload at least one photo before publishing.')
    }
-   const statements=[env.DB.prepare(updateVehicle).bind(...values,preserveMileageBand(data),id)]
+   const statements=[env.DB.prepare(updateVehicle).bind(...values,preserveMileageBand(data),id),...plateUpdate(env,id,data)]
    if(data.photoOrder!==undefined) {
     const existing=await env.DB.prepare('SELECT id FROM photos WHERE vehicle_id=?').bind(id).all<{id:string}>()
     if(!Array.isArray(data.photoOrder)||data.photoOrder.length!==existing.results.length||new Set(data.photoOrder).size!==data.photoOrder.length||data.photoOrder.some((p:unknown)=>!existing.results.some(e=>e.id===p)))throw new HttpError(409,'Photos have changed. Please reload this vehicle.')

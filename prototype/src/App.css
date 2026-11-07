@@ -435,13 +435,18 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .page-intro h1 { max-width: 12ch; margin: 0 0 15px; font-family: var(--display); font-size: clamp(3.5rem, 7vw, 6.2rem); line-height: .91; letter-spacing: -.025em; }
 .page-intro > p:last-child { max-width: 64ch; margin-bottom: 0; color: var(--muted); line-height: 1.7; }
 .inventory-browser { border-top: 1px solid var(--line); }
-.inventory-tools { padding: 18px 0 23px; display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; align-items: center; gap: 18px; border-bottom: 1px solid var(--line); }
+.inventory-tools { padding: 18px 0 23px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px 18px; border-bottom: 1px solid var(--line); }
 .search-field { min-height: 48px; padding: 0 13px; display: flex; align-items: center; gap: 9px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .search-field input { width: 100%; min-width: 0; padding: 10px 0; color: var(--ink); background: transparent; border: 0; outline: none; font-size: 14px; }
 .search-field input::placeholder { color: var(--muted); opacity: 1; }
-.make-filters { display: flex; flex-wrap: wrap; gap: 6px; }
-.make-filters button { min-height: 40px; padding: 0 12px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; cursor: pointer; }
-.make-filters button:hover, .make-filters button.is-selected { color: #fff; background: var(--brand); border-color: var(--brand); }
+.inventory-refine { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.55fr); gap: 12px; }
+.inventory-refine label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
+.inventory-refine select, .inventory-refine input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
+.inventory-sort { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
+.inventory-sort-direction.button { min-height: 44px; padding: 0; }
+.inventory-range-error { grid-column: 1 / -1; margin: 0; color: var(--ink); font-size: 13px; }
+.inventory-reset { grid-column: 1 / -1; justify-self: start; }
+.vehicle-published-date { display: block; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
 .result-count { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
 .inventory-grid { padding: 24px 0 15px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .empty-state { padding: 60px 20px; color: var(--muted); text-align: center; }
@@ -681,9 +686,6 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .header-contact { padding: 0 11px; }
   .teaser-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .inventory-tools { grid-template-columns: minmax(220px, 1fr) auto; }
-  .make-filters { grid-column: 1 / -1; grid-row: 2; }
-  .result-count { grid-column: 2; grid-row: 1; }
 }
 
 @media (min-width: 941px) and (max-width: 1180px) {
@@ -790,8 +792,8 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .page-intro h1 { font-size: clamp(3.1rem, 13vw, 4.8rem); }
   .page-intro > p:last-child { font-size: 14px; }
   .inventory-tools { grid-template-columns: 1fr; gap: 12px; }
-  .make-filters { grid-column: auto; grid-row: auto; gap: 7px; }
-  .make-filters button { min-height: 42px; }
+  .inventory-refine { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inventory-sort { grid-column: 1 / -1; }
   .result-count { grid-column: auto; grid-row: auto; }
   .inventory-grid { grid-template-columns: 1fr; gap: 13px; }
   .content-page--spec-ledger .vehicle-card-link { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
