@@ -210,8 +210,13 @@ export default function Admin() {
    <form onSubmit={save}><fieldset disabled={!!busy}>
     <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/20</span></h3><p>{t(edit.id?'第一张为封面。照片上传与删除会即时保存；调整顺序后请点击保存。照片会自动压缩。':'先保存草稿，再上传车辆照片。')}</p>
      <input ref={fileInput} className="admin-file" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void upload(e.target.files)}/>
-     <button type="button" className="admin-upload" disabled={!edit.id||!!busy} onClick={()=>fileInput.current?.click()}><ImagePlus size={21}/>{t("选择照片上传")}</button>
-     <div className="admin-photos">{edit.photos.map((p,i)=><div key={p.id}><img src={p.url} alt={t('车辆照片 {number}',{number:i+1})}/>{i===0&&<span>{t("封面")}</span>}<div><button type="button" aria-label={t('照片 {number} 前移',{number:i+1})} disabled={i===0} onClick={()=>movePhoto(i,-1)}><ArrowLeft size={16}/></button><button type="button" aria-label={t('照片 {number} 后移',{number:i+1})} disabled={i===edit.photos.length-1} onClick={()=>movePhoto(i,1)}><ArrowRight size={16}/></button><button type="button" aria-label={t('删除照片 {number}',{number:i+1})} onClick={()=>void removePhoto(p)}><Trash2 size={16}/></button></div></div>)}</div>
+     <div className="admin-photos">
+      {edit.photos.map((p,i)=><div key={p.id}><img src={p.url} alt={t('车辆照片 {number}',{number:i+1})}/>{i===0&&<span>{t("封面")}</span>}<div><button type="button" aria-label={t('照片 {number} 前移',{number:i+1})} disabled={i===0} onClick={()=>movePhoto(i,-1)}><ArrowLeft size={16}/></button><button type="button" aria-label={t('照片 {number} 后移',{number:i+1})} disabled={i===edit.photos.length-1} onClick={()=>movePhoto(i,1)}><ArrowRight size={16}/></button><button type="button" aria-label={t('删除照片 {number}',{number:i+1})} onClick={()=>void removePhoto(p)}><Trash2 size={16}/></button></div></div>)}
+      <button type="button" className="admin-upload" aria-label={t("选择照片上传")}
+       disabled={!edit.id||!!busy} onClick={()=>fileInput.current?.click()}>
+       <ImagePlus size={28} aria-hidden="true" />
+      </button>
+     </div>
     </section>
     <div className="admin-fields">
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>
