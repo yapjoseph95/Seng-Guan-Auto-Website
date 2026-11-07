@@ -537,4 +537,9 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "NOT AVAILABLE": ["NOT AVAILABLE","TIDAK TERSEDIA","不可购买"],
   "Share {name}": ["Share {name}","Kongsi {name}","分享 {name}"],
   "Copy this vehicle link": ["Copy this vehicle link","Salin pautan kenderaan ini","复制此车辆链接"],
+  "Oh no!": ["Oh no!","Alamak!","哎呀！"],
+  "This car has already been sold. Feel free to browse our other cars.": ["This car has already been sold. Feel free to browse our other cars.","Kereta ini sudah terjual. Sila lihat kereta lain yang kami tawarkan.","这辆车已售出，欢迎看看其他车辆。"],
+  "This car has already been reserved. Feel free to browse our other cars.": ["This car has already been reserved. Feel free to browse our other cars.","Kereta ini sudah ditempah. Sila lihat kereta lain yang kami tawarkan.","这辆车已被预订，欢迎看看其他车辆。"],
+  "Browse other cars": ["Browse other cars","Lihat kereta lain","浏览其他车辆"],
+  "Check availability for {year} {name}": ["Check availability for {year} {name}","Semak ketersediaan {year} {name}","查看 {year} {name} 的状态"],
 }

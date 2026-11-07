@@ -910,6 +910,9 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 .vehicle-dialog-copy { padding: 28px; }
 .vehicle-dialog-copy h2 { font-size: clamp(25px, 5vw, 36px); margin: 12px 0; font-weight: 500; }
 .vehicle-dialog-copy > p { line-height: 1.7; color: #bdc5cc; }
+.vehicle-dialog--unavailable { width: min(440px, calc(100% - 32px)); }
+.vehicle-dialog--unavailable h2 { margin-top: 0; }
+.vehicle-dialog--unavailable .button { margin-top: 10px; }
 .vehicle-description { white-space: pre-wrap; overflow-wrap: anywhere; }
 .vehicle-price { font-size: 23px; color: #f46b63; font-variant-numeric: tabular-nums; }
 
@@ -969,7 +972,7 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 
 @media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
   .is-official-site .inventory-grid .vehicle-status-bar--available [data-pulse] {
-    animation: vehicle-availability-pulse 800ms ease-in-out 4;
+    animation: vehicle-availability-pulse 800ms ease-in-out infinite;
   }
 }
 

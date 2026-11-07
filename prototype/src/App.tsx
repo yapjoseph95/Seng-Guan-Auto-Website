@@ -19,7 +19,7 @@ import johnAngPortrait from '../../resources/team/2.jpg'
 import angZiWeiPortrait from '../../resources/team/john.jpg'
 import { contact, directions, faqItems, pages, vehicles as fallbackVehicles, type Direction, type PageId, type Vehicle } from './data'
 import './App.css'
-import VehicleDetails from './VehicleDetails'
+import VehicleDetails, { VehicleUnavailable } from './VehicleDetails'
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
@@ -726,17 +726,18 @@ function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (
 
 function VehicleCard({ car }: { car: Vehicle }) {
   const { t, locale } = useLocale()
-  const [details, setDetails] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
+  const [opened, setOpened] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
   const [copied, setCopied] = useState(false)
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
   const mileage = formatMileage(car.mileage,car.mileage_band,locale)
   const available = car.status === 'available'
-  const stamp = car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : null
+  const unavailableStatus = car.status === 'sold' || car.status === 'reserved' ? car.status : null
+  const stamp = unavailableStatus ? t(unavailableStatus === 'sold' ? 'SOLD' : 'RESERVED') : null
   const availableLabel = useRef<HTMLSpanElement>(null)
-  const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => {
+  const openVehicle = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!isPlainLeftClick(event) || (!isOfficialSite && !car.photos)) return
     event.preventDefault()
-    setDetails(true)
+    setOpened(true)
   }
 
   useEffect(() => {
@@ -777,8 +778,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
   return (
     <article className="vehicle-card">
-      <a className="vehicle-card-link" href={href} onClick={viewDetails} target="_blank" rel="noreferrer"
-        aria-label={t('View photos and details for {year} {name}', { year: car.year, name: car.name })}>
+      <a className="vehicle-card-link" href={href} onClick={openVehicle} target="_blank" rel="noreferrer"
+        aria-label={t(unavailableStatus ? 'Check availability for {year} {name}' : 'View photos and details for {year} {name}', { year: car.year, name: car.name })}>
         <div className="vehicle-media">
           <div className="vehicle-photo">
             <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
@@ -811,7 +812,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
         <Share2 size={17} aria-hidden="true" />
       </button>}
       {isOfficialSite && <span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span>}
-      {details && <VehicleDetails car={car} onClose={() => setDetails(false)} />}
+      {opened && (unavailableStatus
+        ? <VehicleUnavailable status={unavailableStatus} onClose={() => setOpened(false)} />
+        : <VehicleDetails car={car} onClose={() => setOpened(false)} />)}
     </article>
   )
 }
