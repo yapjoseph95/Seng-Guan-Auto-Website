@@ -1,5 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
+import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
 type Row = Record<string, unknown>
 const photoSelect = 'SELECT id,vehicle_id,position FROM photos WHERE vehicle_id = ? ORDER BY position,id'
 function formatVehicle(row: Row, photos: Row[], admin: boolean) {
@@ -28,10 +29,138 @@ function fields(data: Record<string, unknown>) {
  if (!['draft','available','reserved','sold'].includes(String(status))) throw new HttpError(400, 'Invalid publication status.')
  return [text('name',160,true),text('make',80,true),year,text('body',60),text('fuel',60),text('transmission',60),number('price'),number('mileage'),text('description',10000),status,data.featured === true ? 1 : 0]
 }
+const photoTypes = ['image/jpeg', 'image/png', 'image/webp']
+async function checkedPhoto(file: unknown) {
+ if (!(file instanceof File) || file.size > maxPhotoBytes || !photoTypes.includes(file.type)) {
+  throw new HttpError(400,'Please upload a JPEG, PNG or WebP photo under 7 MB.')
+ }
+ const bytes = new Uint8Array(await file.slice(0,12).arrayBuffer())
+ const type=bytes[0]===255&&bytes[1]===216&&bytes[2]===255?'image/jpeg':bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71?'image/png':String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP'?'image/webp':''
+ if (type!==file.type) throw new HttpError(400,'The file is not a supported photo.')
+ return file
+}
+
+function parseBody(text: string) {
+ try {
+  const data: unknown = JSON.parse(text)
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error()
+  return data as Record<string,unknown>
+ } catch {
+  throw new HttpError(400,'Invalid request.')
+ }
+}
+
 async function body(request: Request) {
  if (!request.headers.get('content-type')?.includes('application/json')) throw new HttpError(415, 'Expected JSON.')
- const text = await limitedText(request,40000)
- try { const data = JSON.parse(text); if (!data || typeof data !== 'object' || Array.isArray(data)) throw Error(); return data } catch { throw new HttpError(400, 'Invalid request.') }
+ return parseBody(await limitedText(request,40000))
+}
+const insertVehicle = 'INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
+const timestamp = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+const nextUpdatedAt = `CASE WHEN ${timestamp} <= updated_at THEN strftime('%Y-%m-%dT%H:%M:%fZ',updated_at,'+0.001 seconds') ELSE ${timestamp} END`
+const updateVehicle = `UPDATE vehicles SET name=?,make=?,year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,updated_at=${nextUpdatedAt} WHERE id=?`
+const photoIdPattern = /^[a-zA-Z0-9-]{1,80}$/
+const newVehicleIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
+const changedVehicle = 'This vehicle changed while you were editing. Reload it before saving.'
+const photoLimitMessage = 'New photos must total 36 MB or less per save.'
+type StoredPhoto = { id: string; object_key: string }
+
+function photoIds(value: unknown): string[] {
+ if (!Array.isArray(value) || value.length > maxVehiclePhotos || new Set(value).size !== value.length
+   || value.some(id => typeof id !== 'string' || !photoIdPattern.test(id))) {
+  throw new HttpError(400,'Invalid photo order.')
+ }
+ return value
+}
+
+async function deletePhotoObjects(env: Env, keys: string[]) {
+ if (!keys.length) return
+ await env.PHOTOS.delete(keys).catch(() => console.error('Vehicle photo cleanup failed.'))
+}
+
+async function saveVehicle(request: Request, env: Env, existingId?: string) {
+ const length = Number(request.headers.get('Content-Length'))
+ if (!Number.isSafeInteger(length) || length <= 0 || length > maxNewPhotoBytes + 128 * 1024) {
+  throw new HttpError(413,photoLimitMessage)
+ }
+ const form = await request.formData().catch(() => { throw new HttpError(400,'Invalid request.') })
+ const details = form.get('vehicle')
+ if (typeof details !== 'string' || details.length > 40000) throw new HttpError(400,'Invalid request.')
+ const data = parseBody(details)
+ const values = fields(data)
+ const id = existingId ?? data.createId
+ if (typeof id !== 'string' || (!existingId && !newVehicleIdPattern.test(id))) throw new HttpError(400,'Invalid request.')
+ const order = photoIds(data.photoOrder)
+ if (data.status && data.status !== 'draft' && !order.length) throw new HttpError(400,'Upload at least one photo before publishing.')
+
+ const existing = (await env.DB.prepare(
+  'SELECT id,object_key FROM photos WHERE vehicle_id=? ORDER BY position,id'
+ ).bind(id).all<StoredPhoto>()).results
+ const currentIds = JSON.stringify(existing.map(photo => photo.id))
+ const currentVehicle = await env.DB.prepare('SELECT updated_at FROM vehicles WHERE id=?').bind(id).first<{updated_at:string}>()
+ if (existingId && !currentVehicle) throw new HttpError(404,'Vehicle not found.')
+ if (existingId ? currentVehicle?.updated_at !== data.updatedAt || currentIds !== JSON.stringify(photoIds(data.originalPhotoOrder)) : currentVehicle) {
+  throw new HttpError(409,changedVehicle)
+ }
+ const oldById = new Map(existing.map(photo => [photo.id, photo]))
+ const uploads = new Map<string,{file:File;key:string}>()
+ let uploadBytes = 0
+ for (const photoId of order) {
+  if (oldById.has(photoId)) continue
+  const file = await checkedPhoto(form.get('photo:' + photoId))
+  uploadBytes += file.size
+  if (uploadBytes > maxNewPhotoBytes) throw new HttpError(413,photoLimitMessage)
+  uploads.set(photoId,{file,key:`vehicles/${id}/${crypto.randomUUID()}`})
+ }
+
+ const removed = existing.filter(photo => !order.includes(photo.id))
+ const statements: D1PreparedStatement[] = []
+ if (existingId) {
+  // A failed version or photo-order check aborts the batch through the NOT NULL constraint.
+  statements.push(env.DB.prepare(
+   `UPDATE vehicles SET updated_at=CASE WHEN updated_at=? AND
+    (SELECT json_group_array(id) FROM (SELECT id FROM photos WHERE vehicle_id=? ORDER BY position,id))=?
+    THEN updated_at ELSE NULL END WHERE id=?`
+  ).bind(data.updatedAt,id,currentIds,id))
+  statements.push(env.DB.prepare(updateVehicle).bind(...values,id))
+ } else {
+  statements.push(env.DB.prepare(insertVehicle).bind(id,...values))
+ }
+ for (const photo of removed) {
+  statements.push(env.DB.prepare('DELETE FROM photos WHERE id=? AND vehicle_id=?').bind(photo.id,id))
+ }
+ order.forEach((photoId,position) => {
+  const upload = uploads.get(photoId)
+  if (upload) {
+   statements.push(env.DB.prepare('INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) VALUES(?,?,?,?,?,?)')
+    .bind(photoId,id,upload.key,upload.file.type,upload.file.size,position))
+  } else {
+   statements.push(env.DB.prepare('UPDATE photos SET position=? WHERE id=? AND vehicle_id=?').bind(position,photoId,id))
+  }
+ })
+
+ const attemptedKeys: string[] = []
+ try {
+  for (const {file,key} of uploads.values()) {
+   attemptedKeys.push(key)
+   await env.PHOTOS.put(key,file,{httpMetadata:{contentType:file.type}})
+  }
+  const results = await env.DB.batch(statements)
+  if (!results[0].meta.changes) throw new HttpError(409,changedVehicle)
+ } catch (error) {
+  // Only remove unreferenced objects if storage was written but the save failed.
+  const persisted = await env.DB.prepare('SELECT id,object_key FROM photos WHERE vehicle_id=? ORDER BY position,id')
+   .bind(id).all<StoredPhoto>().catch(() => null)
+  if (persisted) await deletePhotoObjects(env,attemptedKeys.filter(key => !persisted.results.some(photo => photo.object_key === key)))
+  const latest = await env.DB.prepare('SELECT updated_at FROM vehicles WHERE id=?').bind(id).first<{updated_at:string}>().catch(() => undefined)
+  if ((latest !== undefined && latest?.updated_at !== currentVehicle?.updated_at)
+    || persisted && JSON.stringify(persisted.results.map(photo => photo.id)) !== currentIds) {
+   throw new HttpError(409,changedVehicle)
+  }
+  throw error
+ }
+
+ await deletePhotoObjects(env,removed.map(photo => photo.object_key))
+ return json(await vehicle(env,id,true),existingId ? 200 : 201)
 }
 export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
  try {
@@ -64,10 +193,14 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    return json({vehicles:rows.results.map(row=>formatVehicle(row,grouped.get(String(row.id))||[],admin))})
   }
   if (!admin) throw new HttpError(403,'Not authorized.')
+  if (request.headers.get('Content-Type')?.startsWith('multipart/form-data')
+    && (parts.length === 1 && request.method === 'POST' || parts.length === 2 && request.method === 'PUT')) {
+   return await saveVehicle(request,env,id)
+  }
   if (!id && request.method === 'POST') {
    const data = await body(request); data.status = 'draft'
    const id = crypto.randomUUID()
-   await env.DB.prepare('INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(id,...fields(data)).run()
+   await env.DB.prepare(insertVehicle).bind(id,...fields(data)).run()
    return json(await vehicle(env,id,true),201)
   }
   if (!id) throw new HttpError(404,'Vehicle not found.')
@@ -77,7 +210,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     throw new HttpError(400,'Invalid publication status.')
    }
    const result = await env.DB.prepare(
-    "UPDATE vehicles SET status=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND EXISTS (SELECT 1 FROM photos WHERE vehicle_id=?)"
+    `UPDATE vehicles SET status=?,updated_at=${nextUpdatedAt} WHERE id=? AND EXISTS (SELECT 1 FROM photos WHERE vehicle_id=?)`
    ).bind(status,id,id).run()
    if (!result.meta.changes) {
     await vehicle(env,id,true)
@@ -89,13 +222,10 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   if (parts[2] === 'photos' && request.method === 'POST') {
    const length=Number(request.headers.get('Content-Length'))
    if (!length || length>8*1024*1024) throw new HttpError(413,'Photos must be smaller than 8 MB.')
-   const form = await request.formData(); const file=form.get('file')
-   if (!(file instanceof File) || file.size>7*1024*1024 || !['image/jpeg','image/png','image/webp'].includes(file.type)) throw new HttpError(400,'Please upload a JPEG, PNG or WebP photo under 7 MB.')
-   const bytes=new Uint8Array(await file.arrayBuffer())
-   const type=bytes[0]===255&&bytes[1]===216&&bytes[2]===255?'image/jpeg':bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71?'image/png':String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP'?'image/webp':''
-   if (type!==file.type) throw new HttpError(400,'The file is not a supported photo.')
+   const file=await checkedPhoto((await request.formData()).get('file'))
    const photoId=crypto.randomUUID();const key=`vehicles/${id}/${photoId}`
-   await env.PHOTOS.put(key,bytes,{httpMetadata:{contentType:type}})
+   const type=file.type
+   await env.PHOTOS.put(key,file,{httpMetadata:{contentType:type}})
    try {
     const r=await env.DB.prepare('INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) SELECT ?,?,?,?,?,COALESCE(MAX(position),-1)+1 FROM photos WHERE vehicle_id=? HAVING COUNT(*)<20').bind(photoId,id,key,type,file.size,id).run()
     if(!r.meta.changes) throw new HttpError(400,'Maximum 20 photos per vehicle.')
@@ -116,7 +246,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM photos WHERE vehicle_id=?').bind(id).first<{n:number}>()
     if(!count?.n)throw new HttpError(400,'Upload at least one photo before publishing.')
    }
-   const statements=[env.DB.prepare("UPDATE vehicles SET name=?,make=?,year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").bind(...values,id)]
+   const statements=[env.DB.prepare(updateVehicle).bind(...values,id)]
    if(data.photoOrder!==undefined) {
     const existing=await env.DB.prepare('SELECT id FROM photos WHERE vehicle_id=?').bind(id).all<{id:string}>()
     if(!Array.isArray(data.photoOrder)||data.photoOrder.length!==existing.results.length||new Set(data.photoOrder).size!==data.photoOrder.length||data.photoOrder.some((p:unknown)=>!existing.results.some(e=>e.id===p)))throw new HttpError(409,'Photos have changed. Please reload this vehicle.')

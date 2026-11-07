@@ -1,12 +1,13 @@
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, CarFront, Check, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { CarFront, Check, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import type { VehicleStatus } from './data'
 import logo from './assets/logo-dark.svg'
+import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
+import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
 import './Admin.css'
-type Photo = { id: string; url: string }
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;description:string;status:VehicleStatus;featured:boolean;photos:Photo[];photo:string}
-const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,description:'',status:'draft',featured:false,photos:[],photo:''})
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;description:string;status:VehicleStatus;updated_at:string;featured:boolean;photos:AdminPhoto[];photo:string}
+const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,description:'',status:'draft',updated_at:'',featured:false,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
  let response=await execute()
@@ -29,6 +30,45 @@ async function compress(file:File) {
   return new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})
  } finally { bitmap.close() }
 }
+type StagedPhoto = { file: File; url: string }
+function releasePhotos(staged: Map<string, StagedPhoto>) {
+ for (const photo of staged.values()) URL.revokeObjectURL(photo.url)
+ staged.clear()
+}
+
+function PhotoPreview({ photo, number, total, mobileOpen, onClose }: {
+ photo: AdminPhoto | undefined
+ number: number
+ total: number
+ mobileOpen: boolean
+ onClose: () => void
+}) {
+ const { t } = useLocale()
+ const dialog = useRef<HTMLDialogElement>(null)
+ useEffect(() => {
+  const element = dialog.current
+  if (mobileOpen && element && !element.open) element.showModal()
+  if (!mobileOpen && element?.open) element.close()
+ }, [mobileOpen])
+
+ const caption = photo ? t('车辆照片 {number}', { number }) : ''
+ return <>
+  <aside className="admin-photo-preview" aria-label={t('照片预览')}>
+   <h3>{t('照片预览')}</h3>
+   {photo ? <img src={photo.url} alt={caption} draggable={false} /> :
+    <div className="admin-photo-preview-empty"><Image size={32} aria-hidden="true" />{t('添加照片后可预览。')}</div>}
+   {photo && <p>{caption} · {number}/{total}</p>}
+  </aside>
+  <dialog ref={dialog} className="admin-mobile-photo-preview" aria-label={t('照片预览')} onClose={onClose}
+   onClick={event => { if (event.target === event.currentTarget) onClose() }}>
+   <header><span>{t('照片预览')} · {number}/{total}</span>
+    <button type="button" aria-label={t('关闭照片预览')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
+   </header>
+   {mobileOpen && photo && <img src={photo.url} alt={caption} draggable={false} />}
+  </dialog>
+ </>
+}
+
 const statuses = { draft: '草稿', available: '在售', reserved: '已保留', sold: '已售' }
 const publishedStatuses = ['available', 'reserved', 'sold'] as const
 const amountFormat = new Intl.NumberFormat('en-MY')
@@ -82,8 +122,18 @@ export default function Admin() {
  const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
+ const [previewId,setPreviewId]=useState<string | null>(null)
+ const [mobilePreviewOpen,setMobilePreviewOpen]=useState(false)
+ const previewPhoto = edit?.photos.find(photo => photo.id === previewId) ?? edit?.photos[0]
+ const previewNumber = edit?.photos.findIndex(photo => photo.id === previewPhoto?.id) ?? -1
  const [confirmDelete,setConfirmDelete]=useState<ManagedVehicle|null>(null)
  const fileInput=useRef<HTMLInputElement>(null)
+ const stagedPhotos=useRef(new Map<string, StagedPhoto>())
+ const originalVehicle=useRef<{updatedAt:string; photoOrder:string[]; createId:string} | null>(null)
+ useEffect(() => {
+  const staged = stagedPhotos.current
+  return () => releasePhotos(staged)
+ }, [])
  const messageRef=useRef<HTMLDivElement>(null)
  const refresh=async()=>{const data=await api<{vehicles:ManagedVehicle[]}>('vehicles');setVehicles(data.vehicles)}
  useEffect(()=>{Promise.all([api<{email:string}>('session').then(s=>setEmail(s.email)),refresh()]).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[])
@@ -92,49 +142,111 @@ export default function Admin() {
  useEffect(()=>{
   if(!edit&&!confirmDelete)return
   const previous=document.activeElement as HTMLElement|null
-  const modal=document.querySelector<HTMLElement>(confirmDelete?'.admin-confirm':'.admin-editor')
+  const modal=document.querySelector<HTMLElement>(confirmDelete?'.admin-confirm':'.admin-edit-dialog')
   const focusable=()=>Array.from(modal?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]')??[]).filter(e=>e.getClientRects().length>0)
   focusable()[0]?.focus()
-  const trap=(e:KeyboardEvent)=>{if(e.key!=='Tab')return;const nodes=focusable();const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}
+  const trap=(e:KeyboardEvent)=>{if(e.key!=='Tab'||modal?.querySelector('dialog[open]'))return;const nodes=focusable();const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}
   document.addEventListener('keydown',trap)
   return()=>{document.removeEventListener('keydown',trap);previous?.focus()}
  },[Boolean(edit),Boolean(confirmDelete)])
- const close=()=>{if(busy)return;if(dirty&&!window.confirm(t('还有未保存的修改，确定离开吗？')))return;setEdit(null);setDirty(false);setError('')}
+ const close = () => {
+  if (busy || (dirty && !window.confirm(t('还有未保存的修改，确定离开吗？')))) return
+  releasePhotos(stagedPhotos.current)
+  setEdit(null)
+  setDirty(false)
+  setError('')
+ }
  const update=(changes:Partial<ManagedVehicle>)=>{setEdit(v=>v?{...v,...changes}:v);setDirty(true)}
- const save=async(e:FormEvent)=>{
-  e.preventDefault();if(!edit)return;setBusy('保存中…');setError('');setNotice('')
-  try{
-   const saved=await api<ManagedVehicle>('vehicles'+(edit.id?'/'+edit.id:''),{method:edit.id?'PUT':'POST',body:JSON.stringify({...edit,photoOrder:edit.photos.map(p=>p.id)})})
-   setEdit(saved);setDirty(false);await refresh();setNotice(saved.status==='draft'?'草稿已保存。上传照片后，可选择「在售」并发布。':'已保存，网站将显示最新资料。')
-  }catch(e){setError((e as Error).message)}finally{setBusy('')}
+ const save = async (event: FormEvent) => {
+  event.preventDefault()
+  const original = originalVehicle.current
+  if (!edit || !original || busy) return
+  if (edit.status !== 'draft' && !edit.photos.length) {
+   setError('Upload at least one photo before publishing.')
+   return
+  }
+  setBusy('保存中…')
+  setError('')
+  setNotice('')
+  const { photos, photo: _cover, ...details } = edit
+  const form = new FormData()
+  form.set('vehicle',JSON.stringify({
+   ...details, updatedAt:original.updatedAt, originalPhotoOrder:original.photoOrder,
+   createId:original.createId, photoOrder:photos.map(photo => photo.id),
+  }))
+  for (const [id, {file}] of stagedPhotos.current) form.set('photo:' + id,file)
+  try {
+   const saved = await api<ManagedVehicle>('vehicles' + (edit.id ? '/' + edit.id : ''), {
+    method: edit.id ? 'PUT' : 'POST', body: form,
+   })
+   releasePhotos(stagedPhotos.current)
+   originalVehicle.current = { updatedAt:saved.updated_at, photoOrder:saved.photos.map(photo => photo.id), createId:original.createId }
+   setEdit(saved)
+   setDirty(false)
+   setVehicles(current => edit.id ? current.map(vehicle => vehicle.id === saved.id ? saved : vehicle) : [saved,...current])
+   setNotice(saved.status === 'draft' ? '草稿已保存。' : '已保存，网站将显示最新资料。')
+  } catch (error) {
+   setError((error as Error).message)
+  } finally {
+   setBusy('')
+  }
  }
- const upload=async(files:FileList|null)=>{
-  if(!edit?.id||!files?.length)return
-  if(edit.photos.length+files.length>20){setError('每辆车最多 20 张照片。');return}
-  if(dirty){setError('请先保存资料和照片顺序，再上传新照片。');return}
-  setError('');setNotice('');let latest=edit
-  try{
-   for(let i=0;i<files.length;i++){
-    setUploadProgress({number:i+1,total:files.length});setBusy('处理照片 {number}/{total}…')
-    const file=await compress(files[i]);const form=new FormData();form.append('file',file)
-    latest=await api<ManagedVehicle>(`vehicles/${edit.id}/photos`,{method:'POST',body:form});setEdit(latest)
+ const selectPhotos = async (files: FileList | null) => {
+  if (!edit || !files?.length || busy) return
+  const selected = Array.from(files)
+  if (fileInput.current) fileInput.current.value = ''
+  if (edit.photos.length + selected.length > maxVehiclePhotos) {
+   setError('每辆车最多 20 张照片。')
+   return
+  }
+  setError('')
+  setNotice('')
+  try {
+   const compressed: File[] = []
+   let size = Array.from(stagedPhotos.current.values()).reduce((total, photo) => total + photo.file.size, 0)
+   for (const [index, file] of selected.entries()) {
+    setUploadProgress({ number:index + 1, total:selected.length })
+    setBusy('处理照片 {number}/{total}…')
+    const photo = await compress(file)
+    if (photo.size > maxPhotoBytes) throw new Error('Please upload a JPEG, PNG or WebP photo under 7 MB.')
+    size += photo.size
+    if (size > maxNewPhotoBytes) throw new Error('New photos must total 36 MB or less per save.')
+    compressed.push(photo)
    }
-   await refresh();setNotice('照片上传完成。第一张照片为封面，可用箭头调整顺序。')
-  }catch(e){setError((e as Error).message);await refresh().catch(()=>{})}finally{setBusy('');if(fileInput.current)fileInput.current.value=''}
+   const photos = compressed.map(file => {
+    const id = crypto.randomUUID()
+    const url = URL.createObjectURL(file)
+    stagedPhotos.current.set(id,{file,url})
+    return {id,url}
+   })
+   update({ photos:[...edit.photos,...photos] })
+  } catch (error) {
+   setError((error as Error).message)
+  } finally {
+   setBusy('')
+  }
  }
- const removePhoto=async(photo:Photo)=>{
-  if(!edit?.id||!window.confirm(t('删除这张照片？')))return
-  if(dirty){setError('请先保存当前修改，再删除照片。');return}
-  setBusy('删除照片…');setError('')
-  try{setEdit(await api<ManagedVehicle>(`vehicles/${edit.id}/photos/${photo.id}`,{method:'DELETE'}));await refresh()}catch(e){setError((e as Error).message)}finally{setBusy('')}
+ const removePhoto = (photo: AdminPhoto) => {
+  if (!edit || !window.confirm(t('删除这张照片？'))) return
+  const staged = stagedPhotos.current.get(photo.id)
+  if (staged) {
+   URL.revokeObjectURL(staged.url)
+   stagedPhotos.current.delete(photo.id)
+  }
+  update({ photos:edit.photos.filter(item => item.id !== photo.id) })
+  setError('')
+  setNotice('')
  }
- const movePhoto=(index:number,delta:number)=>{if(!edit)return;const photos=[...edit.photos];[photos[index],photos[index+delta]]=[photos[index+delta],photos[index]];update({photos})}
  const removeVehicle=async()=>{
   if(!confirmDelete)return;setBusy('删除车辆…');setError('')
   try{await api(`vehicles/${confirmDelete.id}`,{method:'DELETE'});setConfirmDelete(null);if(edit?.id===confirmDelete.id){setEdit(null);setDirty(false)}await refresh();setNotice('车辆已删除。')}catch(e){setError((e as Error).message)}finally{setBusy('')}
  }
  const openEditor = (vehicle: ManagedVehicle) => {
   if (dirty && !window.confirm(t('放弃未保存的修改？'))) return
+  releasePhotos(stagedPhotos.current)
+  originalVehicle.current = { updatedAt:vehicle.updated_at, photoOrder:vehicle.photos.map(photo => photo.id), createId:crypto.randomUUID() }
+  setPreviewId(null)
+  setMobilePreviewOpen(false)
   setEdit({ ...vehicle, photos: [...vehicle.photos] })
   setDirty(false)
   setError('')
@@ -206,17 +318,24 @@ export default function Admin() {
    )}
    {!loading&&!visible.length&&<div className="admin-empty"><CarFront size={32}/><h2>{t(query?'没有找到这辆车':'这里将展示你的车辆')}</h2><p>{t(query?'试试其他车型或品牌。':'点击「新增车辆」，填写资料并上传照片。')}</p></div>}
   </main>
-  {edit&&<div className="admin-overlay"><section className="admin-editor" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title"><div className="admin-editor-heading"><div><p>{t(edit.id?'EDIT VEHICLE':'NEW VEHICLE')}</p><h2 id="vehicle-editor-title">{t(edit.id?'编辑车辆':'新增车辆')}</h2></div><button aria-label={t("关闭编辑")} onClick={close} disabled={!!busy}><X/></button></div>
+  {edit&&<div className="admin-overlay"><div className="admin-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title">
+   <PhotoPreview photo={previewPhoto} number={previewNumber + 1} total={edit.photos.length}
+    mobileOpen={mobilePreviewOpen} onClose={() => setMobilePreviewOpen(false)} />
+   <section className="admin-editor"><div className="admin-editor-heading"><div><p>{t(edit.id?'EDIT VEHICLE':'NEW VEHICLE')}</p><h2 id="vehicle-editor-title">{t(edit.id?'编辑车辆':'新增车辆')}</h2></div><button aria-label={t("关闭编辑")} onClick={close} disabled={!!busy}><X/></button></div>
    <form onSubmit={save}><fieldset disabled={!!busy}>
-    <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/20</span></h3><p>{t(edit.id?'第一张为封面。照片上传与删除会即时保存；调整顺序后请点击保存。照片会自动压缩。':'先保存草稿，再上传车辆照片。')}</p>
-     <input ref={fileInput} className="admin-file" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void upload(e.target.files)}/>
-     <div className="admin-photos">
-      {edit.photos.map((p,i)=><div key={p.id}><img src={p.url} alt={t('车辆照片 {number}',{number:i+1})}/>{i===0&&<span>{t("封面")}</span>}<div><button type="button" aria-label={t('照片 {number} 前移',{number:i+1})} disabled={i===0} onClick={()=>movePhoto(i,-1)}><ArrowLeft size={16}/></button><button type="button" aria-label={t('照片 {number} 后移',{number:i+1})} disabled={i===edit.photos.length-1} onClick={()=>movePhoto(i,1)}><ArrowRight size={16}/></button><button type="button" aria-label={t('删除照片 {number}',{number:i+1})} onClick={()=>void removePhoto(p)}><Trash2 size={16}/></button></div></div>)}
+    <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/{maxVehiclePhotos}</span></h3><p>{t('拖动照片可调整顺序，第一张为封面。照片和车辆资料会在点击保存后一起更新。')}</p>
+     <input ref={fileInput} className="admin-file" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void selectPhotos(e.target.files)}/>
+     <AdminPhotoGrid photos={edit.photos} previewedId={previewPhoto?.id}
+      onPreview={photo => {
+       setPreviewId(photo.id)
+       if (window.matchMedia('(max-width: 760px)').matches) setMobilePreviewOpen(true)
+      }}
+      onReorder={photos => { if (!busy) update({ photos }) }} onRemove={removePhoto}>
       <button type="button" className="admin-upload" aria-label={t("选择照片上传")}
-       disabled={!edit.id||!!busy} onClick={()=>fileInput.current?.click()}>
+       disabled={!!busy || edit.photos.length >= maxVehiclePhotos} onClick={()=>fileInput.current?.click()}>
        <ImagePlus size={28} aria-hidden="true" />
       </button>
-     </div>
+     </AdminPhotoGrid>
     </section>
     <div className="admin-fields">
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>
@@ -227,13 +346,13 @@ export default function Admin() {
      <label>{t("车身类型")}<select value={edit.body} onChange={e=>update({body:e.target.value})}>{['Sedan','SUV','MPV','Hatchback','Pickup','Coupe','Van','Wagon','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("排挡")}<select value={edit.transmission} onChange={e=>update({transmission:e.target.value})}>{['Automatic','Manual'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("燃油")}<select value={edit.fuel} onChange={e=>update({fuel:e.target.value})}>{['Petrol','Diesel','Hybrid','Electric','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
-     <label>{t("展示状态")}<select value={edit.status} onChange={e=>update({status:e.target.value as ManagedVehicle['status']})} disabled={!edit.id}>{Object.entries(statuses).map(([k,v])=><option key={k} value={k}>{t(v)}</option>)}</select></label>
+     <label>{t("展示状态")}<select value={edit.status} onChange={e=>update({status:e.target.value as ManagedVehicle['status']})} >{Object.entries(statuses).map(([k,v])=><option key={k} value={k}>{t(v)}</option>)}</select></label>
      <label className="admin-wide">{t("车辆介绍")}<textarea rows={4} maxLength={10000} value={edit.description} onChange={e=>update({description:e.target.value})} placeholder={t("车况、配备及其他说明（内容会展示在官网）")}/></label>
      <label className="admin-checkbox admin-wide"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
     </div>
-   </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'新车辆将先保存为草稿')}</span><button type="button" onClick={close} disabled={!!busy}>{t("返回")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
+   </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'尚未保存')}</span><button type="button" onClick={close} disabled={!!busy}>{t("返回")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
    {error&&<p className="admin-error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}
-   </form></section></div>}
+   </form></section></div></div>}
   {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}
  </div>
 }

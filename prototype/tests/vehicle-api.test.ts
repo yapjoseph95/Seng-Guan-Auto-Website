@@ -27,7 +27,8 @@ class Statement {
  async run(){const r=sql.prepare(this.query).run(...this.params as any[]);return {meta:{changes:Number(r.changes)}}}
 }
 const objects=new Map<string,Uint8Array>()
-const env={DB:{prepare:(query:string)=>new Statement(query),batch:async(stmts:Statement[])=>{sql.exec('BEGIN');try{const r=await Promise.all(stmts.map(s=>s.run()));sql.exec('COMMIT');return r}catch(e){sql.exec('ROLLBACK');throw e}}},PHOTOS:{put:async(k:string,b:Uint8Array)=>objects.set(k,b),get:async(k:string)=>objects.has(k)?{body:objects.get(k)}:null,delete:async(keys:string|string[])=>{for(const k of Array.isArray(keys)?keys:[keys])objects.delete(k)}},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
+let onPut: (() => void) | undefined
+const env={DB:{prepare:(query:string)=>new Statement(query),batch:async(stmts:Statement[])=>{sql.exec('BEGIN');try{const r=await Promise.all(stmts.map(s=>s.run()));sql.exec('COMMIT');return r}catch(e){sql.exec('ROLLBACK');throw e}}},PHOTOS:{put:async(k:string,b:Blob)=>{objects.set(k,new Uint8Array(await b.arrayBuffer()));onPut?.()},get:async(k:string)=>objects.has(k)?{body:objects.get(k)}:null,delete:async(keys:string|string[])=>{for(const k of Array.isArray(keys)?keys:[keys])objects.delete(k)}},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
 const users:Record<string,unknown>={valid:{email:'admin@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},other:{email:'other@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},unverified:{email:'admin@example.test'}}
 const sent:string[]=[]
 const originalFetch=globalThis.fetch
@@ -118,5 +119,66 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  const logout=await call('/api/auth/logout','POST',{},true);assert.equal(logout.status,200);assert(logout.headers.getSetCookie().every(c=>c.includes('Max-Age=0')))
  for(let i=0;i<5;i++)assert.equal((await call('/api/auth/request-code','POST',{email:'admin@example.test'},false)).status,200)
  assert.equal((await call('/api/auth/request-code','POST',{email:'admin@example.test'},false)).status,429)
- globalThis.fetch=originalFetch
+})
+test.after(()=>{globalThis.fetch=originalFetch})
+
+test('a multipart save commits details, uploads, cover order and removals together',async()=>{
+ const createId=crypto.randomUUID()
+ const path='/api/admin/vehicles/'+createId
+ const publicPath='/api/vehicles/'+createId
+ const file=new File([readFileSync(new URL('../../resources/CarPhotos/1.jpg',import.meta.url))],'car.jpg',{type:'image/jpeg'})
+ const details={createId,name:'Before',make:'Toyota',year:2020,status:'available'}
+ const create=(photos:string[])=>{
+  const form=new FormData()
+  form.set('vehicle',JSON.stringify({...details,photoOrder:photos}))
+  for(const id of photos)form.set('photo:'+id,file)
+  return form
+ }
+ assert.equal((await call('/api/admin/vehicles','POST',create([]))).status,400)
+ const created=await call('/api/admin/vehicles','POST',create(['initial-1','initial-2']))
+ assert.equal(created.status,201)
+ const first=await created.json() as any
+ assert.equal(first.photo,'/api/admin/photos/initial-1')
+ assert.equal((await call('/api/admin/vehicles','POST',create(['initial-1','initial-2']))).status,409)
+ const edit=()=>{
+  const form=new FormData()
+  form.set('vehicle',JSON.stringify({...details,name:'After',updatedAt:first.updated_at,originalPhotoOrder:['initial-1','initial-2'],photoOrder:['new-cover','initial-2']}))
+  form.set('photo:new-cover',file)
+  return form
+ }
+ onPut=()=>{
+  assert.equal(sql.prepare('SELECT name FROM vehicles WHERE id=?').get(createId)?.name,'Before')
+  assert.deepEqual(sql.prepare('SELECT id FROM photos WHERE vehicle_id=? ORDER BY position').all(createId).map(p=>p.id),['initial-1','initial-2'])
+  throw Error('Simulated storage failure')
+ }
+ try {
+  assert.equal((await call(path,'PUT',edit())).status,500)
+  assert.equal(objects.size,2)
+  assert.equal((await (await call(publicPath,'GET',undefined,false)).json() as any).name,'Before')
+ } finally { onPut=undefined }
+
+ const updated=await call(path,'PUT',edit())
+ assert.equal(updated.status,200)
+ const saved=await (await call(publicPath,'GET',undefined,false)).json() as any
+ assert.equal(saved.name,'After')
+ assert.deepEqual(saved.photos.map((photo: {id:string})=>photo.id),['new-cover','initial-2'])
+ assert.equal(saved.photo,'/api/photos/new-cover')
+ assert.equal((await call('/api/photos/initial-1','GET',undefined,false)).status,404)
+ assert.equal((await call('/api/photos/new-cover','GET',undefined,false)).status,200)
+ assert.equal(objects.size,2)
+ assert.equal((await call(path,'PUT',edit())).status,409)
+
+ const concurrent=edit()
+ concurrent.set('vehicle',JSON.stringify({...details,name:'Stale name',updatedAt:saved.updated_at,originalPhotoOrder:['new-cover','initial-2'],photoOrder:['concurrent-upload','new-cover']}))
+ concurrent.delete('photo:new-cover')
+ concurrent.set('photo:concurrent-upload',file)
+ onPut=()=>{sql.prepare("UPDATE vehicles SET updated_at='2030-01-01T00:00:00.000Z' WHERE id=?").run(createId)}
+ try {
+  assert.equal((await call(path,'PUT',concurrent)).status,409)
+  assert.equal(objects.size,2)
+  const unchanged=await (await call(publicPath,'GET',undefined,false)).json() as any
+  assert.equal(unchanged.name,'After')
+  assert.deepEqual(unchanged.photos.map((photo: {id:string})=>photo.id),['new-cover','initial-2'])
+ } finally { onPut=undefined }
+ assert.equal((await call(path,'DELETE')).status,200)
 })
