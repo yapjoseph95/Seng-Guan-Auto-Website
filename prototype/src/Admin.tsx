@@ -195,7 +195,12 @@ export default function Admin() {
  const refresh=async()=>{const data=await api<{vehicles:ManagedVehicle[]}>('vehicles');setVehicles(data.vehicles)}
  useEffect(()=>{Promise.all([api<{email:string}>('session').then(s=>setEmail(s.email)),refresh()]).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[])
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[dirty])
- useEffect(()=>{if((error||notice)&&!edit&&!confirmDelete)messageRef.current?.focus()},[error,notice,edit,confirmDelete])
+ useEffect(()=>{if(error&&!edit&&!confirmDelete)messageRef.current?.focus()},[error,edit,confirmDelete])
+ useEffect(() => {
+  if (!notice) return
+  const timeout = window.setTimeout(() => setNotice(''), 4000)
+  return () => window.clearTimeout(timeout)
+ }, [notice])
  useEffect(()=>{
   if(!edit&&!confirmDelete)return
   const previous=document.activeElement as HTMLElement|null
@@ -323,7 +328,7 @@ export default function Admin() {
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
    <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div>
-   <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success"><Check size={17}/>{t(notice)}</p>}</div>
+   <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}</div>
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("搜索品牌、车型或年份")} aria-label={t("搜索车辆")}/></label>
    {loading ? <p className="admin-empty"><LoaderCircle className="admin-spin" />{t('正在载入车辆…')}</p> : (
@@ -371,6 +376,9 @@ export default function Admin() {
    )}
    {!loading&&!visible.length&&<div className="admin-empty"><CarFront size={32}/><h2>{t(query?'没有找到这辆车':'这里将展示你的车辆')}</h2><p>{t(query?'试试其他车型或品牌。':'点击「新增车辆」，填写资料并上传照片。')}</p></div>}
   </main>
+  <div className="admin-toast" role="status">
+   {notice&&<p className="admin-success"><Check size={17} aria-hidden="true"/>{t(notice)}</p>}
+  </div>
   {edit&&<div className="admin-overlay"><div className="admin-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title">
    <PhotoPreview photos={edit.photos} index={previewNumber} onSelect={setPreviewId}
     mobileOpen={mobilePreviewOpen} onClose={() => setMobilePreviewOpen(false)} />
