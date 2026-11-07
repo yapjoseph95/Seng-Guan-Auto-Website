@@ -7,7 +7,7 @@ import type { VehicleStatus } from './data'
 import logo from './assets/logo-dark.svg'
 import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
 import { maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
-import { PhotoWatermarkEditor, WatermarkLibrary } from './AdminWatermarks'
+import { PhotoWatermarkEditor, WatermarkLibrary, type WatermarkPhotoChange } from './AdminWatermarks'
 import type { WatermarkPlacement } from '../shared/watermarks'
 import './Admin.css'
 export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;status:VehicleStatus;updated_at:string;published_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
@@ -212,15 +212,19 @@ export default function Admin() {
   for (const {url} of watermarkChanges.current.values()) if (url) URL.revokeObjectURL(url)
   watermarkChanges.current.clear()
  }
- const changeWatermark = (marks: WatermarkPlacement[], render?: Blob) => {
-  if (!edit || !watermarkPhoto) return
-  const original = watermarkPhoto.original_url ?? watermarkPhoto.url
-  const previousUrl = watermarkChanges.current.get(watermarkPhoto.id)?.url
-  const url = render ? URL.createObjectURL(render) : undefined
-  if (previousUrl) URL.revokeObjectURL(previousUrl)
-  watermarkChanges.current.set(watermarkPhoto.id,{placements:marks,render,url})
-  update({photos:edit.photos.map(photo => photo.id === watermarkPhoto.id
-   ? {...photo, original_url:original, watermark:marks[0] ?? null, watermarks:marks, url:url ?? original} : photo)})
+ const applyWatermarks = (changes: ReadonlyMap<string,WatermarkPhotoChange>) => {
+  if (!edit) return
+  const photos = edit.photos.map(photo => {
+   const change = changes.get(photo.id)
+   if (!change) return photo
+   const original = photo.original_url ?? photo.url
+   const previousUrl = watermarkChanges.current.get(photo.id)?.url
+   const url = change.render ? URL.createObjectURL(change.render) : undefined
+   if (previousUrl) URL.revokeObjectURL(previousUrl)
+   watermarkChanges.current.set(photo.id,{...change,url})
+   return {...photo,original_url:original,watermark:change.placements[0] ?? null,watermarks:change.placements,url:url ?? original}
+  })
+  update({photos})
   setWatermarkPhotoId(null)
  }
  const [previewId,setPreviewId]=useState<string | null>(null)
@@ -522,7 +526,7 @@ export default function Admin() {
    {error&&<p className="admin-error" role="alert">{t(error)}</p>}
    </form></section>
    {watermarkPhoto && <PhotoWatermarkEditor photos={edit.photos} photo={watermarkPhoto} onSelect={setWatermarkPhotoId}
-    request={api} onApply={changeWatermark} onClose={() => setWatermarkPhotoId(null)} />}
+    request={api} onApply={applyWatermarks} onClose={() => setWatermarkPhotoId(null)} />}
    </div></div>}
   {libraryOpen && <WatermarkLibrary request={api} onClose={() => setLibraryOpen(false)} />}
   {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}

@@ -129,16 +129,20 @@ function photoWatermarks(photo: AdminPhoto) {
  return photo.watermarks ?? (photo.watermark ? [photo.watermark] : [])
 }
 
+export type WatermarkPhotoChange = { placements:WatermarkPlacement[]; render?:Blob }
+
 export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply, onClose }: {
  photos: AdminPhoto[]; photo: AdminPhoto; request: WatermarkRequest
  onSelect: (id: string) => void
- onApply: (placements: WatermarkPlacement[], render?: Blob) => void; onClose: () => void
+ onApply: (changes: ReadonlyMap<string,WatermarkPhotoChange>) => void; onClose: () => void
 }) {
  const { t } = useLocale()
  const photoUrl = photo.original_url ?? photo.url
  const index = photos.findIndex(item => item.id === photo.id)
  const [assets,setAssets] = useState<WatermarkAsset[] | null>(null)
- const [marks,setMarks] = useState(() => photoWatermarks(photo))
+ const [drafts,setDrafts] = useState(() => new Map<string,WatermarkPlacement[]>())
+ const original = photoWatermarks(photo)
+ const marks = drafts.get(photo.id) ?? original
  const [selected,setSelected] = useState(0)
  const [photoSize,setPhotoSize] = useState<Size>()
  const [assetSizes,setAssetSizes] = useState<Record<string,Size>>({})
@@ -155,7 +159,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
   placement, asset:assets?.find(item => item.id === placement.watermarkId),
  }))
  const canAdd = !busy && !!photoSize && marks.length < maxWatermarksPerPhoto
- const changed = JSON.stringify(marks) !== JSON.stringify(photoWatermarks(photo))
+
 
  useEffect(() => {
   let active = true
@@ -177,19 +181,27 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
 
  const switchPhoto = (next: AdminPhoto) => {
   if (busy || next.id === photo.id) return
-  if (changed && !window.confirm(t('放弃未保存的修改？'))) return
   layerDrag.current = null
   setPhotoSize(undefined)
   setError('')
   setSelected(0)
-  setMarks(photoWatermarks(next))
   onSelect(next.id)
  }
 
  const movePhoto = (offset: number) => switchPhoto(photos[(index + offset + photos.length) % photos.length])
 
+ const updateMarks = (update: (current: WatermarkPlacement[]) => WatermarkPlacement[]) => {
+  setDrafts(previous => {
+   const next = new Map(previous)
+   const updated = update(previous.get(photo.id) ?? original)
+   if (JSON.stringify(updated) === JSON.stringify(original)) next.delete(photo.id)
+   else next.set(photo.id,updated)
+   return next
+  })
+ }
+
  const updatePlacement = (layer: number, change: Partial<WatermarkPlacement>) =>
-  setMarks(previous => previous.map((item,i) => i === layer ? {...item,...change} : item))
+  updateMarks(previous => previous.map((item,i) => i === layer ? {...item,...change} : item))
 
  const recordAssetSize = (id: string, image: HTMLImageElement) => {
   const {naturalWidth:width,naturalHeight:height} = image
@@ -235,7 +247,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
    placement.y = clamp(((drop.y-drop.frame.top)/drop.frame.height-height/2)/(1-height))
   }
   setSelected(marks.length)
-  setMarks([...marks,placement])
+  updateMarks(previous => [...previous,placement])
  }
 
  const startAssetDrag = (event: PointerEvent<HTMLButtonElement>) => {
@@ -264,23 +276,33 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
  }
 
  const removeWatermark = (layer: number) => {
-  setMarks(marks.filter((_,i) => i !== layer))
+  updateMarks(previous => previous.filter((_,i) => i !== layer))
   setSelected(Math.max(0,Math.min(selected - Number(layer < selected),marks.length-2)))
  }
 
- const readyToApply = !busy && changed && layers.every(({asset}) => asset && photoSize && assetSizes[asset.id])
  const apply = async () => {
-  if (!readyToApply) return
-  if (!marks.length) { onApply([]); return }
+  if (busy || !drafts.size) return
   setError('')
   setBusy(true)
   try {
-   const render = await renderWatermarks(photoUrl,layers.map(({asset,placement}) => {
-    if (!asset) throw new Error('Watermark not found.')
-    return {asset,placement}
-   }))
-   if (render.size > maxPhotoBytes) throw new Error('照片处理失败。')
-   onApply(marks,render)
+   const changes = new Map<string,WatermarkPhotoChange>()
+   for (const item of photos) {
+    const placements = drafts.get(item.id)
+    if (!placements) continue
+    if (!placements.length) {
+     changes.set(item.id,{placements})
+     continue
+    }
+    const layers = placements.map(placement => {
+     const asset = assets?.find(asset => asset.id === placement.watermarkId)
+     if (!asset) throw new Error('Watermark not found.')
+     return {asset,placement}
+    })
+    const render = await renderWatermarks(item.original_url ?? item.url,layers)
+    if (render.size > maxPhotoBytes) throw new Error('照片处理失败。')
+    changes.set(item.id,{placements,render})
+   }
+   onApply(changes)
   } catch (error) {
    setError((error as Error).message)
    setBusy(false)
@@ -322,6 +344,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
   <div className="admin-preview-thumbnails admin-watermark-thumbnails" ref={thumbnails}>
    {photos.map((item, position) => <button key={item.id} type="button"
     aria-label={t('预览照片 {number}', {number:position + 1})} aria-current={item.id === photo.id ? 'true' : undefined}
+    data-pending={drafts.has(item.id) || undefined} aria-description={drafts.has(item.id) ? t('有未保存的修改') : undefined}
     disabled={busy} onClick={() => switchPhoto(item)}>
     <img src={item.url} alt="" loading="lazy" draggable={false} />
    </button>)}
@@ -361,8 +384,9 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
    {error && <p className="admin-error" role="alert">{t(error)}</p>}
    <div className="admin-watermark-actions">
     <button type="button" disabled={busy} onClick={onClose}>{t('取消')}</button>
-    <button type="button" className="admin-primary" disabled={!readyToApply} onClick={() => void apply()}>
-     {t(busy ? 'Preparing watermark…' : 'Apply to photo')}
+    <button type="button" className="admin-primary" disabled={busy || !drafts.size} onClick={() => void apply()}>
+     {busy ? t('Preparing photos…') : drafts.size > 1
+      ? t('Apply to {count} photos', {count:drafts.size}) : t('Apply to photo')}
     </button>
    </div>
   </div>

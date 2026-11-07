@@ -284,6 +284,11 @@
 .admin-watermark-view[data-multiple=true] { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 .inventory-admin .admin-watermark-view > button { padding: 0; }
 .admin-watermark-thumbnails { margin: 10px 0 12px; }
+.admin-watermark-thumbnails button { position: relative; }
+.admin-watermark-thumbnails button[data-pending]::after {
+ content: ""; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px;
+ border-radius: 50%; background: #f25a54; box-shadow: 0 0 0 1px #111417;
+}
 .admin-watermark-stage { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; background: #0d0f11; }
 .admin-watermark-base { display: block; max-width: 100%; max-height: min(42dvh, 420px); }
 .admin-watermark-layer { position: absolute; }
