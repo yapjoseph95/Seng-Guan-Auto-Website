@@ -541,4 +541,6 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "This car has already been reserved. Feel free to browse our other cars.": ["This car has already been reserved. Feel free to browse our other cars.","Kereta ini sudah ditempah. Sila lihat kereta lain yang kami tawarkan.","这辆车已被预订，欢迎看看其他车辆。"],
   "Browse other cars": ["Browse other cars","Lihat kereta lain","浏览其他车辆"],
   "Check availability for {year} {name}": ["Check availability for {year} {name}","Semak ketersediaan {year} {name}","查看 {year} {name} 的状态"],
+  "Advanced search": ["Advanced search","Carian lanjutan","高级搜索"],
+  "All body types": ["All body types","Semua jenis badan","所有车身类型"],
 }

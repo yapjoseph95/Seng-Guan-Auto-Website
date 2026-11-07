@@ -442,10 +442,15 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .search-field { min-height: 48px; padding: 0 13px; display: flex; align-items: center; gap: 9px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .search-field input { width: 100%; min-width: 0; padding: 10px 0; color: var(--ink); background: transparent; border: 0; outline: none; font-size: 14px; }
 .search-field input::placeholder { color: var(--muted); opacity: 1; }
-.inventory-refine { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.55fr); gap: 12px; }
-.inventory-refine label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
-.inventory-refine select, .inventory-refine input { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
-.inventory-sort { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
+.inventory-advanced { grid-column: 1 / -1; min-width: 0; }
+.inventory-advanced-toggle { list-style: none; gap: 8px; }
+.inventory-advanced-toggle::-webkit-details-marker { display: none; }
+.inventory-advanced[open] .inventory-advanced-toggle > svg:last-child { transform: rotate(180deg); }
+.inventory-filter-count { min-width: 22px; padding: 2px 5px; text-align: center; border-radius: 999px; background: var(--brand); color: white; font-size: 12px; }
+.inventory-refine { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.inventory-refine label, .inventory-sort label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
+.inventory-refine select, .inventory-refine input, .inventory-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
+.inventory-sort { grid-column: 1 / -1; width: min(100%, 340px); display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
 .inventory-sort-direction.button { min-height: 44px; padding: 0; }
 .inventory-range-error { grid-column: 1 / -1; margin: 0; color: var(--ink); font-size: 13px; }
 .inventory-reset { grid-column: 1 / -1; justify-self: start; }
@@ -796,7 +801,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .page-intro > p:last-child { font-size: 14px; }
   .inventory-tools { grid-template-columns: 1fr; gap: 12px; }
   .inventory-refine { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .inventory-sort { grid-column: 1 / -1; }
+  .inventory-sort { width: 100%; }
   .result-count { grid-column: auto; grid-row: auto; }
   .inventory-grid { grid-template-columns: 1fr; gap: 13px; }
   .content-page--spec-ledger .vehicle-card-link { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
@@ -927,7 +932,7 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
     top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-10deg);
     min-width: 58%; padding: 5px 8px; border-radius: 0; text-align: center;
     font-size: clamp(13px, 4.5vw, 28px); line-height: 1.15; white-space: nowrap;
-    background: #d32118;
+    background: #d32118; box-shadow: 0 5px 12px rgb(0 0 0 / 55%);
   }
   .is-official-site .inventory-grid .vehicle-status--reserved { background: #ac4707; }
   .is-official-site .inventory-grid .vehicle-status-bar {
