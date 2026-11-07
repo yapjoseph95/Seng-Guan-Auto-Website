@@ -15,6 +15,7 @@ sql.exec(`
 sql.exec('BEGIN; '+reservedMigration+' COMMIT;')
 sql.exec(readFileSync(new URL('../migrations/0004_vehicle_mileage_band.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0005_vehicle_publication.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0006_watermarks.sql',import.meta.url),'utf8'))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
@@ -268,4 +269,57 @@ test('mileage bands persist without replacing legacy exact mileage on unrelated 
  const cleared=await call(path,'PUT',{...base,mileage:null,mileage_band:null})
  assert.equal((await cleared.json() as {mileage_band:null}).mileage_band,null)
  await call(path,'DELETE')
+})
+
+test('named watermarks stay private and a vehicle save publishes only the rendered photo',async()=>{
+ const photo = new File([readFileSync(new URL('../../resources/CarPhotos/1.jpg',import.meta.url))],'original.jpg',{type:'image/jpeg'})
+ const derivative = new File([readFileSync(new URL('../../resources/CarPhotos/2.jpg',import.meta.url))],'rendered.jpg',{type:'image/jpeg'})
+ const library = '/api/admin/watermarks'
+ const upload = new FormData()
+ upload.set('name','Showroom mark')
+ upload.set('file',photo)
+ assert.equal((await call(library,'POST',upload,false)).status,401)
+ const createdAsset = await call(library,'POST',upload)
+ assert.equal(createdAsset.status,201)
+ const asset = await createdAsset.json() as {id:string;name:string;url:string}
+ assert.equal(asset.name,'Showroom mark')
+ assert.equal((await call(library,'POST',upload)).status,409)
+ assert.equal((await call(asset.url,'GET',undefined,false)).status,401)
+ assert.equal((await call(asset.url)).status,200)
+ assert.deepEqual((await (await call(library)).json() as any).watermarks,[asset])
+ const id = crypto.randomUUID()
+ const photoId = 'watermark-cover'
+ const mark = {watermarkId:asset.id,x:.3,y:.6,scale:.4,opacity:.35}
+ const details = {createId:id,name:'Watermarked car',make:'Toyota',year:2021,status:'available',photoOrder:[photoId]}
+ const payload = (placement:unknown, updatedAt?:string) => {
+  const form = new FormData()
+  form.set('vehicle',JSON.stringify({...details,updatedAt,originalPhotoOrder:[photoId],watermarks:{[photoId]:placement}}))
+  if (!updatedAt) form.set('photo:'+photoId,photo)
+  if (placement) form.set('watermark:'+photoId,derivative)
+  return form
+ }
+ const path = '/api/admin/vehicles/'+id
+ assert.equal((await call('/api/admin/vehicles','POST',payload({...mark,opacity:1.1}))).status,400)
+ const created = await call('/api/admin/vehicles','POST',payload(mark))
+ assert.equal(created.status,201)
+ const admin = await created.json() as any
+ assert.deepEqual(admin.photos[0].watermark,mark)
+ assert.match(admin.photo,/\?v=/)
+ const publicVehicle = await (await call('/api/vehicles/'+id,'GET',undefined,false)).json() as any
+ assert.equal(Object.hasOwn(publicVehicle.photos[0],'watermark'),false)
+ assert.equal(Object.hasOwn(publicVehicle.photos[0],'original_url'),false)
+ assert.deepEqual(await (await call(publicVehicle.photo,'GET',undefined,false)).arrayBuffer(),await derivative.arrayBuffer())
+ assert.deepEqual(await (await call('/api/photos/'+photoId,'GET',undefined,false)).arrayBuffer(),await derivative.arrayBuffer())
+ assert.deepEqual(await (await call(admin.photos[0].original_url)).arrayBuffer(),await photo.arrayBuffer())
+ const update = await call(path,'PUT',payload({...mark,opacity:.7},admin.updated_at))
+ assert.equal(update.status,200)
+ const updated = await update.json() as any
+ assert.equal(updated.photos[0].watermark.opacity,.7)
+ assert.notEqual(updated.photo,admin.photo)
+ const removed = await call(path,'PUT',payload(null,updated.updated_at))
+ assert.equal(removed.status,200)
+ assert.equal((await removed.json() as any).photos[0].watermark,null)
+ assert.deepEqual(await (await call('/api/photos/'+photoId,'GET',undefined,false)).arrayBuffer(),await photo.arrayBuffer())
+ assert.equal([...objects.keys()].filter(key=>key.startsWith('vehicle-watermarks/')).length,0)
+ assert.equal((await call(path,'DELETE')).status,200)
 })

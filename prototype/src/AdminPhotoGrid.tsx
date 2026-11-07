@@ -8,12 +8,14 @@ import {
   SortableContext, arrayMove, rectSortingStrategy, useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, ArrowRight, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Stamp, Trash2 } from 'lucide-react'
 import { useLocale } from './locale'
 
-export type AdminPhoto = { id: string; url: string }
+import type { WatermarkPlacement } from '../shared/watermarks'
 
-function PhotoTile({ photo, index, total, selected, onPreview, onMove, onRemove }: {
+export type AdminPhoto = { id: string; url: string; original_url?: string; watermark?: WatermarkPlacement | null }
+
+function PhotoTile({ photo, index, total, selected, onPreview, onMove, onRemove, onWatermark }: {
   photo: AdminPhoto
   index: number
   total: number
@@ -21,6 +23,7 @@ function PhotoTile({ photo, index, total, selected, onPreview, onMove, onRemove 
   onPreview: (photo: AdminPhoto) => void
   onMove: (index: number, to: number) => void
   onRemove: (photo: AdminPhoto) => void
+  onWatermark: (photo: AdminPhoto) => void
 }) {
   const { t } = useLocale()
   const { listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
@@ -40,6 +43,8 @@ function PhotoTile({ photo, index, total, selected, onPreview, onMove, onRemove 
           onClick={() => onMove(index, index - 1)}><ArrowLeft size={16} aria-hidden="true" /></button>
         <button type="button" aria-label={t('照片 {number} 后移', { number })} disabled={number === total}
           onClick={() => onMove(index, index + 1)}><ArrowRight size={16} aria-hidden="true" /></button>
+        <button type="button" aria-label={t('Edit watermark for photo {number}', { number })} data-watermarked={!!photo.watermark}
+          onClick={() => onWatermark(photo)}><Stamp size={16} aria-hidden="true" /></button>
         <button type="button" aria-label={t('删除照片 {number}', { number })}
           onClick={() => onRemove(photo)}><Trash2 size={16} aria-hidden="true" /></button>
       </div>
@@ -47,12 +52,13 @@ function PhotoTile({ photo, index, total, selected, onPreview, onMove, onRemove 
   )
 }
 
-export default function AdminPhotoGrid({ photos, previewedId, onPreview, onReorder, onRemove, children }: {
+export default function AdminPhotoGrid({ photos, previewedId, onPreview, onReorder, onRemove, onWatermark, children }: {
   photos: AdminPhoto[]
   previewedId: string | undefined
   onPreview: (photo: AdminPhoto) => void
   onReorder: (photos: AdminPhoto[]) => void
   onRemove: (photo: AdminPhoto) => void
+  onWatermark: (photo: AdminPhoto) => void
   children: ReactNode
 }) {
   const { t } = useLocale()
@@ -87,7 +93,7 @@ export default function AdminPhotoGrid({ photos, previewedId, onPreview, onReord
         <SortableContext items={photos.map(photo => photo.id)} strategy={rectSortingStrategy}>
           {photos.map((photo, index) => (
             <PhotoTile key={photo.id} photo={photo} index={index} total={photos.length}
-              selected={photo.id === previewedId} onPreview={onPreview} onMove={move} onRemove={onRemove} />
+              selected={photo.id === previewedId} onPreview={onPreview} onMove={move} onRemove={onRemove} onWatermark={onWatermark} />
           ))}
         </SortableContext>
         {children}

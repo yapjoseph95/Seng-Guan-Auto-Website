@@ -1,0 +1,15 @@
+CREATE TABLE watermark_assets (
+ id TEXT PRIMARY KEY,
+ name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+ content_type TEXT NOT NULL
+);
+
+CREATE TABLE photo_watermarks (
+ photo_id TEXT PRIMARY KEY REFERENCES photos(id) ON DELETE CASCADE,
+ watermark_id TEXT NOT NULL REFERENCES watermark_assets(id),
+ x REAL NOT NULL CHECK(x BETWEEN 0 AND 1),
+ y REAL NOT NULL CHECK(y BETWEEN 0 AND 1),
+ scale REAL NOT NULL CHECK(scale BETWEEN 0.1 AND 1),
+ opacity REAL NOT NULL CHECK(opacity BETWEEN 0 AND 1),
+ object_key TEXT NOT NULL UNIQUE
+);

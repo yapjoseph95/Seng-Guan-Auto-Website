@@ -2,14 +2,26 @@
 import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
 import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
+import type { WatermarkPlacement } from '../../shared/watermarks'
 type Row = Record<string, unknown>
 const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at'
 const vehicleFields = (admin: boolean) => admin
  ? 'vehicles.*, (SELECT plate_number FROM vehicle_private_details WHERE vehicle_id=vehicles.id) AS plate_number'
  : publicVehicleFields
-const photoSelect = 'SELECT id,vehicle_id,position FROM photos WHERE vehicle_id = ? ORDER BY position,id'
+const photoFields = 'p.id,p.vehicle_id,p.position,w.watermark_id,w.x,w.y,w.scale,w.opacity,w.object_key AS render_key'
+const photoJoin = ' LEFT JOIN photo_watermarks w ON w.photo_id=p.id'
+const photoSelect = 'SELECT '+photoFields+' FROM photos p'+photoJoin+' WHERE p.vehicle_id=? ORDER BY p.position,p.id'
 function formatVehicle(row: Row, photos: Row[], admin: boolean) {
- return { ...row, featured: !!row.featured, photos: photos.map(p => ({ ...p, url: `/api/${admin ? 'admin/' : ''}photos/${p.id}` })), photo: photos.length ? `/api/${admin ? 'admin/' : ''}photos/${photos[0].id}` : '' }
+ const items = photos.map(({id,vehicle_id,position,watermark_id,x,y,scale,opacity,render_key}) => {
+  const original = `/api/${admin ? 'admin/' : ''}photos/${id}`
+  const url = render_key ? original + '?v=' + String(render_key).split('/').at(-1) : original
+  const photo = { id,vehicle_id,position,url }
+  return admin ? {
+   ...photo, original_url:original,
+   watermark:watermark_id ? { watermarkId:watermark_id,x,y,scale,opacity } : null,
+  } : photo
+ })
+ return { ...row, featured:!!row.featured, photos:items, photo:items[0]?.url ?? '' }
 }
 async function vehicle(env: Env, id: string, admin: boolean) {
  const row = await env.DB.prepare('SELECT '+vehicleFields(admin)+' FROM vehicles WHERE id = ?' + (admin ? '' : " AND status != 'draft'")).bind(id).first<Row>()
@@ -83,7 +95,7 @@ const photoIdPattern = /^[a-zA-Z0-9-]{1,80}$/
 const newVehicleIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const changedVehicle = 'This vehicle changed while you were editing. Reload it before saving.'
 const photoLimitMessage = 'New photos must total 36 MB or less per save.'
-type StoredPhoto = { id: string; object_key: string }
+type StoredPhoto = { id: string; object_key: string; render_key: string | null }
 
 function photoIds(value: unknown): string[] {
  if (!Array.isArray(value) || value.length > maxVehiclePhotos || new Set(value).size !== value.length
@@ -127,6 +139,56 @@ async function stagePhoto(request: Request, env: Env, email: string, id: string)
  return json({ id },201)
 }
 
+function imageResponse(body: ReadableStream, type: string, admin: boolean) {
+ return new Response(body,{headers:{
+  'Content-Type':type, 'Cache-Control':admin ? 'private, no-store' : 'public, max-age=300',
+  'X-Content-Type-Options':'nosniff', 'Content-Security-Policy':"default-src 'none'",
+ }})
+}
+
+async function watermarkLibrary(request: Request, env: Env, id?: string) {
+ if (request.method === 'GET' && id) {
+  const asset = await env.DB.prepare('SELECT content_type FROM watermark_assets WHERE id=?').bind(id).first<{content_type:string}>()
+  const image = asset && await env.PHOTOS.get('watermark-assets/'+id)
+  if (!asset || !image) throw new HttpError(404,'Watermark not found.')
+  return imageResponse(image.body,asset.content_type,true)
+ }
+ if (request.method === 'GET') {
+  const assets = await env.DB.prepare('SELECT id,name FROM watermark_assets ORDER BY name,id').all<{id:string;name:string}>()
+  return json({watermarks:assets.results.map(asset => ({...asset,url:'/api/admin/watermarks/'+asset.id}))})
+ }
+ if (request.method !== 'POST' || id) throw new HttpError(405,'Method not allowed.')
+ const length = Number(request.headers.get('Content-Length'))
+ if (!Number.isSafeInteger(length) || length <= 0 || length > maxPhotoBytes + 4096) throw new HttpError(413,'Watermark images must be under 7 MB.')
+ const form = await request.formData().catch(() => { throw new HttpError(400,'Invalid request.') })
+ const name = form.get('name')
+ if (typeof name !== 'string' || !name.trim() || name.trim().length > 80) throw new HttpError(400,'Enter a watermark name up to 80 characters.')
+ const file = await checkedPhoto(form.get('file'))
+ const assetId = crypto.randomUUID()
+ const key = 'watermark-assets/'+assetId
+ await env.PHOTOS.put(key,file,{httpMetadata:{contentType:file.type}})
+ try {
+  const result = await env.DB.prepare('INSERT INTO watermark_assets(id,name,content_type) VALUES(?,?,?) ON CONFLICT(name) DO NOTHING')
+   .bind(assetId,name.trim(),file.type).run()
+  if (!result.meta.changes) throw new HttpError(409,'A watermark with that name already exists.')
+ } catch (error) {
+  const saved = await env.DB.prepare('SELECT id FROM watermark_assets WHERE id=?').bind(assetId).first().catch(() => undefined)
+  if (saved === null) await deletePhotoObjects(env,[key])
+  throw error
+ }
+ return json({id:assetId,name:name.trim(),url:'/api/admin/watermarks/'+assetId},201)
+}
+
+function placement(value: unknown): WatermarkPlacement {
+ const item = value as Partial<WatermarkPlacement> | null
+ const inRange = (n: unknown, min = 0) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= 1
+ if (!item || typeof item.watermarkId !== 'string' || !newVehicleIdPattern.test(item.watermarkId)
+  || !inRange(item.x) || !inRange(item.y) || !inRange(item.scale,.1) || !inRange(item.opacity)) {
+  throw new HttpError(400,'Invalid watermark placement.')
+ }
+ return item as WatermarkPlacement
+}
+
 async function saveVehicle(request: Request, env: Env, email: string, existingId?: string) {
  const length = Number(request.headers.get('Content-Length'))
  if (!Number.isSafeInteger(length) || length <= 0 || length > maxNewPhotoBytes + 128 * 1024) {
@@ -144,7 +206,7 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
  if (data.status && data.status !== 'draft' && !order.length) throw new HttpError(400,'Upload at least one photo before publishing.')
 
  const existing = (await env.DB.prepare(
-  'SELECT id,object_key FROM photos WHERE vehicle_id=? ORDER BY position,id'
+  'SELECT p.id,p.object_key,w.object_key AS render_key FROM photos p'+photoJoin+' WHERE p.vehicle_id=? ORDER BY p.position,p.id'
  ).bind(id).all<StoredPhoto>()).results
  const currentIds = JSON.stringify(existing.map(photo => photo.id))
  const currentVehicle = await env.DB.prepare('SELECT updated_at FROM vehicles WHERE id=?').bind(id).first<{updated_at:string}>()
@@ -203,9 +265,39 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
   }
  })
 
+ const rendered: {key:string; type:string; source:File}[] = []
+ const replacedRenders: string[] = []
+ if (data.watermarks !== undefined) {
+  if (!data.watermarks || typeof data.watermarks !== 'object' || Array.isArray(data.watermarks)) {
+   throw new HttpError(400,'Invalid watermark placement.')
+  }
+  for (const [photoId,value] of Object.entries(data.watermarks)) {
+   if (!order.includes(photoId)) throw new HttpError(400,'Invalid watermark placement.')
+   const oldRender = oldById.get(photoId)?.render_key
+   if (oldRender) replacedRenders.push(oldRender)
+   if (value === null) {
+    statements.push(env.DB.prepare('DELETE FROM photo_watermarks WHERE photo_id=?').bind(photoId))
+    continue
+   }
+   const mark = placement(value)
+   const asset = await env.DB.prepare('SELECT id FROM watermark_assets WHERE id=?').bind(mark.watermarkId).first()
+   if (!asset) throw new HttpError(404,'Watermark not found.')
+   const file = await checkedPhoto(form.get('watermark:'+photoId))
+   if (file.type !== 'image/jpeg') throw new HttpError(400,'Invalid watermark placement.')
+   uploadBytes += file.size
+   if (uploadBytes > maxNewPhotoBytes) throw new HttpError(413,photoLimitMessage)
+   const key = `vehicle-watermarks/${id}/${crypto.randomUUID()}`
+   rendered.push({key,type:file.type,source:file})
+   statements.push(env.DB.prepare(
+    'INSERT INTO photo_watermarks(photo_id,watermark_id,x,y,scale,opacity,object_key) VALUES(?,?,?,?,?,?,?) '
+    +'ON CONFLICT(photo_id) DO UPDATE SET watermark_id=excluded.watermark_id,x=excluded.x,y=excluded.y,scale=excluded.scale,opacity=excluded.opacity,object_key=excluded.object_key'
+   ).bind(photoId,mark.watermarkId,mark.x,mark.y,mark.scale,mark.opacity,key))
+  }
+ }
+
  const attemptedKeys: string[] = []
  try {
-  for (const {key,type,source} of uploads.values()) {
+  for (const {key,type,source} of [...uploads.values(),...rendered]) {
    let contents: File | ArrayBuffer
    if (typeof source === 'string') {
     const staged = await env.PHOTOS.get(source)
@@ -221,9 +313,9 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
   if (!results[0].meta.changes) throw new HttpError(409,changedVehicle)
  } catch (error) {
   // Only remove unreferenced objects if storage was written but the save failed.
-  const persisted = await env.DB.prepare('SELECT id,object_key FROM photos WHERE vehicle_id=? ORDER BY position,id')
+  const persisted = await env.DB.prepare('SELECT p.id,p.object_key,w.object_key AS render_key FROM photos p'+photoJoin+' WHERE p.vehicle_id=? ORDER BY p.position,p.id')
    .bind(id).all<StoredPhoto>().catch(() => null)
-  if (persisted) await deletePhotoObjects(env,attemptedKeys.filter(key => !persisted.results.some(photo => photo.object_key === key)))
+  if (persisted) await deletePhotoObjects(env,attemptedKeys.filter(key => !persisted.results.some(photo => photo.object_key === key || photo.render_key === key)))
   const latest = await env.DB.prepare('SELECT updated_at FROM vehicles WHERE id=?').bind(id).first<{updated_at:string}>().catch(() => undefined)
   if ((latest !== undefined && latest?.updated_at !== currentVehicle?.updated_at)
     || persisted && JSON.stringify(persisted.results.map(photo => photo.id)) !== currentIds) {
@@ -233,7 +325,7 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
  }
 
  const stagedKeys = Array.from(uploads.values()).flatMap(({source}) => typeof source === 'string' ? [source] : [])
- await deletePhotoObjects(env,[...removed.map(photo => photo.object_key),...stagedKeys])
+ await deletePhotoObjects(env,[...removed.flatMap(photo => [photo.object_key,...(photo.render_key ? [photo.render_key] : [])]),...replacedRenders,...stagedKeys])
  return json(await vehicle(env,id,true),existingId ? 200 : 201)
 }
 export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
@@ -250,19 +342,22 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   } else if (!['GET','HEAD'].includes(request.method)) throw new HttpError(405,'Method not allowed.')
   if (admin && parts[0] === 'session' && request.method === 'GET') return json({ email })
   if (admin && parts[0] === 'staged-photos' && parts.length === 2) return await stagePhoto(request,env,email,parts[1])
+  if (admin && parts[0] === 'watermarks' && parts.length <= 2) return await watermarkLibrary(request,env,parts[1])
   if (parts[0] === 'photos' && parts[1] && request.method === 'GET') {
-   const p = await env.DB.prepare("SELECT p.* FROM photos p JOIN vehicles v ON v.id=p.vehicle_id WHERE p.id=?" + (admin ? '' : " AND v.status!='draft'")).bind(parts[1]).first<{object_key:string,content_type:string}>()
+   const p = await env.DB.prepare('SELECT p.object_key,p.content_type,w.object_key AS render_key FROM photos p JOIN vehicles v ON v.id=p.vehicle_id'+photoJoin
+    +' WHERE p.id=?'+(admin ? '' : " AND v.status!='draft'")).bind(parts[1]).first<StoredPhoto & {content_type:string}>()
    if (!p) throw new HttpError(404,'Photo not found.')
-   const object = await env.PHOTOS.get(p.object_key)
+   const render = p.render_key && (!admin || url.searchParams.has('v'))
+   const object = await env.PHOTOS.get(render ? p.render_key! : p.object_key)
    if (!object) throw new HttpError(404,'Photo not found.')
-   return new Response(object.body,{headers:{'Content-Type':p.content_type,'Cache-Control':admin?'private, no-store':'public, max-age=300','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'"}})
+   return imageResponse(object.body,render ? 'image/jpeg' : p.content_type,admin)
   }
   if (parts[0] !== 'vehicles') throw new HttpError(404,'Not found.')
   const id = parts[1]
   if (request.method === 'GET') {
    if (id) return json(await vehicle(env,id,admin))
    const rows = await env.DB.prepare('SELECT '+vehicleFields(admin)+' FROM vehicles'+(admin?'':" WHERE status!='draft'")+' ORDER BY created_at DESC,id LIMIT 500').all<Row>()
-   const photos = await env.DB.prepare('SELECT p.id,p.vehicle_id,p.position FROM photos p JOIN vehicles v ON v.id=p.vehicle_id'+(admin?'':" WHERE v.status!='draft'")+' ORDER BY p.position,p.id').all<Row>()
+   const photos = await env.DB.prepare('SELECT '+photoFields+' FROM photos p JOIN vehicles v ON v.id=p.vehicle_id'+photoJoin+(admin?'':" WHERE v.status!='draft'")+' ORDER BY p.position,p.id').all<Row>()
    const grouped = new Map<string,Row[]>()
    for(const photo of photos.results) { const key=String(photo.vehicle_id); const list=grouped.get(key)||[]; list.push(photo); grouped.set(key,list) }
    return json({vehicles:rows.results.map(row=>formatVehicle(row,grouped.get(String(row.id))||[],admin))})
@@ -308,11 +403,11 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    return json(await vehicle(env,id,true),201)
   }
   if (parts[2] === 'photos' && parts[3] && request.method === 'DELETE') {
-   const photo=await env.DB.prepare('SELECT object_key FROM photos WHERE id=? AND vehicle_id=?').bind(parts[3],id).first<{object_key:string}>()
+   const photo=await env.DB.prepare('SELECT p.object_key,w.object_key AS render_key FROM photos p'+photoJoin+' WHERE p.id=? AND p.vehicle_id=?').bind(parts[3],id).first<StoredPhoto>()
    if(!photo) throw new HttpError(404,'Photo not found.')
    const r=await env.DB.prepare("DELETE FROM photos WHERE id=? AND vehicle_id=? AND ((SELECT status FROM vehicles WHERE id=?)='draft' OR (SELECT COUNT(*) FROM photos WHERE vehicle_id=?)>1)").bind(parts[3],id,id,id).run()
    if(!r.meta.changes)throw new HttpError(400,'Published vehicles need at least one photo. Save as draft first.')
-   await env.PHOTOS.delete(photo.object_key)
+   await deletePhotoObjects(env,[photo.object_key,...(photo.render_key ? [photo.render_key] : [])])
    return json(await vehicle(env,id,true))
   }
   if (!parts[2] && request.method === 'PUT') {
@@ -331,9 +426,9 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    return json(await vehicle(env,id,true))
   }
   if (!parts[2] && request.method === 'DELETE') {
-   const photos=await env.DB.prepare('SELECT object_key FROM photos WHERE vehicle_id=?').bind(id).all<{object_key:string}>()
+   const photos=await env.DB.prepare('SELECT p.object_key,w.object_key AS render_key FROM photos p'+photoJoin+' WHERE p.vehicle_id=?').bind(id).all<StoredPhoto>()
    await env.DB.batch([env.DB.prepare('DELETE FROM photos WHERE vehicle_id=?').bind(id),env.DB.prepare('DELETE FROM vehicles WHERE id=?').bind(id)])
-   await env.PHOTOS.delete(photos.results.map(p=>p.object_key))
+   await deletePhotoObjects(env,photos.results.flatMap(photo => [photo.object_key,...(photo.render_key ? [photo.render_key] : [])]))
    return json({deleted:true})
   }
   throw new HttpError(405,'Method not allowed.')

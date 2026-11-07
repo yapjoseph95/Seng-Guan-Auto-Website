@@ -2,11 +2,13 @@ import { formatPublicationDate } from './vehicle-date'
 import { formatMileage, isMileageBand, mileageBands, type MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { CarFront, Check, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { CarFront, Check, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Stamp, Trash2, X } from 'lucide-react'
 import type { VehicleStatus } from './data'
 import logo from './assets/logo-dark.svg'
 import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
 import { maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
+import { PhotoWatermarkEditor, WatermarkLibrary } from './AdminWatermarks'
+import type { WatermarkPlacement } from '../shared/watermarks'
 import './Admin.css'
 export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;status:VehicleStatus;updated_at:string;published_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
 const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
@@ -180,6 +182,25 @@ export default function Admin() {
  const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
+ const [libraryOpen,setLibraryOpen]=useState(false)
+ const [watermarkPhotoId,setWatermarkPhotoId]=useState<string | null>(null)
+ const watermarkPhoto = edit?.photos.find(photo => photo.id === watermarkPhotoId)
+ const watermarkChanges = useRef(new Map<string, {placement:WatermarkPlacement | null; render?:Blob; url?:string}>())
+ const clearWatermarkChanges = () => {
+  for (const {url} of watermarkChanges.current.values()) if (url) URL.revokeObjectURL(url)
+  watermarkChanges.current.clear()
+ }
+ const changeWatermark = (mark: WatermarkPlacement | null, render?: Blob) => {
+  if (!edit || !watermarkPhoto) return
+  const original = watermarkPhoto.original_url ?? watermarkPhoto.url
+  const previousUrl = watermarkChanges.current.get(watermarkPhoto.id)?.url
+  const url = render ? URL.createObjectURL(render) : undefined
+  if (previousUrl) URL.revokeObjectURL(previousUrl)
+  watermarkChanges.current.set(watermarkPhoto.id,{placement:mark,render,url})
+  update({photos:edit.photos.map(photo => photo.id === watermarkPhoto.id
+   ? {...photo, original_url:original, watermark:mark, url:url ?? original} : photo)})
+  setWatermarkPhotoId(null)
+ }
  const [previewId,setPreviewId]=useState<string | null>(null)
  const [mobilePreviewOpen,setMobilePreviewOpen]=useState(false)
  const previewPhoto = edit?.photos.find(photo => photo.id === previewId) ?? edit?.photos[0]
@@ -190,7 +211,12 @@ export default function Admin() {
  const originalVehicle=useRef<{updatedAt:string; photoOrder:string[]; createId:string} | null>(null)
  useEffect(() => {
   const staged = stagedPhotos.current
-  return () => releasePhotos(staged)
+  const changes = watermarkChanges.current
+  return () => {
+   releasePhotos(staged)
+   for (const {url} of changes.values()) if (url) URL.revokeObjectURL(url)
+   changes.clear()
+  }
  }, [])
  const messageRef=useRef<HTMLDivElement>(null)
  const refresh=async()=>{const data=await api<{vehicles:ManagedVehicle[]}>('vehicles');setVehicles(data.vehicles)}
@@ -215,6 +241,7 @@ export default function Admin() {
  const close = () => {
   if (busy || (dirty && !window.confirm(t('还有未保存的修改，确定离开吗？')))) return
   releasePhotos(stagedPhotos.current,true)
+  clearWatermarkChanges()
   setEdit(null)
   setDirty(false)
   setError('')
@@ -233,15 +260,23 @@ export default function Admin() {
   setNotice('')
   const { photos, photo: _cover, ...details } = edit
   const form = new FormData()
+  const watermarks: Record<string,WatermarkPlacement | null> = {}
+  for (const photo of photos) {
+   const change = watermarkChanges.current.get(photo.id)
+   if (!change) continue
+   watermarks[photo.id] = change.placement
+   if (change.render) form.set('watermark:'+photo.id,change.render,'watermarked.jpg')
+  }
   form.set('vehicle',JSON.stringify({
    ...details, updatedAt:original.updatedAt, originalPhotoOrder:original.photoOrder,
-   createId:original.createId, photoOrder:photos.map(photo => photo.id),
+   createId:original.createId, photoOrder:photos.map(photo => photo.id), watermarks,
   }))
   try {
    const saved = await api<ManagedVehicle>('vehicles' + (edit.id ? '/' + edit.id : ''), {
     method: edit.id ? 'PUT' : 'POST', body: form,
    })
    releasePhotos(stagedPhotos.current)
+   clearWatermarkChanges()
    setEdit(null)
    setDirty(false)
    setVehicles(current => edit.id ? current.map(vehicle => vehicle.id === saved.id ? saved : vehicle) : [saved,...current])
@@ -292,6 +327,9 @@ export default function Admin() {
    stagedPhotos.current.delete(photo.id)
    discardPhoto(photo.id)
   }
+  const rendered = watermarkChanges.current.get(photo.id)?.url
+  if (rendered) URL.revokeObjectURL(rendered)
+  watermarkChanges.current.delete(photo.id)
   update({ photos:edit.photos.filter(item => item.id !== photo.id) })
   setError('')
   setNotice('')
@@ -305,6 +343,7 @@ export default function Admin() {
   releasePhotos(stagedPhotos.current)
   originalVehicle.current = { updatedAt:vehicle.updated_at, photoOrder:vehicle.photos.map(photo => photo.id), createId:crypto.randomUUID() }
   setPreviewId(null)
+  setWatermarkPhotoId(null)
   setMobilePreviewOpen(false)
   setEdit({ ...vehicle, photos: [...vehicle.photos] })
   setDirty(false)
@@ -335,7 +374,7 @@ export default function Admin() {
  return <div className="inventory-admin">
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
-   <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div>
+   <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><div className="admin-title-actions"><button type="button" disabled={loading||!email} onClick={() => setLibraryOpen(true)}><Stamp size={17} aria-hidden="true"/>{t('Watermark settings')}</button><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div></div>
    <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}</div>
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
@@ -400,7 +439,7 @@ export default function Admin() {
        setPreviewId(photo.id)
        if (window.matchMedia('(max-width: 760px)').matches) setMobilePreviewOpen(true)
       }}
-      onReorder={photos => { if (!busy) update({ photos }) }} onRemove={removePhoto}>
+      onReorder={photos => { if (!busy) update({ photos }) }} onRemove={removePhoto} onWatermark={photo => setWatermarkPhotoId(photo.id)}>
       <button type="button" className="admin-upload" aria-label={t("选择照片上传")}
        disabled={!!busy || edit.photos.length >= maxVehiclePhotos} onClick={()=>fileInput.current?.click()}>
        <ImagePlus size={28} aria-hidden="true" />
@@ -455,7 +494,11 @@ export default function Admin() {
     </div>
    </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'尚未保存')}</span><button type="button" onClick={close} disabled={!!busy}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
    {error&&<p className="admin-error" role="alert">{t(error)}</p>}
-   </form></section></div></div>}
+   </form></section>
+   {watermarkPhoto && <PhotoWatermarkEditor photoUrl={watermarkPhoto.original_url ?? watermarkPhoto.url}
+    initial={watermarkPhoto.watermark ?? null} request={api} onApply={changeWatermark} onClose={() => setWatermarkPhotoId(null)} />}
+   </div></div>}
+  {libraryOpen && <WatermarkLibrary request={api} onClose={() => setLibraryOpen(false)} />}
   {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}
  </div>
 }
