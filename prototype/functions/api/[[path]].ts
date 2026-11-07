@@ -149,9 +149,15 @@ function imageResponse(body: ReadableStream, type: string, admin: boolean) {
 const inRange = (n: unknown, min = 0): n is number => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= 1
 
 async function watermarkLibrary(request: Request, env: Env, id?: string) {
- if (request.method === 'PUT' && id === 'settings') {
+ if (request.method === 'PUT' && id) {
   const {scale,opacity} = await body(request)
   if (!inRange(scale,.1) || !inRange(opacity)) throw new HttpError(400,'Invalid watermark defaults.')
+  if (id !== 'settings') {
+   const result = await env.DB.prepare('UPDATE watermark_assets SET default_scale=?,default_opacity=? WHERE id=?')
+    .bind(scale,opacity,id).run()
+   if (!result.meta.changes) throw new HttpError(404,'Watermark not found.')
+   return json({scale,opacity})
+  }
   await env.DB.prepare(
    'INSERT INTO watermark_settings(id,scale,opacity) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET scale=excluded.scale,opacity=excluded.opacity'
   ).bind(scale,opacity).run()
@@ -164,9 +170,15 @@ async function watermarkLibrary(request: Request, env: Env, id?: string) {
   return imageResponse(image.body,asset.content_type,true)
  }
  if (request.method === 'GET') {
-  const assets = await env.DB.prepare('SELECT id,name FROM watermark_assets ORDER BY name,id').all<{id:string;name:string}>()
+  const assets = await env.DB.prepare('SELECT id,name,default_scale,default_opacity FROM watermark_assets ORDER BY name,id')
+   .all<{id:string;name:string;default_scale:number|null;default_opacity:number|null}>()
   const defaults = await env.DB.prepare('SELECT scale,opacity FROM watermark_settings WHERE id=1').first<WatermarkDefaults>()
-  return json({watermarks:assets.results.map(asset => ({...asset,url:'/api/admin/watermarks/'+asset.id})),defaults:defaults ?? defaultWatermarkSettings})
+   ?? defaultWatermarkSettings
+  const watermarks = assets.results.map(({id,name,default_scale,default_opacity}) => ({
+   id,name,url:'/api/admin/watermarks/'+id,
+   defaults:{scale:default_scale ?? defaults.scale,opacity:default_opacity ?? defaults.opacity},
+  }))
+  return json({watermarks,defaults})
  }
  if (request.method !== 'POST' || id) throw new HttpError(405,'Method not allowed.')
  const length = Number(request.headers.get('Content-Length'))

@@ -85,14 +85,55 @@ function WatermarkSliders({value,disabled,onChange,defaults = false}: {
  </div>
 }
 
+function WatermarkAssetSettings({asset,fallback,disabled,saving,onSave}: {
+ asset:WatermarkAsset; fallback:WatermarkDefaults; disabled:boolean; saving:boolean
+ onSave:(id:string,defaults:WatermarkDefaults) => Promise<void>
+}) {
+ const { t } = useLocale()
+ const saved = asset.defaults ?? fallback
+ const [draft,setDraft] = useState(saved)
+ const [error,setError] = useState('')
+ const [notice,setNotice] = useState('')
+ const changed = draft.scale !== saved.scale || draft.opacity !== saved.opacity
+
+ const submit = async (event: FormEvent) => {
+  event.preventDefault()
+  if (disabled || !changed) return
+  setError('')
+  setNotice('')
+  try {
+   await onSave(asset.id,draft)
+   setNotice('Watermark defaults saved.')
+  } catch (error) {
+   setError((error as Error).message)
+  }
+ }
+
+ return <li>
+  <img src={asset.url} alt="" />
+  <h3>{asset.name}</h3>
+  <form className="admin-watermark-form" aria-label={asset.name} onSubmit={submit}>
+   <WatermarkSliders value={draft} disabled={disabled} defaults onChange={change => {
+    setDraft(current => ({...current,...change}))
+    setNotice('')
+    setError('')
+   }} />
+   <button className="admin-primary" disabled={disabled || !changed}>
+    {t(saving ? 'Saving defaults…' : 'Save defaults')}
+   </button>
+   {error && <p className="admin-error" role="alert">{t(error)}</p>}
+   {notice && <p role="status">{t(notice)}</p>}
+  </form>
+ </li>
+}
+
 export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest; onClose:() => void}) {
  const { t } = useLocale()
  const [assets,setAssets] = useState<WatermarkAsset[] | null>(null)
  const [name,setName] = useState('')
  const [file,setFile] = useState<File | null>(null)
- const [busy,setBusy] = useState<'upload' | 'defaults' | null>(null)
+ const [busy,setBusy] = useState<string | null>(null)
  const [defaults,setDefaults] = useState(defaultWatermarkSettings)
- const [savedDefaults,setSavedDefaults] = useState<WatermarkDefaults | null>(null)
  const [error,setError] = useState('')
  const [notice,setNotice] = useState('')
  const fileInput = useRef<HTMLInputElement>(null)
@@ -103,9 +144,7 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
    .then(data => {
     if (!active) return
     setAssets(data.watermarks)
-    const settings = data.defaults ?? defaultWatermarkSettings
-    setDefaults(settings)
-    setSavedDefaults(settings)
+    setDefaults(data.defaults ?? defaultWatermarkSettings)
    })
    .catch(error => { if (active) setError((error as Error).message) })
   return () => { active = false }
@@ -137,34 +176,17 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
   }
  }
 
- const defaultsChanged = !!savedDefaults && (defaults.scale !== savedDefaults.scale || defaults.opacity !== savedDefaults.opacity)
- const saveDefaults = async (event: FormEvent) => {
-  event.preventDefault()
-  if (busy || !defaultsChanged) return
-  setBusy('defaults')
-  setError('')
-  setNotice('')
+ const saveDefaults = async (id: string, values: WatermarkDefaults) => {
+  setBusy(id)
   try {
-   const saved = await request<WatermarkDefaults>('watermarks/settings',{method:'PUT',body:JSON.stringify(defaults)})
-   setDefaults(saved)
-   setSavedDefaults(saved)
-   setNotice('Watermark defaults saved.')
-  } catch (error) {
-   setError((error as Error).message)
+   const saved = await request<WatermarkDefaults>('watermarks/'+id,{method:'PUT',body:JSON.stringify(values)})
+   setAssets(current => current?.map(asset => asset.id === id ? {...asset,defaults:saved} : asset) ?? null)
   } finally {
    setBusy(null)
   }
  }
 
  return <WatermarkDialog title={t('Watermark settings')} busy={!!busy} onClose={onClose}>
-  <form className="admin-watermark-form admin-watermark-defaults" onSubmit={saveDefaults}>
-   <p>{t('Defaults apply to newly added watermarks.')}</p>
-   <WatermarkSliders value={defaults} disabled={!!busy || !savedDefaults} defaults
-    onChange={change => setDefaults(current => ({...current,...change}))} />
-   <button className="admin-primary" disabled={!!busy || !defaultsChanged}>
-    {t(busy === 'defaults' ? 'Saving defaults…' : 'Save defaults')}
-   </button>
-  </form>
   <form onSubmit={upload} className="admin-watermark-form">
    <p>{t('Upload a JPG, PNG or WebP image. Use a transparent PNG or WebP for a logo without a background.')}</p>
    <label>{t('Watermark name')}<input required maxLength={80} value={name} disabled={!!busy} onChange={event => setName(event.target.value)} /></label>
@@ -173,9 +195,13 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
   </form>
   {error && <p className="admin-error" role="alert">{t(error)}</p>}
   {notice && <p role="status">{t(notice)}</p>}
-  <ul className="admin-watermark-library" aria-label={t('Saved watermarks')}>
-   {assets?.map(asset => <li key={asset.id}><img src={asset.url} alt="" /><span>{asset.name}</span></li>)}
-  </ul>
+  {!!assets?.length && <>
+   <p className="admin-watermark-library-note">{t('Defaults apply to newly added watermarks.')}</p>
+   <ul className="admin-watermark-library" aria-label={t('Saved watermarks')}>
+    {assets.map(asset => <WatermarkAssetSettings key={asset.id} asset={asset} fallback={defaults}
+     disabled={!!busy} saving={busy === asset.id} onSave={saveDefaults} />)}
+   </ul>
+  </>}
  </WatermarkDialog>
 }
 
@@ -296,7 +322,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
  const addWatermark = (asset: WatermarkAsset, drop?: {x:number;y:number;frame:DOMRect}) => {
   if (!canAdd || !photoSize) return
   const placement = {watermarkId:asset.id,x:marks.length % 2 === 0 ? .95 : .05,
-   y:marks.length < 2 ? .95 : .05,...defaults}
+   y:marks.length < 2 ? .95 : .05,...(asset.defaults ?? defaults)}
   const size = assetSizes[asset.id]
   if (drop && size) {
    const bounds = watermarkBounds(photoSize,size,placement)

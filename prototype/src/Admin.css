@@ -277,9 +277,11 @@
  width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px;
  border: 1px solid #3a4047; border-radius: 5px; background: #1b1f24; color: #fff;
 }
-.admin-watermark-library { list-style: none; padding: 0; margin: 16px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 10px; }
-.admin-watermark-library li { min-width: 0; overflow-wrap: anywhere; display: grid; gap: 6px; }
-.admin-watermark-library img { width: 100%; height: 58px; object-fit: contain; background: #353a40; border-radius: 5px; }
+.admin-watermark-library { list-style: none; padding: 0; margin: 16px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.admin-watermark-library li { min-width: 0; overflow-wrap: anywhere; display: grid; align-content: start; gap: 10px; padding: 12px; border: 1px solid #3a4047; border-radius: 6px; }
+.admin-watermark-library h3 { margin: 0; font-size: 15px; }
+.admin-watermark-dialog .admin-watermark-library-note { margin-top: 16px; }
+.admin-watermark-library img { width: 100%; height: 88px; object-fit: contain; background: #353a40; border-radius: 5px; }
 .admin-watermark-view { display: grid; align-items: center; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .admin-watermark-view[data-multiple=true] { grid-template-columns: 44px minmax(0, 1fr) 44px; }
 .inventory-admin .admin-watermark-view > button { padding: 0; }
@@ -329,4 +331,3 @@
  background: var(--admin-primary); border-color: var(--admin-primary);
 }
 .inventory-admin .admin-watermark-remove:active { transform: translate(35%,-35%) scale(.94); }
-.admin-watermark-defaults { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #3a4047; }

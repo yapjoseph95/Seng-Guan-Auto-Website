@@ -6,7 +6,7 @@ export type WatermarkPlacement = {
  opacity: number
 }
 
-export type WatermarkAsset = { id: string; name: string; url: string }
+export type WatermarkAsset = { id: string; name: string; url: string; defaults?:WatermarkDefaults }
 
 export const maxWatermarksPerPhoto = 10
 
