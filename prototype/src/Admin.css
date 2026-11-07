@@ -4,3 +4,8 @@
 @media(prefers-reduced-motion:reduce){.inventory-admin *{animation:none!important;transition:none!important}}
 
 .admin-header button { background: transparent; border: 0; padding: 0; color: #ced2d6; font-size: 13px; }
+
+@media (max-width: 600px) {
+  .admin-header > div { gap: clamp(6px, 2vw, 16px); }
+  .admin-header > div a { text-align: center; }
+}

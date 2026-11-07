@@ -1,3 +1,4 @@
+import { useLocale, LanguageSelect } from './locale'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
@@ -57,6 +58,8 @@ function preventImageContextMenu(event: MouseEvent<HTMLDivElement>) {
 }
 
 function App() {
+  const { t } = useLocale()
+  useEffect(() => { ScrollTrigger.refresh() }, [t])
   const [inventory, setInventory] = useState<Vehicle[]>(isOfficialSite ? [] : fallbackVehicles)
   const [inventoryStatus, setInventoryStatus] = useState<'loading' | 'ready' | 'error'>(isOfficialSite ? 'loading' : 'ready')
   useEffect(() => {
@@ -225,9 +228,9 @@ function App() {
   const copyDirectionLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href)
-      showNotice(`Link copied for ${variant.name}.`)
+      showNotice(t('Link copied'))
     } catch {
-      showNotice('Copy the address in your browser to share this direction.')
+      showNotice(t('Copy the address in your browser to share this direction.'))
     }
   }
 
@@ -256,7 +259,7 @@ function App() {
     <InventoryStatusContext.Provider value={inventoryStatus}>
     <div className={`prototype-app${isOfficialSite ? ' is-official-site' : ''}`} data-variant={variant.id} ref={appRef} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
       {variant.id === 'greenlight' && <div className="site-atmosphere" aria-hidden="true" />}
-      <a className="skip-link" href="#main-content">Skip to content</a>
+      <a className="skip-link" href="#main-content">{t("Skip to content")}</a>
       <SiteHeader
         variant={variant}
         activePage={route.page}
@@ -279,7 +282,7 @@ function App() {
         saved={savedDirection === variant.id}
         selectDirection={() => {
           setSavedDirection(variant.id)
-          showNotice(`${variant.name} marked for review in this session.`)
+          showNotice(t('{name} marked for review in this session.', { name: variant.name }))
         }}
       />}
       <div className="notice" aria-live="polite" aria-atomic="true">{notice}</div>
@@ -299,6 +302,7 @@ function SiteHeader({
   menuOpen: boolean
   setMenuOpen: (open: boolean) => void
 }) {
+  const { t } = useLocale()
   const brandLogo = variant.id === 'greenlight' ? darkLogo : logo
   const navRef = useRef<HTMLElement>(null)
   const navIndicatorRef = useRef<HTMLSpanElement>(null)
@@ -307,7 +311,7 @@ function SiteHeader({
     const nav = navRef.current
     const indicator = navIndicatorRef.current
     const activeLink = nav?.querySelector<HTMLAnchorElement>('a[aria-current="page"]')
-    if (!nav || !indicator || !activeLink || !window.matchMedia('(min-width: 761px)').matches) return
+    if (!nav || !indicator || !activeLink || !window.matchMedia('(min-width: 941px)').matches) return
 
     gsap.to(indicator, {
       x: activeLink.offsetLeft,
@@ -316,31 +320,31 @@ function SiteHeader({
       ease: 'power3.out',
       overwrite: true,
     })
-  }, { dependencies: [activePage], scope: navRef })
+  }, { dependencies: [activePage, t], scope: navRef })
 
   return (
     <header className={`site-header site-header--${variant.id}`}>
       <div className="header-inner">
-        <a className="brand" href={navTo('home')} onClick={interceptRoute('home')} aria-label="Seng Guan Auto home">
+        <a className="brand" href={navTo('home')} onClick={interceptRoute('home')} aria-label={t("Seng Guan Auto home")}>
           <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
-          <span className="brand-caption">Your trusted partner in quality used cars since 1995.</span>
+          <span className="brand-caption">{t("Your trusted partner in quality used cars since 1995.")}</span>
         </a>
-        <button className="menu-toggle" type="button" aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+        <button className="menu-toggle" type="button" aria-label={t(menuOpen ? 'Close menu' : 'Open menu')} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
           {menuOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
         </button>
-        <nav ref={navRef} className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
+        <nav ref={navRef} className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label={t("Main navigation")}>
           {pages.map((page) => (
             <a key={page.id} href={navTo(page.id)} onClick={interceptRoute(page.id)} aria-current={activePage === page.id ? 'page' : undefined}>
-              {page.label}
+              {t(page.label)}
             </a>
           ))}
-          <a className="nav-inventory" href={contact.inventory} target="_blank" rel="noreferrer">
-            Current listings <ArrowUpRight aria-hidden="true" size={15} />
+          <a className="nav-inventory" href={contact.inventory} target="_blank" rel="noreferrer">{t("Current listings")} <ArrowUpRight aria-hidden="true" size={15} />
           </a>
           <span className="nav-indicator" ref={navIndicatorRef} aria-hidden="true" />
         </nav>
+        <LanguageSelect />
         <a className="header-contact header-contact--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer">
-          <WhatsAppGlyph /> <span>Ask about a car</span>
+          <WhatsAppGlyph /> <span>{t("Ask about a car")}</span>
         </a>
         <CustomerServiceWidget enabled={variant.id === 'greenlight'} />
       </div>
@@ -349,6 +353,7 @@ function SiteHeader({
 }
 
 function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
+  const { t } = useLocale()
   const buttonRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [ready, setReady] = useState(false)
@@ -437,7 +442,7 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
   if (!enabled) return null
 
   return (
-    <button ref={buttonRef} className="header-customer-service" type="button" aria-label="Open customer service chat" aria-expanded={open} disabled={!ready}>
+    <button ref={buttonRef} className="header-customer-service" type="button" aria-label={t(open ? 'Close customer service chat' : 'Open customer service chat')} aria-expanded={open} disabled={!ready}>
       <Headset aria-hidden="true" size={18} />
     </button>
   )
@@ -464,13 +469,14 @@ function HomePage({ variant, goToPage }: { variant: Direction; goToPage: (page: 
 }
 
 function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
+  const { t } = useLocale()
   const vehicles = useFeaturedVehicles()
   const columns = Array.from({length: 3}, (_, column) => Array.from({length:4}, (_, row) => vehicles[(column * 4 + row) % vehicles.length])).filter(() => vehicles.length > 0)
 
 
   return (
     <div className="featured-display">
-      {!columns.length && <img className="featured-showroom-fallback" src={showroom} alt="Seng Guan Auto showroom" />}
+      {!columns.length && <img className="featured-showroom-fallback" src={showroom} alt={t("Seng Guan Auto showroom")} />}
       <div className="showroom-gallery" aria-hidden="true">
         {columns.map((column, columnIndex) => (
           <div className={`showroom-gallery-column showroom-gallery-column--${columnIndex + 1}`} key={columnIndex}>
@@ -490,7 +496,7 @@ function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
       </div>
       <div className="showroom-image-overlay" aria-hidden="true" />
       <div className="showroom-art-copy">
-        <button className="showroom-art-link" onClick={onBrowse}>Explore featured cars <ArrowUpRight size={16} aria-hidden="true" /></button>
+        <button className="showroom-art-link" onClick={onBrowse}>{t("Explore featured cars")} <ArrowUpRight size={16} aria-hidden="true" /></button>
       </div>
     </div>
   )
@@ -563,6 +569,7 @@ const homeSections: Record<string, string[]> = {
 }
 
 function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   const vehicles = useVehicles()
   const primaryCar = vehicles[1]
   const budgetCar = vehicles[2]
@@ -571,13 +578,13 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
       return (
         <section className="hero hero--lot">
           <div className="hero-lot-copy hero-copy">
-            <p className="location-line"><MapPin size={15} aria-hidden="true" /> Banting, Selangor</p>
-            <h1>A better way to find your next car.</h1>
-            <p>Explore the cars we feature, ask what you need to know, and plan a visit to our Banting showroom.</p>
-            <div className="hero-actions"><button className="button button--primary" onClick={() => goToPage('cars')}>Explore featured cars <ArrowRight size={17} aria-hidden="true" /></button><button className="button button--plain" onClick={() => goToPage('contact')}>Talk to the team</button></div>
-            <div className="lot-note"><span className="lot-note-rule" />Local dealership · Direct contact · Carlist inventory</div>
+            <p className="location-line"><MapPin size={15} aria-hidden="true" />{t("Banting, Selangor")}</p>
+            <h1>{t("A better way to find your next car.")}</h1>
+            <p>{t("Explore the cars we feature, ask what you need to know, and plan a visit to our Banting showroom.")}</p>
+            <div className="hero-actions"><button className="button button--primary" onClick={() => goToPage('cars')}>{t("Explore featured cars")} <ArrowRight size={17} aria-hidden="true" /></button><button className="button button--plain" onClick={() => goToPage('contact')}>{t("Talk to the team")}</button></div>
+            <div className="lot-note"><span className="lot-note-rule" />{t("Local dealership · Direct contact · Carlist inventory")}</div>
           </div>
-          <div className="hero-art hero-lot-photo"><img src={showroom} alt="Seng Guan Auto's roadside showroom in Banting" width="1072" height="603" fetchPriority="high" /></div>
+          <div className="hero-art hero-lot-photo"><img src={showroom} alt={t("Seng Guan Auto's roadside showroom in Banting")} width="1072" height="603" fetchPriority="high" /></div>
         </section>
       )
     case 'drive-finder':
@@ -585,40 +592,40 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
         <section className="hero hero--finder">
           <div className="finder-image"><img src={budgetCar.photo} alt={`${budgetCar.year} ${budgetCar.name}`} width="300" height="200" fetchPriority="high" /></div>
           <div className="finder-content hero-copy">
-            <p className="hero-overline">Seng Guan Auto · Used cars</p>
-            <h1>Find a car that feels right.</h1>
-            <p>Start with the body style or make you have in mind. Check live details on our Carlist page.</p>
+            <p className="hero-overline">{t("Seng Guan Auto · Used cars")}</p>
+            <h1>{t("Find a car that feels right.")}</h1>
+            <p>{t("Start with the body style or make you have in mind. Check live details on our Carlist page.")}</p>
             <div className="finder-actions">
-              <button className="button button--primary" onClick={() => goToPage('cars')}><Search size={17} aria-hidden="true" /> Browse featured cars</button>
-              <button className="button button--soft" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" /> Estimate a payment</button>
+              <button className="button button--primary" onClick={() => goToPage('cars')}><Search size={17} aria-hidden="true" />{t("Browse featured cars")}</button>
+              <button className="button button--soft" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" />{t("Estimate a payment")}</button>
             </div>
           </div>
-          <div className="finder-footer"><span>Cars for everyday drives</span><span>Information first, conversation next</span></div>
+          <div className="finder-footer"><span>{t("Cars for everyday drives")}</span><span>{t("Information first, conversation next")}</span></div>
         </section>
       )
     case 'night-shift':
       return (
         <section className="hero hero--night">
           <div className="night-copy hero-copy">
-            <p className="night-kicker"><span /> Banting, Selangor</p>
-            <h1>Find your next<br /><em>open road.</em></h1>
-            <p>Good cars deserve a closer look. Browse the featured selection and ask us about the details.</p>
-            <div className="hero-actions"><button className="button button--accent" onClick={() => goToPage('cars')}>Explore the lot <ArrowDownRight size={17} aria-hidden="true" /></button><button className="button button--outline-light" onClick={() => goToPage('contact')}>Plan a visit</button></div>
+            <p className="night-kicker"><span />{t("Banting, Selangor")}</p>
+            <h1>{t("Find your next")}<br /><em>{t("open road.")}</em></h1>
+            <p>{t("Good cars deserve a closer look. Browse the featured selection and ask us about the details.")}</p>
+            <div className="hero-actions"><button className="button button--accent" onClick={() => goToPage('cars')}>{t("Explore the lot")} <ArrowDownRight size={17} aria-hidden="true" /></button><button className="button button--outline-light" onClick={() => goToPage('contact')}>{t("Plan a visit")}</button></div>
             <span className="night-number">SG / AUTO</span>
           </div>
-          <div className="hero-art night-art"><img src={primaryCar.photo} alt={`${primaryCar.year} ${primaryCar.name}`} width="300" height="200" fetchPriority="high" /><span className="night-art-caption">Featured drive / BMW 530i</span></div>
+          <div className="hero-art night-art"><img src={primaryCar.photo} alt={`${primaryCar.year} ${primaryCar.name}`} width="300" height="200" fetchPriority="high" /><span className="night-art-caption">{t("Featured drive / BMW 530i")}</span></div>
           <div className="night-edge" aria-hidden="true">SENG GUAN AUTO</div>
         </section>
       )
     case 'everyday-miles':
       return (
         <section className="hero hero--everyday">
-          <div className="everyday-visual hero-art"><img src={vehicles[3].photo} alt={`${vehicles[3].year} ${vehicles[3].name}`} width="300" height="200" fetchPriority="high" /><div className="everyday-caption"><span>Room for the whole day</span><span>Ask about the Vellfire</span></div></div>
+          <div className="everyday-visual hero-art"><img src={vehicles[3].photo} alt={`${vehicles[3].year} ${vehicles[3].name}`} width="300" height="200" fetchPriority="high" /><div className="everyday-caption"><span>{t("Room for the whole day")}</span><span>{t("Ask about the Vellfire")}</span></div></div>
           <div className="everyday-copy hero-copy">
-            <p className="hero-overline">A local car search, made personal</p>
-            <h1>More room for the life you lead.</h1>
-            <p>Compare a few options, work out a comfortable budget, then speak with the team about the car that caught your eye.</p>
-            <div className="everyday-links"><button onClick={() => goToPage('cars')}><CarFront aria-hidden="true" /> Browse cars</button><button onClick={() => goToPage('finance')}><Calculator aria-hidden="true" /> Plan a payment</button><button onClick={() => goToPage('contact')}><MapPin aria-hidden="true" /> Visit Banting</button></div>
+            <p className="hero-overline">{t("A local car search, made personal")}</p>
+            <h1>{t("More room for the life you lead.")}</h1>
+            <p>{t("Compare a few options, work out a comfortable budget, then speak with the team about the car that caught your eye.")}</p>
+            <div className="everyday-links"><button onClick={() => goToPage('cars')}><CarFront aria-hidden="true" />{t("Browse cars")}</button><button onClick={() => goToPage('finance')}><Calculator aria-hidden="true" />{t("Plan a payment")}</button><button onClick={() => goToPage('contact')}><MapPin aria-hidden="true" />{t("Visit Banting")}</button></div>
           </div>
         </section>
       )
@@ -628,46 +635,46 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
           <img className="collection-image hero-art" src={primaryCar.photo} alt={`${primaryCar.year} ${primaryCar.name}`} width="300" height="200" fetchPriority="high" />
           <div className="collection-copy hero-copy">
             <p className="collection-label">Seng Guan Auto / Banting</p>
-            <h1>Good cars.<br />A closer look.</h1>
-            <p>A small selection to start your search. Find the live details on Carlist or ask us about a visit.</p>
-            <button className="button button--light" onClick={() => goToPage('cars')}>View the selection <ArrowUpRight size={17} aria-hidden="true" /></button>
+            <h1>{t("Good cars.")}<br />{t("A closer look.")}</h1>
+            <p>{t("A small selection to start your search. Find the live details on Carlist or ask us about a visit.")}</p>
+            <button className="button button--light" onClick={() => goToPage('cars')}>{t("View the selection")} <ArrowUpRight size={17} aria-hidden="true" /></button>
           </div>
-          <div className="collection-stamp">S G<br /><span>USED CARS</span></div>
+          <div className="collection-stamp">S G<br /><span>{t("USED CARS")}</span></div>
         </section>
       )
     case 'spec-ledger':
       return (
         <section className="hero hero--ledger">
-          <div className="ledger-top hero-copy"><div><p className="ledger-label">Seng Guan Auto / Used vehicles</p><h1>Start with what matters.</h1></div><p>Filter the featured selection, review the basics, then check current price and availability on Carlist.</p></div>
-          <div className="ledger-feature hero-art"><img src={budgetCar.photo} alt={`${budgetCar.year} ${budgetCar.name}`} width="300" height="200" fetchPriority="high" /><div className="ledger-specs"><span>Featured</span><strong>{budgetCar.year} {budgetCar.name}</strong><span>Petrol <i /> Automatic</span></div><button className="button button--primary" onClick={() => goToPage('cars')}>Open vehicle index <ArrowRight size={16} aria-hidden="true" /></button></div>
-          <div className="ledger-bottom"><span>Used cars</span><span>Carlist for live details</span><span>Questions welcome</span></div>
+          <div className="ledger-top hero-copy"><div><p className="ledger-label">{t("Seng Guan Auto / Used vehicles")}</p><h1>{t("Start with what matters.")}</h1></div><p>{t("Filter the featured selection, review the basics, then check current price and availability on Carlist.")}</p></div>
+          <div className="ledger-feature hero-art"><img src={budgetCar.photo} alt={`${budgetCar.year} ${budgetCar.name}`} width="300" height="200" fetchPriority="high" /><div className="ledger-specs"><span>{t("Featured")}</span><strong>{budgetCar.year} {budgetCar.name}</strong><span>{t("Petrol")} <i />{t("Automatic")}</span></div><button className="button button--primary" onClick={() => goToPage('cars')}>{t("Open vehicle index")} <ArrowRight size={16} aria-hidden="true" /></button></div>
+          <div className="ledger-bottom"><span>{t("Used cars")}</span><span>{t("Carlist for live details")}</span><span>{t("Questions welcome")}</span></div>
         </section>
       )
     case 'drive-journal':
       return (
         <section className="hero hero--journal">
-          <div className="journal-masthead"><span>THE SENG GUAN JOURNAL</span><span>BANTING · SELANGOR</span></div>
+          <div className="journal-masthead"><span>{t("THE SENG GUAN JOURNAL")}</span><span>{t("BANTING · SELANGOR")}</span></div>
           <div className="journal-grid">
-            <div className="journal-copy hero-copy"><p className="journal-date">The showroom, this week</p><h1>Every car has a story. Start with yours.</h1><p>Browse a few of the vehicles featured on our site, then explore each car’s photos and details.</p><button className="button button--primary" onClick={() => goToPage('cars')}>Turn the first page <ArrowRight size={17} aria-hidden="true" /></button></div>
-            <div className="journal-photo hero-art"><img src={showroom} alt="Seng Guan Auto showroom frontage in Banting" width="1072" height="603" fetchPriority="high" /><span>Lot 712 · Batu 18 · Banting</span></div>
+            <div className="journal-copy hero-copy"><p className="journal-date">{t("The showroom, this week")}</p><h1>{t("Every car has a story. Start with yours.")}</h1><p>{t("Browse a few of the vehicles featured on our site, then explore each car’s photos and details.")}</p><button className="button button--primary" onClick={() => goToPage('cars')}>{t("Turn the first page")} <ArrowRight size={17} aria-hidden="true" /></button></div>
+            <div className="journal-photo hero-art"><img src={showroom} alt={t("Seng Guan Auto showroom frontage in Banting")} width="1072" height="603" fetchPriority="high" /><span>Lot 712 · Batu 18 · Banting</span></div>
           </div>
-          <div className="journal-foot"><span>Cars, people, and the road ahead</span><span>Read the buying guide <ArrowDownRight size={15} aria-hidden="true" /></span></div>
+          <div className="journal-foot"><span>{t("Cars, people, and the road ahead")}</span><span>{t("Read the buying guide")} <ArrowDownRight size={15} aria-hidden="true" /></span></div>
         </section>
       )
     case 'open-lot':
       return (
         <section className="hero hero--open-lot">
-          <div className="open-lot-header"><span>SENG GUAN AUTO</span><span>USED CARS / BANTING</span></div>
-          <div className="open-lot-title hero-copy"><h1>OPEN<br /><span>LOT</span></h1><div><p>Look through the current homepage selection. For prices and availability, go straight to the live dealer listings.</p><button className="button button--primary" onClick={() => goToPage('cars')}>Browse vehicles <ArrowRight size={17} aria-hidden="true" /></button></div></div>
-          <div className="open-lot-photo hero-art"><img src={vehicles[0].photo} alt={`${vehicles[0].year} ${vehicles[0].name}`} width="300" height="200" fetchPriority="high" /><span>Featured vehicle / {vehicles[0].year}</span></div>
-          <div className="open-lot-tape"><span>Find</span><span>Ask</span><span>Visit</span></div>
+          <div className="open-lot-header"><span>SENG GUAN AUTO</span><span>{t("USED CARS / BANTING")}</span></div>
+          <div className="open-lot-title hero-copy"><h1>{t("OPEN")}<br /><span>{t("LOT")}</span></h1><div><p>{t("Look through the current homepage selection. For prices and availability, go straight to the live dealer listings.")}</p><button className="button button--primary" onClick={() => goToPage('cars')}>{t("Browse vehicles")} <ArrowRight size={17} aria-hidden="true" /></button></div></div>
+          <div className="open-lot-photo hero-art"><img src={vehicles[0].photo} alt={`${vehicles[0].year} ${vehicles[0].name}`} width="300" height="200" fetchPriority="high" /><span>{t("Featured vehicle /")} {vehicles[0].year}</span></div>
+          <div className="open-lot-tape"><span>{t("Find")}</span><span>{t("Ask")}</span><span>{t("Visit")}</span></div>
         </section>
       )
     case 'monthly-key':
       return (
         <section className="hero hero--monthly">
-          <div className="monthly-copy hero-copy"><p className="hero-overline">Take the next step at your own pace</p><h1>Could this car fit your month?</h1><p>Try a private, browser-only estimate. Your numbers stay on this device and are not sent anywhere.</p><div className="monthly-actions"><button className="button button--primary" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" /> Open calculator</button><button className="button button--plain" onClick={() => goToPage('cars')}>Browse cars</button></div></div>
-          <div className="monthly-visual hero-art"><img src={budgetCar.photo} alt={`${budgetCar.year} ${budgetCar.name}`} width="300" height="200" fetchPriority="high" /><div className="monthly-sticker"><span>Estimate only</span><strong>RM / month</strong><small>Set your own inputs</small></div></div>
+          <div className="monthly-copy hero-copy"><p className="hero-overline">{t("Take the next step at your own pace")}</p><h1>{t("Could this car fit your month?")}</h1><p>{t("Try a private, browser-only estimate. Your numbers stay on this device and are not sent anywhere.")}</p><div className="monthly-actions"><button className="button button--primary" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" />{t("Open calculator")}</button><button className="button button--plain" onClick={() => goToPage('cars')}>{t("Browse cars")}</button></div></div>
+          <div className="monthly-visual hero-art"><img src={budgetCar.photo} alt={`${budgetCar.year} ${budgetCar.name}`} width="300" height="200" fetchPriority="high" /><div className="monthly-sticker"><span>{t("Estimate only")}</span><strong>{t("RM / month")}</strong><small>{t("Set your own inputs")}</small></div></div>
         </section>
       )
     case 'greenlight':
@@ -675,60 +682,62 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
         <section className="hero hero--showroom">
           <ShowroomHeroImage />
           <div className="showroom-copy hero-copy">
-            <p className="showroom-kicker"><span>Used cars</span><i aria-hidden="true" /> Banting, Selangor</p>
-            <h1>Your next car.<br /><span>Right here.</span></h1>
-            <p>Explore the featured selection from Seng Guan Auto. View vehicle photos and details, or ask our team about current availability.</p>
-            <div className="hero-actions showroom-actions"><button className="button button--primary" onClick={() => goToPage('cars')}>Browse vehicles <ArrowRight size={17} aria-hidden="true" /></button><button className="button button--outline-light" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" /> Loan calculator</button></div>
+            <p className="showroom-kicker"><span>{t("Used cars")}</span><i aria-hidden="true" />{t("Banting, Selangor")}</p>
+            <h1>{t("Your next car.")}<br /><span>{t("Right here.")}</span></h1>
+            <p>{t("Explore the featured selection from Seng Guan Auto. View vehicle photos and details, or ask our team about current availability.")}</p>
+            <div className="hero-actions showroom-actions"><button className="button button--primary" onClick={() => goToPage('cars')}>{t("Browse vehicles")} <ArrowRight size={17} aria-hidden="true" /></button><button className="button button--outline-light" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" />{t("Loan calculator")}</button></div>
           </div>
         </section>
       )
     default:
       return (
         <section className="hero hero--clear">
-          <div className="clear-top"><div className="hero-copy"><p className="hero-overline">Seng Guan Auto · Banting</p><h1>Used cars, with room to think.</h1></div><p>Browse a selection, check live details on Carlist, and contact the team when you are ready.</p></div>
-          <div className="clear-image hero-art"><img src={vehicles[5].photo} alt={`${vehicles[5].year} ${vehicles[5].name}`} width="300" height="200" fetchPriority="high" /><button className="button button--primary" onClick={() => goToPage('cars')}>See featured cars <ArrowRight size={16} aria-hidden="true" /></button></div>
-          <div className="clear-bottom"><span>01 / Browse</span><span>02 / Compare</span><span>03 / Ask</span></div>
+          <div className="clear-top"><div className="hero-copy"><p className="hero-overline">Seng Guan Auto · Banting</p><h1>{t("Used cars, with room to think.")}</h1></div><p>{t("Browse a selection, check live details on Carlist, and contact the team when you are ready.")}</p></div>
+          <div className="clear-image hero-art"><img src={vehicles[5].photo} alt={`${vehicles[5].year} ${vehicles[5].name}`} width="300" height="200" fetchPriority="high" /><button className="button button--primary" onClick={() => goToPage('cars')}>{t("See featured cars")} <ArrowRight size={16} aria-hidden="true" /></button></div>
+          <div className="clear-bottom"><span>{t("01 / Browse")}</span><span>{t("02 / Compare")}</span><span>{t("03 / Ask")}</span></div>
         </section>
       )
   }
 }
 
 function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   return (
     <section className="section section-vehicles">
       {variantId === 'greenlight' ? (
         <div className="featured-showcase">
           <div className="featured-showcase-copy">
-            <p className="section-label">A few to get you started</p>
-            <h2>Featured vehicles</h2>
-            <p>Start with a few cars from the Seng Guan Auto homepage selection.</p>
-            <button className="text-link" onClick={() => goToPage('cars')}>See all featured cars <ArrowRight size={17} aria-hidden="true" /></button>
+            <p className="section-label">{t("A few to get you started")}</p>
+            <h2>{t("Featured vehicles")}</h2>
+            <p>{t("Start with a few cars from the Seng Guan Auto homepage selection.")}</p>
+            <button className="text-link" onClick={() => goToPage('cars')}>{t("See all featured cars")} <ArrowRight size={17} aria-hidden="true" /></button>
           </div>
           <FeaturedVehicleDisplay onBrowse={() => goToPage('cars')} />
         </div>
       ) : (
-        <div className="section-heading"><div><p className="section-label">A few to get you started</p><h2>Featured vehicles</h2></div><button className="text-link" onClick={() => goToPage('cars')}>See all featured cars <ArrowRight size={17} aria-hidden="true" /></button></div>
+        <div className="section-heading"><div><p className="section-label">{t("A few to get you started")}</p><h2>{t("Featured vehicles")}</h2></div><button className="text-link" onClick={() => goToPage('cars')}>{t("See all featured cars")} <ArrowRight size={17} aria-hidden="true" /></button></div>
       )}
-      <p className="data-note">Explore vehicle photos and details on our website. You can also find us on <a href={contact.inventory} target="_blank" rel="noreferrer">Carlist</a>.</p>
+      <p className="data-note">{t("Explore vehicle photos and details on our website. You can also find us on")} <a href={contact.inventory} target="_blank" rel="noreferrer">Carlist</a>.</p>
     </section>
   )
 }
 
 function VehicleCard({ car, compact = false }: { car: Vehicle; compact?: boolean }) {
+  const { t, locale } = useLocale()
   const [details, setDetails] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
   const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => { if (!isPlainLeftClick(event)) return; if (isOfficialSite || car.photos) { event.preventDefault(); setDetails(true) } }
   return (
     <article className={`vehicle-card${compact ? ' vehicle-card--compact' : ''}`}>
-      <a className="vehicle-photo" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer" aria-label={`View photos and details for ${car.year} ${car.name}`}>
+      <a className="vehicle-photo" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer" aria-label={t('View photos and details for {year} {name}', { year: car.year, name: car.name })}>
         <img src={car.photo} alt={`${car.year} ${car.name}`} width="300" height="200" loading="lazy" />
-        <span className="vehicle-year">{car.status === 'sold' ? 'SOLD' : car.year}</span>
+        <span className="vehicle-year">{car.status === 'sold' ? t('SOLD') : car.year}</span>
       </a>
       <div className="vehicle-info">
         <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
-        {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString()}</p>}
-        {car.mileage != null && <p>{car.mileage.toLocaleString()} km</p>}
-        <div className="vehicle-specs"><span><CarFront size={14} aria-hidden="true" /> {car.body}</span><span><Gauge size={14} aria-hidden="true" /> {car.transmission}</span></div>
-        <a className="vehicle-link" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer">{isOfficialSite || car.photos ? 'View vehicle' : 'Check live details'} <ArrowUpRight size={15} aria-hidden="true" /></a>
+        {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
+        {car.mileage != null && <p>{car.mileage.toLocaleString(locale)} km</p>}
+        <div className="vehicle-specs"><span><CarFront size={14} aria-hidden="true" /> {t(car.body)}</span><span><Gauge size={14} aria-hidden="true" /> {t(car.transmission)}</span></div>
+        <a className="vehicle-link" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer">{t(isOfficialSite || car.photos ? 'View vehicle' : 'Check live details')} <ArrowUpRight size={15} aria-hidden="true" /></a>
       </div>
       {details && <VehicleDetails car={car} onClose={() => setDetails(false)} />}
     </article>
@@ -736,28 +745,30 @@ function VehicleCard({ car, compact = false }: { car: Vehicle; compact?: boolean
 }
 
 function FinanceTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   return (
     <section className="section finance-teaser">
-      <div className="finance-teaser-copy"><p className="section-label">Plan before you visit</p><h2>Put your own numbers into the picture.</h2><p>Estimate a monthly payment with an on-page calculator. Your inputs stay in your browser.</p><button className="button button--primary" onClick={() => goToPage('finance')}>Try the calculator <ArrowRight size={17} aria-hidden="true" /></button></div>
-      <div className="finance-teaser-art"><div className="finance-paper"><span>CAR PRICE</span><strong>RM —</strong><span>DOWN PAYMENT</span><strong>RM —</strong><hr /><span>MONTHLY ESTIMATE</span><strong className="estimate-value">RM —</strong></div><span className="estimate-note">Illustration only · no information submitted</span></div>
+      <div className="finance-teaser-copy"><p className="section-label">{t("Plan before you visit")}</p><h2>{t("Put your own numbers into the picture.")}</h2><p>{t("Estimate a monthly payment with an on-page calculator. Your inputs stay in your browser.")}</p><button className="button button--primary" onClick={() => goToPage('finance')}>{t("Try the calculator")} <ArrowRight size={17} aria-hidden="true" /></button></div>
+      <div className="finance-teaser-art"><div className="finance-paper"><span>{t("CAR PRICE")}</span><strong>RM —</strong><span>{t("DOWN PAYMENT")}</span><strong>RM —</strong><hr /><span>{t("MONTHLY ESTIMATE")}</span><strong className="estimate-value">RM —</strong></div><span className="estimate-note">{t("Illustration only · no information submitted")}</span></div>
     </section>
   )
 }
 
 function StoryTeaser({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`
   const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <section className={`section story-teaser${variant.id === 'night-shift' ? ' nightshift-proof' : ''}`}>
-      <div className="story-photo"><img src={showroom} alt="Seng Guan Auto's dealership in Banting" width="1072" height="603" loading="lazy" /></div>
-      <div className="story-copy"><p className="section-label">The place behind the name</p><h2>Find us in Banting.</h2><p>Visit Seng Guan Auto at Lot 712, Batu 18, Jln Klang Banting. Browse the current listings first, then contact the team if you would like to see a vehicle.</p>
+      <div className="story-photo"><img src={showroom} alt={t("Seng Guan Auto's dealership in Banting")} width="1072" height="603" loading="lazy" /></div>
+      <div className="story-copy"><p className="section-label">{t("The place behind the name")}</p><h2>{t("Find us in Banting.")}</h2><p>{t("Visit Seng Guan Auto at Lot 712, Batu 18, Jln Klang Banting. Browse the current listings first, then contact the team if you would like to see a vehicle.")}</p>
         {variant.id === 'greenlight' ? (
           <div className="story-directions">
             <a className="button button--plain story-direction-link story-direction-link--maps" href={googleMapsUrl} target="_blank" rel="noreferrer"><MapPin size={17} aria-hidden="true" /> Google Maps</a>
             <a className="button button--plain story-direction-link story-direction-link--waze" href={wazeUrl} target="_blank" rel="noreferrer"><Navigation size={17} aria-hidden="true" /> Waze</a>
           </div>
         ) : (
-          <button className="text-link" onClick={() => goToPage('about')}>About the dealership <ArrowRight size={17} aria-hidden="true" /></button>
+          <button className="text-link" onClick={() => goToPage('about')}>{t("About the dealership")} <ArrowRight size={17} aria-hidden="true" /></button>
         )}
       </div>
     </section>
@@ -773,24 +784,27 @@ function WhatsAppGlyph() {
 }
 
 function VisitTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   return (
     <section className="section visit-teaser">
-      <div><p className="section-label">A conversation starts here</p><h2>Have a car in mind?</h2><p>Ask about a vehicle, arrange a visit, or talk through the next step with the Seng Guan Auto team.</p></div>
-      <div className="visit-actions"><a className="button button--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer"><WhatsAppGlyph /> Ask on WhatsApp</a><button className="button button--plain" onClick={() => goToPage('contact')}>Contact details</button></div>
+      <div><p className="section-label">{t("A conversation starts here")}</p><h2>{t("Have a car in mind?")}</h2><p>{t("Ask about a vehicle, arrange a visit, or talk through the next step with the Seng Guan Auto team.")}</p></div>
+      <div className="visit-actions"><a className="button button--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer"><WhatsAppGlyph />{t("Ask on WhatsApp")}</a><button className="button button--plain" onClick={() => goToPage('contact')}>{t("Contact details")}</button></div>
     </section>
   )
 }
 
 function FaqTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   return (
     <section className="section faq-teaser">
-      <div><p className="section-label">The buying questions</p><h2>Know what to ask.</h2></div>
-      <div className="faq-teaser-questions"><p>Can I arrange a test drive?</p><p>What should I ask about financing?</p><p>Where can I see current prices?</p><button className="text-link" onClick={() => goToPage('faq')}>Read the FAQs <ArrowRight size={17} aria-hidden="true" /></button></div>
+      <div><p className="section-label">{t("The buying questions")}</p><h2>{t("Know what to ask.")}</h2></div>
+      <div className="faq-teaser-questions"><p>{t("Can I arrange a test drive?")}</p><p>{t("What should I ask about financing?")}</p><p>{t("Where can I see current prices?")}</p><button className="text-link" onClick={() => goToPage('faq')}>{t("Read the FAQs")} <ArrowRight size={17} aria-hidden="true" /></button></div>
     </section>
   )
 }
 
 function InventoryPage({ variant }: { variant: Direction }) {
+  const { t } = useLocale()
   const vehicles = useVehicles()
   const inventoryStatus = useContext(InventoryStatusContext)
   const [search, setSearch] = useState('')
@@ -798,23 +812,23 @@ function InventoryPage({ variant }: { variant: Direction }) {
   const makes = ['All makes', ...Array.from(new Set(vehicles.map((item) => item.make)))]
   const filtered = useMemo(() => vehicles.filter((car) => {
     const matchesMake = make === 'All makes' || car.make === make
-    const text = `${car.year} ${car.name} ${car.body}`.toLowerCase()
+    const text = `${car.year} ${car.name} ${car.body} ${t(car.body)}`.toLowerCase()
     return matchesMake && text.includes(search.toLowerCase())
-  }), [make, search, vehicles])
+  }), [make, search, vehicles, t])
 
   return (
     <div className={`content-page content-page--cars content-page--${variant.id}`}>
-      <PageIntro eyebrow="The featured selection" title="Find a car to look closer at." description="Explore our vehicles, view all photos and specifications, and ask our team about the car you like." />
-      <section className="inventory-browser" aria-label="Featured vehicle browser">
+      <PageIntro eyebrow={t("The featured selection")} title={t("Find a car to look closer at.")} description={t("Explore our vehicles, view all photos and specifications, and ask our team about the car you like.")} />
+      <section className="inventory-browser" aria-label={t("Featured vehicle browser")}>
         <div className="inventory-tools">
-          <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">Search featured vehicles</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search make or model…" type="search" /></label>
-          <div className="make-filters" role="group" aria-label="Filter by make">
-            {makes.map((option) => <button key={option} type="button" className={make === option ? 'is-selected' : ''} aria-pressed={make === option} onClick={() => setMake(option)}>{option}</button>)}
+          <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">{t("Search featured vehicles")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search make or model…")} type="search" /></label>
+          <div className="make-filters" role="group" aria-label={t("Filter by make")}>
+            {makes.map((option) => <button key={option} type="button" className={make === option ? 'is-selected' : ''} aria-pressed={make === option} onClick={() => setMake(option)}>{option === 'All makes' ? t(option) : option}</button>)}
           </div>
-          <span className="result-count"><SlidersHorizontal size={15} aria-hidden="true" /> {filtered.length} featured {filtered.length === 1 ? 'car' : 'cars'}</span>
+          <span className="result-count"><SlidersHorizontal size={15} aria-hidden="true" /> {t(filtered.length === 1 ? '{count} featured car' : '{count} featured cars', { count: filtered.length })}</span>
         </div>
-        {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.'}</h2><p>{inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another model or select “All makes”.'}</p><button className="button button--primary" onClick={() => { setSearch(''); setMake('All makes') }}>Reset filters</button></div>}
-        <p className="data-note">Featured selection. <a href={contact.inventory} target="_blank" rel="noreferrer">More listings on Carlist <ArrowUpRight size={13} aria-hidden="true" /></a></p>
+        {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another model or select “All makes”.')}</p><button className="button button--primary" onClick={() => { setSearch(''); setMake('All makes') }}>{t("Reset filters")}</button></div>}
+        <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
     </div>
   )
@@ -825,6 +839,7 @@ function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: st
 }
 
 function FinancePage({ variant }: { variant: Direction }) {
+  const { t, locale } = useLocale()
   const [price, setPrice] = useState('80000')
   const [down, setDown] = useState('8000')
   const [rate, setRate] = useState('3.5')
@@ -837,7 +852,7 @@ function FinancePage({ variant }: { variant: Direction }) {
   const term = Number(years)
   const loan = amount - downAmount
   const monthly = (loan + loan * annualRate * term) / (term * 12)
-  const formatMoney = (n: number) => new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR', maximumFractionDigits: 0 }).format(n)
+  const formatMoney = (n: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'MYR', maximumFractionDigits: 0 }).format(n)
 
   const calculate = () => {
     setError('')
@@ -851,29 +866,30 @@ function FinancePage({ variant }: { variant: Direction }) {
 
   return (
     <div className={`content-page content-page--finance content-page--${variant.id}`}>
-      <PageIntro eyebrow="A browser-only estimate" title="Plan a payment that works for you." description="Change the example values, calculate a simple estimate, and discuss actual terms with a finance provider." />
+      <PageIntro eyebrow={t("A browser-only estimate")} title={t("Plan a payment that works for you.")} description={t("Change the example values, calculate a simple estimate, and discuss actual terms with a finance provider.")} />
       <section className="calculator-layout">
         <div className="calculator-panel">
-          <div className="calculator-heading"><div><p className="section-label">Loan calculator</p><h2>Your estimate</h2></div><Calculator size={24} aria-hidden="true" /></div>
+          <div className="calculator-heading"><div><p className="section-label">{t("Loan calculator")}</p><h2>{t("Your estimate")}</h2></div><Calculator size={24} aria-hidden="true" /></div>
           <div className="calculator-fields">
-            <label>Car price <span>RM</span><input name="car-price" inputMode="decimal" type="number" min="1" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
-            <label>Down payment <span>RM</span><input name="down-payment" inputMode="decimal" type="number" min="0" value={down} onChange={(event) => setDown(event.target.value)} /></label>
-            <label>Interest rate <span>% per year</span><input name="interest-rate" inputMode="decimal" type="number" min="0" step="0.1" value={rate} onChange={(event) => setRate(event.target.value)} /></label>
-            <label>Loan term <span>Years · up to 9</span><input name="loan-term" inputMode="numeric" type="number" min="1" max="9" value={years} onChange={(event) => setYears(event.target.value)} /></label>
+            <label>{t("Car price")} <span>RM</span><input name="car-price" inputMode="decimal" type="number" min="1" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
+            <label>{t("Down payment")} <span>RM</span><input name="down-payment" inputMode="decimal" type="number" min="0" value={down} onChange={(event) => setDown(event.target.value)} /></label>
+            <label>{t("Interest rate")} <span>{t("% per year")}</span><input name="interest-rate" inputMode="decimal" type="number" min="0" step="0.1" value={rate} onChange={(event) => setRate(event.target.value)} /></label>
+            <label>{t("Loan term")} <span>{t("Years · up to 9")}</span><input name="loan-term" inputMode="numeric" type="number" min="1" max="9" value={years} onChange={(event) => setYears(event.target.value)} /></label>
           </div>
-          <button className="button button--primary calculate-button" type="button" onClick={calculate}>Calculate estimate <ArrowRight size={17} aria-hidden="true" /></button>
-          {error && <p className="field-error" role="alert">{error}</p>}
-          {calculated && <div className="estimate-result" aria-live="polite"><span>Estimated monthly payment</span><strong>{formatMoney(monthly)}</strong><p>Estimated loan amount: {formatMoney(loan)} · {term} years</p></div>}
-          <p className="calculator-disclaimer">Illustrative flat-rate calculation only. Actual rates, eligibility, fees, and terms vary. Your inputs stay in this browser and are not submitted.</p>
+          <button className="button button--primary calculate-button" type="button" onClick={calculate}>{t("Calculate estimate")} <ArrowRight size={17} aria-hidden="true" /></button>
+          {error && <p className="field-error" role="alert">{t(error)}</p>}
+          {calculated && <div className="estimate-result" aria-live="polite"><span>{t("Estimated monthly payment")}</span><strong>{formatMoney(monthly)}</strong><p>{t('Estimated loan amount: {amount} · {term} years', { amount: formatMoney(loan), term })}</p></div>}
+          <p className="calculator-disclaimer">{t("Illustrative flat-rate calculation only. Actual rates, eligibility, fees, and terms vary. Your inputs stay in this browser and are not submitted.")}</p>
         </div>
-        <aside className="finance-aside"><div className="finance-aside-icon"><CircleHelp size={22} aria-hidden="true" /></div><h2>What should I compare?</h2><ul><li>Monthly payment and total repayment</li><li>Down payment and loan length</li><li>Provider terms and any additional fees</li><li>Vehicle price and live availability</li></ul><a className="text-link" href={contact.whatsapp} target="_blank" rel="noreferrer">Ask the team about financing <ArrowUpRight size={15} aria-hidden="true" /></a></aside>
+        <aside className="finance-aside"><div className="finance-aside-icon"><CircleHelp size={22} aria-hidden="true" /></div><h2>{t("What should I compare?")}</h2><ul><li>{t("Monthly payment and total repayment")}</li><li>{t("Down payment and loan length")}</li><li>{t("Provider terms and any additional fees")}</li><li>{t("Vehicle price and live availability")}</li></ul><a className="text-link" href={contact.whatsapp} target="_blank" rel="noreferrer">{t("Ask the team about financing")} <ArrowUpRight size={15} aria-hidden="true" /></a></aside>
       </section>
-      <section className="finance-next"><div><p className="section-label">Keep your options open</p><h2>Compare the car and the payment together.</h2></div><a className="button button--primary" href={contact.inventory} target="_blank" rel="noreferrer">Browse current listings <ArrowUpRight size={16} aria-hidden="true" /></a></section>
+      <section className="finance-next"><div><p className="section-label">{t("Keep your options open")}</p><h2>{t("Compare the car and the payment together.")}</h2></div><a className="button button--primary" href={contact.inventory} target="_blank" rel="noreferrer">{t("Browse current listings")} <ArrowUpRight size={16} aria-hidden="true" /></a></section>
     </div>
   )
 }
 
 function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   const aboutRef = useRef<HTMLDivElement>(null)
   const team = [
     {
@@ -909,45 +925,45 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
   }, { scope: aboutRef })
   return (
     <div ref={aboutRef} className={`content-page content-page--about content-page--${variant.id}`}>
-      <PageIntro eyebrow="About Seng Guan Auto" title="A local showroom in Banting." description="Your trusted partner in quality used cars since 1995. Get to know the people and principles behind Seng Guan Auto." />
-      <div className="about-impact" aria-label="Seng Guan Auto at a glance">
-        <div><strong>1995</strong><span>Established in Banting</span></div>
-        <div><strong>30+</strong><span>Years in used cars</span></div>
-        <div><strong data-count-to="3000" aria-label="More than 3,000 customers">3000+</strong><span>Customers</span></div>
+      <PageIntro eyebrow={t("About Seng Guan Auto")} title={t("A local showroom in Banting.")} description={t("Your trusted partner in quality used cars since 1995. Get to know the people and principles behind Seng Guan Auto.")} />
+      <div className="about-impact" aria-label={t("Seng Guan Auto at a glance")}>
+        <div><strong>1995</strong><span>{t("Established in Banting")}</span></div>
+        <div><strong>30+</strong><span>{t("Years in used cars")}</span></div>
+        <div><strong data-count-to="3000" aria-label={t("More than 3,000 customers")}>3000+</strong><span>{t("Customers")}</span></div>
       </div>
-      <section className="about-feature"><div className="about-feature-image"><img src={showroom} alt="Seng Guan Auto showroom in Banting" width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">Our story</p><h2>Built on trust since 1995.</h2><p>What began as a small family business grew from a simple aim: offer quality pre-owned cars at fair prices and treat every customer with care.</p><p>For more than 30 years, Seng Guan Auto has focused on transparency, integrity and customer satisfaction. Founded by Ang Kin Guan, the business continues with his sons and the values it started with: honesty, quality and putting people first.</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">Visit our Banting showroom <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
+      <section className="about-feature"><div className="about-feature-image"><img src={showroom} alt={t("Seng Guan Auto showroom in Banting")} width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">{t("Our story")}</p><h2>{t("Built on trust since 1995.")}</h2><p>{t("What began as a small family business grew from a simple aim: offer quality pre-owned cars at fair prices and treat every customer with care.")}</p><p>{t("For more than 30 years, Seng Guan Auto has focused on transparency, integrity and customer satisfaction. Founded by Ang Kin Guan, the business continues with his sons and the values it started with: honesty, quality and putting people first.")}</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">{t("Visit our Banting showroom")} <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
       <section className="about-values">
-        <div className="about-section-heading"><p className="section-label">What guides us</p><h2>Our core values.</h2><p>Simple principles shape how we prepare cars and work with the people who visit us.</p></div>
+        <div className="about-section-heading"><p className="section-label">{t("What guides us")}</p><h2>{t("Our core values.")}</h2><p>{t("Simple principles shape how we prepare cars and work with the people who visit us.")}</p></div>
         <div className="about-values-list">
-          <article><span className="about-value-icon"><HeartHandshake size={21} aria-hidden="true" /></span><div><h3>Integrity</h3><p>We believe in honest, transparent dealings at every step.</p></div></article>
-          <article><span className="about-value-icon"><Award size={21} aria-hidden="true" /></span><div><h3>Quality</h3><p>We inspect vehicles before offering them for sale.</p></div></article>
-          <article><span className="about-value-icon"><CarFront size={21} aria-hidden="true" /></span><div><h3>Customer first</h3><p>We listen to what matters to you and help you make an informed choice.</p></div></article>
-          <article><span className="about-value-icon"><ShieldCheck size={21} aria-hidden="true" /></span><div><h3>Trust</h3><p>We work to earn confidence through dependable service over time.</p></div></article>
+          <article><span className="about-value-icon"><HeartHandshake size={21} aria-hidden="true" /></span><div><h3>{t("Integrity")}</h3><p>{t("We believe in honest, transparent dealings at every step.")}</p></div></article>
+          <article><span className="about-value-icon"><Award size={21} aria-hidden="true" /></span><div><h3>{t("Quality")}</h3><p>{t("We inspect vehicles before offering them for sale.")}</p></div></article>
+          <article><span className="about-value-icon"><CarFront size={21} aria-hidden="true" /></span><div><h3>{t("Customer first")}</h3><p>{t("We listen to what matters to you and help you make an informed choice.")}</p></div></article>
+          <article><span className="about-value-icon"><ShieldCheck size={21} aria-hidden="true" /></span><div><h3>{t("Trust")}</h3><p>{t("We work to earn confidence through dependable service over time.")}</p></div></article>
         </div>
       </section>
       <section className="team-section">
-        <div className="team-heading"><p className="section-label">The people behind the business</p><h2>Meet our team.</h2><p>Local knowledge and experience, built over many years in Banting.</p></div>
+        <div className="team-heading"><p className="section-label">{t("The people behind the business")}</p><h2>{t("Meet our team.")}</h2><p>{t("Local knowledge and experience, built over many years in Banting.")}</p></div>
         <div className="team-grid">
           {team.map((member) => (
             <article className="team-card" key={member.name}>
               <div className="team-photo"><img src={member.photo} alt={member.name} width="150" height="150" loading="lazy" /></div>
               <h3>{member.name}</h3>
-              <p className="team-role">{member.role}</p>
-              <p className="team-experience"><strong>{member.experience}</strong><span>years experience</span></p>
-              <p className="team-bio">{member.bio}</p>
+              <p className="team-role">{t(member.role)}</p>
+              <p className="team-experience"><strong>{member.experience}</strong><span>{t("years experience")}</span></p>
+              <p className="team-bio">{t(member.bio)}</p>
             </article>
           ))}
         </div>
       </section>
       <section className="about-services">
-        <div className="about-services-heading"><p className="section-label">Support for the journey</p><h2>More help, from first look to handover.</h2><p>Talk with the team about the details that matter for the car you have in mind.</p></div>
+        <div className="about-services-heading"><p className="section-label">{t("Support for the journey")}</p><h2>{t("More help, from first look to handover.")}</h2><p>{t("Talk with the team about the details that matter for the car you have in mind.")}</p></div>
         <div className="about-services-list">
-          <article><Search size={20} aria-hidden="true" /><div><h3>Vehicle inspection</h3><p>We inspect vehicles before they reach the showroom.</p></div></article>
-          <article><ReceiptText size={20} aria-hidden="true" /><div><h3>Clear pricing</h3><p>Review the vehicle price and terms with the team.</p></div></article>
-          <article><ShieldCheck size={20} aria-hidden="true" /><div><h3>Warranty options</h3><p>Ask about optional warranty coverage for selected vehicles.</p></div></article>
-          <article><Wrench size={20} aria-hidden="true" /><div><h3>After-sales support</h3><p>Get help from the team after your purchase.</p></div></article>
-          <article><Calculator size={20} aria-hidden="true" /><div><h3>Financing assistance</h3><p>Discuss financing options and estimate your monthly payment.</p></div></article>
-          <article><RefreshCw size={20} aria-hidden="true" /><div><h3>Trade-in enquiries</h3><p>Speak with us about trading in your current vehicle.</p></div></article>
+          <article><Search size={20} aria-hidden="true" /><div><h3>{t("Vehicle inspection")}</h3><p>{t("We inspect vehicles before they reach the showroom.")}</p></div></article>
+          <article><ReceiptText size={20} aria-hidden="true" /><div><h3>{t("Clear pricing")}</h3><p>{t("Review the vehicle price and terms with the team.")}</p></div></article>
+          <article><ShieldCheck size={20} aria-hidden="true" /><div><h3>{t("Warranty options")}</h3><p>{t("Ask about optional warranty coverage for selected vehicles.")}</p></div></article>
+          <article><Wrench size={20} aria-hidden="true" /><div><h3>{t("After-sales support")}</h3><p>{t("Get help from the team after your purchase.")}</p></div></article>
+          <article><Calculator size={20} aria-hidden="true" /><div><h3>{t("Financing assistance")}</h3><p>{t("Discuss financing options and estimate your monthly payment.")}</p></div></article>
+          <article><RefreshCw size={20} aria-hidden="true" /><div><h3>{t("Trade-in enquiries")}</h3><p>{t("Speak with us about trading in your current vehicle.")}</p></div></article>
         </div>
       </section>
       <VisitTeaser goToPage={goToPage} />
@@ -956,18 +972,19 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
 }
 
 function FaqPage({ variant }: { variant: Direction }) {
+  const { t } = useLocale()
   const [open, setOpen] = useState<number | null>(0)
   const categories = Array.from(new Set(faqItems.map((item) => item.category)))
   return (
     <div className={`content-page content-page--faq content-page--${variant.id}`}>
-      <PageIntro eyebrow="Questions before a visit" title="Clear answers for your next step." description="Some details depend on the car or finance provider. Use the live listing and ask the team to confirm the specifics." />
-      <div className="faq-page-layout"><aside className="faq-category-list"><span>On this page</span>{categories.map((category) => <a key={category} href={`#faq-${category.toLowerCase()}`}>{category}</a>)}<a href="#faq-contact">Contact the team</a></aside>
-        <div className="faq-groups">{categories.map((category) => <section key={category} id={`faq-${category.toLowerCase()}`} className="faq-group"><h2>{category}</h2>{faqItems.filter((item) => item.category === category).map((item) => {
+      <PageIntro eyebrow={t("Questions before a visit")} title={t("Clear answers for your next step.")} description={t("Some details depend on the car or finance provider. Use the live listing and ask the team to confirm the specifics.")} />
+      <div className="faq-page-layout"><aside className="faq-category-list"><span>{t("On this page")}</span>{categories.map((category) => <a key={category} href={`#faq-${category.toLowerCase()}`}>{t(category)}</a>)}<a href="#faq-contact">{t("Contact the team")}</a></aside>
+        <div className="faq-groups">{categories.map((category) => <section key={category} id={`faq-${category.toLowerCase()}`} className="faq-group"><h2>{t(category)}</h2>{faqItems.filter((item) => item.category === category).map((item) => {
           const index = faqItems.indexOf(item)
           const expanded = open === index
-          return <article className={`faq-item${expanded ? ' is-open' : ''}`} key={item.question}><h3><button type="button" aria-expanded={expanded} aria-controls={`faq-answer-${index}`} onClick={() => setOpen(expanded ? null : index)}>{item.question}<ChevronDown size={18} aria-hidden="true" /></button></h3><div id={`faq-answer-${index}`} className="faq-answer" aria-hidden={!expanded}><div className="faq-answer-inner"><p>{item.answer}</p></div></div></article>
+          return <article className={`faq-item${expanded ? ' is-open' : ''}`} key={t(item.question)}><h3><button type="button" aria-expanded={expanded} aria-controls={`faq-answer-${index}`} onClick={() => setOpen(expanded ? null : index)}>{t(item.question)}<ChevronDown size={18} aria-hidden="true" /></button></h3><div id={`faq-answer-${index}`} className="faq-answer" aria-hidden={!expanded}><div className="faq-answer-inner"><p>{t(item.answer)}</p></div></div></article>
         })}</section>)}
-          <section className="faq-contact" id="faq-contact"><div><p className="section-label">Still deciding?</p><h2>Ask about the car you have in mind.</h2></div><a className="button button--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer"><WhatsAppGlyph /> Chat on WhatsApp</a></section>
+          <section className="faq-contact" id="faq-contact"><div><p className="section-label">{t("Still deciding?")}</p><h2>{t("Ask about the car you have in mind.")}</h2></div><a className="button button--whatsapp" href={contact.whatsapp} target="_blank" rel="noreferrer"><WhatsAppGlyph />{t("Chat on WhatsApp")}</a></section>
         </div>
       </div>
     </div>
@@ -975,54 +992,56 @@ function FaqPage({ variant }: { variant: Direction }) {
 }
 
 function ContactPage({ variant }: { variant: Direction }) {
+  const { t } = useLocale()
   const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(contact.address)}`
   return (
     <div className={`content-page content-page--contact content-page--${variant.id}`}>
-      <PageIntro eyebrow="Come by or get in touch" title="Let’s talk about your next car." description="Ask about a car, arrange a visit, or speak with the Seng Guan Auto team." />
+      <PageIntro eyebrow={t("Come by or get in touch")} title={t("Let’s talk about your next car.")} description={t("Ask about a car, arrange a visit, or speak with the Seng Guan Auto team.")} />
       <div className="contact-layout">
         <div className="contact-methods">
-          <a className="contact-method" href={contact.phoneHref}><span className="contact-method-icon"><Phone size={19} aria-hidden="true" /></span><span><small>Call the showroom</small><strong>{contact.phone}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
-          <a className="contact-method" href={contact.whatsapp} target="_blank" rel="noreferrer"><span className="contact-method-icon"><MessageCircle size={19} aria-hidden="true" /></span><span><small>Message on WhatsApp</small><strong>Ask about a vehicle or visit</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
-          <a className="contact-method" href={`mailto:${contact.email}`}><span className="contact-method-icon"><Mail size={19} aria-hidden="true" /></span><span><small>Email the team</small><strong>{contact.email}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
+          <a className="contact-method" href={contact.phoneHref}><span className="contact-method-icon"><Phone size={19} aria-hidden="true" /></span><span><small>{t("Call the showroom")}</small><strong>{contact.phone}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
+          <a className="contact-method" href={contact.whatsapp} target="_blank" rel="noreferrer"><span className="contact-method-icon"><MessageCircle size={19} aria-hidden="true" /></span><span><small>{t("Message on WhatsApp")}</small><strong>{t("Ask about a vehicle or visit")}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
+          <a className="contact-method" href={`mailto:${contact.email}`}><span className="contact-method-icon"><Mail size={19} aria-hidden="true" /></span><span><small>{t("Email the team")}</small><strong>{contact.email}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
         </div>
-        <section className="address-panel"><div className="address-map"><img src={showroom} alt="Seng Guan Auto showroom frontage" width="1072" height="603" loading="lazy" /><a href={mapUrl} target="_blank" rel="noreferrer" className="map-label"><MapPin size={17} aria-hidden="true" /> Open map <ArrowUpRight size={14} aria-hidden="true" /></a></div><div className="address-copy"><p className="section-label">Seng Guan Auto Sdn. Bhd.</p><h2>Find us in Banting.</h2><p>{contact.address}</p><a className="text-link" href={mapUrl} target="_blank" rel="noreferrer">Get directions <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
+        <section className="address-panel"><div className="address-map"><img src={showroom} alt={t("Seng Guan Auto showroom frontage")} width="1072" height="603" loading="lazy" /><a href={mapUrl} target="_blank" rel="noreferrer" className="map-label"><MapPin size={17} aria-hidden="true" />{t("Open map")} <ArrowUpRight size={14} aria-hidden="true" /></a></div><div className="address-copy"><p className="section-label">Seng Guan Auto Sdn. Bhd.</p><h2>{t("Find us in Banting.")}</h2><p>{contact.address}</p><a className="text-link" href={mapUrl} target="_blank" rel="noreferrer">{t("Get directions")} <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
       </div>
-      <section className="hours-section"><div><p className="section-label">Showroom hours</p><h2>Plan a visit.</h2></div><dl>{contact.hours.map(([day, hours]) => <div key={day}><dt>{day}</dt><dd>{hours}</dd></div>)}</dl><p className="hours-note">Please confirm opening hours with the team before travelling.</p></section>
+      <section className="hours-section"><div><p className="section-label">{t("Showroom hours")}</p><h2>{t("Plan a visit.")}</h2></div><dl>{contact.hours.map(([day, hours]) => <div key={day}><dt>{t(day)}</dt><dd>{t(hours)}</dd></div>)}</dl><p className="hours-note">{t("Please confirm opening hours with the team before travelling.")}</p></section>
     </div>
   )
 }
 
 function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const { t } = useLocale()
   const brandLogo = variant.id === 'greenlight' ? darkLogo : logo
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`
   const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <footer className={`site-footer site-footer--${variant.id}`}>
-      <p className="footer-slogan">Your trusted partner in quality used cars since 1995.</p>
+      <p className="footer-slogan">{t("Your trusted partner in quality used cars since 1995.")}</p>
       <div className="footer-main">
         <div className="footer-brand">
           <div className="footer-brand-lockup">
             <span className={`brand-mark${variant.id === 'greenlight' ? ' brand-mark--dark' : ''}`}><img src={brandLogo} alt="Seng Guan Auto Sdn. Bhd." width="225" height="106" /></span>
             <div className="footer-legal-lockup">
               <p className="footer-company">Seng Guan Auto Sdn. Bhd.</p>
-              <p className="footer-registration">Company No. 202301019072 (1512994-A)</p>
+              <p className="footer-registration">{t("Company No. 202301019072 (1512994-A)")}</p>
             </div>
           </div>
           <div className="footer-address-row"><MapPin size={17} aria-hidden="true" /><p className="footer-address">{contact.address}</p></div>
-          <nav className="footer-directions" aria-label="Showroom directions">
+          <nav className="footer-directions" aria-label={t("Showroom directions")}>
             <a href={googleMapsUrl} target="_blank" rel="noreferrer"><MapPin size={15} aria-hidden="true" /> Google Maps <ArrowUpRight size={14} aria-hidden="true" /></a>
             <a href={wazeUrl} target="_blank" rel="noreferrer"><Navigation size={15} aria-hidden="true" /> Waze <ArrowUpRight size={14} aria-hidden="true" /></a>
           </nav>
         </div>
-        <div className="footer-links"><strong>Explore</strong>{pages.slice(1, 5).map((page) => <button key={page.id} onClick={() => goToPage(page.id)}>{page.label}</button>)}</div>
+        <div className="footer-links"><strong>{t("Explore")}</strong>{pages.slice(1, 5).map((page) => <button key={page.id} onClick={() => goToPage(page.id)}>{t(page.label)}</button>)}</div>
         <div className="footer-contact">
-          <strong>Get in touch</strong>
+          <strong>{t("Get in touch")}</strong>
           <a href={contact.phoneHref}><Phone size={16} aria-hidden="true" /> {contact.phone}</a>
           <a href={`mailto:${contact.email}`}><Mail size={16} aria-hidden="true" /> {contact.email}</a>
-          <div className="footer-hours"><Clock size={16} aria-hidden="true" /><div>{contact.hours.map(([day, hours]) => <span key={day}><b>{day}:</b> {hours}</span>)}</div></div>
+          <div className="footer-hours"><Clock size={16} aria-hidden="true" /><div>{contact.hours.map(([day, hours]) => <span key={day}><b>{t(day)}:</b> {t(hours)}</span>)}</div></div>
         </div>
       </div>
-      <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">Live inventory on Carlist <ArrowUpRight size={14} aria-hidden="true" /></a></div>
+      <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">{t("Live inventory on Carlist")} <ArrowUpRight size={14} aria-hidden="true" /></a></div>
     </footer>
   )
 }
@@ -1039,25 +1058,26 @@ function PrototypeDock({
   saved: boolean
   selectDirection: () => void
 }) {
+  const { t } = useLocale()
   const currentIndex = directions.findIndex((item) => item.id === variant.id)
   const previous = directions[(currentIndex - 1 + directions.length) % directions.length]
   const next = directions[(currentIndex + 1) % directions.length]
   return (
-    <aside className={`prototype-dock${detailsOpen ? ' is-expanded' : ''}`} aria-label="Design prototype selector">
+    <aside className={`prototype-dock${detailsOpen ? ' is-expanded' : ''}`} aria-label={t("Design prototype selector")}>
       <div className="prototype-details" id="prototype-details" hidden={!detailsOpen}>
-        <div className="prototype-details-top"><div><p>Design direction {variant.short} / {directions.length}</p><h2>{variant.name}</h2></div><button type="button" aria-label="Close prototype details" onClick={() => setDetailsOpen(false)}><X size={18} aria-hidden="true" /></button></div>
-        <p className="prototype-tagline">{variant.tagline}</p><p className="prototype-layout">Layout: {variant.layout}</p>
-        <p className="prototype-skill-heading">Skills used in this direction</p><div className="skill-tags">{variant.skills.map((skill) => <span key={skill}>{skill}</span>)}</div><p className="skill-reason">{variant.skillReason}</p>
-        <div className="prototype-detail-actions"><button type="button" className={`button button--small${saved ? ' is-saved' : ''}`} onClick={selectDirection}>{saved ? <><Check size={15} aria-hidden="true" /> Marked for review</> : 'Mark this direction'}</button><button type="button" className="copy-link" onClick={copyDirectionLink}>Copy this option’s link</button></div>
+        <div className="prototype-details-top"><div><p>{t("Design direction")} {variant.short} / {directions.length}</p><h2>{variant.name}</h2></div><button type="button" aria-label={t("Close prototype details")} onClick={() => setDetailsOpen(false)}><X size={18} aria-hidden="true" /></button></div>
+        <p className="prototype-tagline">{variant.tagline}</p><p className="prototype-layout">{t("Layout:")} {variant.layout}</p>
+        <p className="prototype-skill-heading">{t("Skills used in this direction")}</p><div className="skill-tags">{variant.skills.map((skill) => <span key={skill}>{skill}</span>)}</div><p className="skill-reason">{variant.skillReason}</p>
+        <div className="prototype-detail-actions"><button type="button" className={`button button--small${saved ? ' is-saved' : ''}`} onClick={selectDirection}>{saved ? <><Check size={15} aria-hidden="true" />{t("Marked for review")}</> : t('Mark this direction')}</button><button type="button" className="copy-link" onClick={copyDirectionLink}>{t("Copy this option’s link")}</button></div>
       </div>
       <div className="dock-main">
-        <button type="button" className="dock-arrow" aria-label={`Previous direction: ${previous.name}`} onClick={() => goToVariant(previous.id)}><ArrowLeft size={17} aria-hidden="true" /></button>
-        <label className="dock-select-wrap"><span>Prototype</span><select aria-label="Choose a design prototype" value={variant.id} onChange={(event) => goToVariant(event.target.value)}>{directions.map((item) => <option key={item.id} value={item.id}>{item.short} / {directions.length} · {item.name}</option>)}</select><ChevronDown size={14} aria-hidden="true" /></label>
-        <span className="dock-page">{pages.find((page) => page.id === currentPage)?.label}</span>
-        <button type="button" className="dock-arrow" aria-label={`Next direction: ${next.name}`} onClick={() => goToVariant(next.id)}><ArrowRight size={17} aria-hidden="true" /></button>
-        <button type="button" className="dock-info" aria-expanded={detailsOpen} aria-controls="prototype-details" onClick={() => setDetailsOpen(!detailsOpen)}>{detailsOpen ? 'Close details' : 'Skills & notes'}</button>
+        <button type="button" className="dock-arrow" aria-label={t('Previous direction: {name}', { name: previous.name })} onClick={() => goToVariant(previous.id)}><ArrowLeft size={17} aria-hidden="true" /></button>
+        <label className="dock-select-wrap"><span>{t("Prototype")}</span><select aria-label={t("Choose a design prototype")} value={variant.id} onChange={(event) => goToVariant(event.target.value)}>{directions.map((item) => <option key={item.id} value={item.id}>{item.short} / {directions.length} · {item.name}</option>)}</select><ChevronDown size={14} aria-hidden="true" /></label>
+        <span className="dock-page">{t(pages.find((page) => page.id === currentPage)?.label ?? '')}</span>
+        <button type="button" className="dock-arrow" aria-label={t('Next direction: {name}', { name: next.name })} onClick={() => goToVariant(next.id)}><ArrowRight size={17} aria-hidden="true" /></button>
+        <button type="button" className="dock-info" aria-expanded={detailsOpen} aria-controls="prototype-details" onClick={() => setDetailsOpen(!detailsOpen)}>{t(detailsOpen ? 'Close details' : 'Skills & notes')}</button>
       </div>
-      <span className="dock-hint">Use ← / → to compare · state is in the URL</span>
+      <span className="dock-hint">{t("Use ← / → to compare · state is in the URL")}</span>
     </aside>
   )
 }
