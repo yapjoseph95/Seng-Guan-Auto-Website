@@ -2,24 +2,24 @@
 import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
 import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
-import type { WatermarkPlacement } from '../../shared/watermarks'
+import { maxWatermarksPerPhoto, type WatermarkPlacement } from '../../shared/watermarks'
 type Row = Record<string, unknown>
 const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at'
 const vehicleFields = (admin: boolean) => admin
  ? 'vehicles.*, (SELECT plate_number FROM vehicle_private_details WHERE vehicle_id=vehicles.id) AS plate_number'
  : publicVehicleFields
-const photoFields = 'p.id,p.vehicle_id,p.position,w.watermark_id,w.x,w.y,w.scale,w.opacity,w.object_key AS render_key'
+const photoFields = 'p.id,p.vehicle_id,p.position,w.watermark_id,w.x,w.y,w.scale,w.opacity,w.additional_layers,w.object_key AS render_key'
 const photoJoin = ' LEFT JOIN photo_watermarks w ON w.photo_id=p.id'
 const photoSelect = 'SELECT '+photoFields+' FROM photos p'+photoJoin+' WHERE p.vehicle_id=? ORDER BY p.position,p.id'
 function formatVehicle(row: Row, photos: Row[], admin: boolean) {
- const items = photos.map(({id,vehicle_id,position,watermark_id,x,y,scale,opacity,render_key}) => {
+ const items = photos.map(({id,vehicle_id,position,watermark_id,x,y,scale,opacity,additional_layers,render_key}) => {
   const original = `/api/${admin ? 'admin/' : ''}photos/${id}`
   const url = render_key ? original + '?v=' + String(render_key).split('/').at(-1) : original
   const photo = { id,vehicle_id,position,url }
-  return admin ? {
-   ...photo, original_url:original,
-   watermark:watermark_id ? { watermarkId:watermark_id,x,y,scale,opacity } : null,
-  } : photo
+  if (!admin) return photo
+  const watermark = watermark_id ? { watermarkId:watermark_id,x,y,scale,opacity } : null
+  const watermarks = watermark ? [watermark,...JSON.parse(String(additional_layers ?? '[]'))] : []
+  return {...photo,original_url:original,watermark,watermarks}
  })
  return { ...row, featured:!!row.featured, photos:items, photo:items[0]?.url ?? '' }
 }
@@ -181,12 +181,12 @@ async function watermarkLibrary(request: Request, env: Env, id?: string) {
 
 function placement(value: unknown): WatermarkPlacement {
  const item = value as Partial<WatermarkPlacement> | null
- const inRange = (n: unknown, min = 0) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= 1
+ const inRange = (n: unknown, min = 0): n is number => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= 1
  if (!item || typeof item.watermarkId !== 'string' || !newVehicleIdPattern.test(item.watermarkId)
   || !inRange(item.x) || !inRange(item.y) || !inRange(item.scale,.1) || !inRange(item.opacity)) {
   throw new HttpError(400,'Invalid watermark placement.')
  }
- return item as WatermarkPlacement
+ return {watermarkId:item.watermarkId,x:item.x,y:item.y,scale:item.scale,opacity:item.opacity}
 }
 
 async function saveVehicle(request: Request, env: Env, email: string, existingId?: string) {
@@ -271,17 +271,23 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
   if (!data.watermarks || typeof data.watermarks !== 'object' || Array.isArray(data.watermarks)) {
    throw new HttpError(400,'Invalid watermark placement.')
   }
-  for (const [photoId,value] of Object.entries(data.watermarks)) {
+  const entries = Object.entries(data.watermarks)
+  const assets = entries.some(([,value]) => value !== null && (!Array.isArray(value) || value.length))
+   ? new Set((await env.DB.prepare('SELECT id FROM watermark_assets').all<{id:string}>()).results.map(asset => asset.id))
+   : new Set<string>()
+  for (const [photoId,value] of entries) {
    if (!order.includes(photoId)) throw new HttpError(400,'Invalid watermark placement.')
    const oldRender = oldById.get(photoId)?.render_key
    if (oldRender) replacedRenders.push(oldRender)
-   if (value === null) {
+   const layers = value === null ? [] : Array.isArray(value) ? value : [value]
+   if (layers.length > maxWatermarksPerPhoto) throw new HttpError(400,'Too many watermarks for this photo.')
+   const marks = layers.map(placement)
+   const [mark,...additional] = marks
+   if (!mark) {
     statements.push(env.DB.prepare('DELETE FROM photo_watermarks WHERE photo_id=?').bind(photoId))
     continue
    }
-   const mark = placement(value)
-   const asset = await env.DB.prepare('SELECT id FROM watermark_assets WHERE id=?').bind(mark.watermarkId).first()
-   if (!asset) throw new HttpError(404,'Watermark not found.')
+   if (marks.some(layer => !assets.has(layer.watermarkId))) throw new HttpError(404,'Watermark not found.')
    const file = await checkedPhoto(form.get('watermark:'+photoId))
    if (file.type !== 'image/jpeg') throw new HttpError(400,'Invalid watermark placement.')
    uploadBytes += file.size
@@ -289,9 +295,9 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
    const key = `vehicle-watermarks/${id}/${crypto.randomUUID()}`
    rendered.push({key,type:file.type,source:file})
    statements.push(env.DB.prepare(
-    'INSERT INTO photo_watermarks(photo_id,watermark_id,x,y,scale,opacity,object_key) VALUES(?,?,?,?,?,?,?) '
-    +'ON CONFLICT(photo_id) DO UPDATE SET watermark_id=excluded.watermark_id,x=excluded.x,y=excluded.y,scale=excluded.scale,opacity=excluded.opacity,object_key=excluded.object_key'
-   ).bind(photoId,mark.watermarkId,mark.x,mark.y,mark.scale,mark.opacity,key))
+    'INSERT INTO photo_watermarks(photo_id,watermark_id,x,y,scale,opacity,object_key,additional_layers) VALUES(?,?,?,?,?,?,?,?) '
+    +'ON CONFLICT(photo_id) DO UPDATE SET watermark_id=excluded.watermark_id,x=excluded.x,y=excluded.y,scale=excluded.scale,opacity=excluded.opacity,object_key=excluded.object_key,additional_layers=excluded.additional_layers'
+   ).bind(photoId,mark.watermarkId,mark.x,mark.y,mark.scale,mark.opacity,key,JSON.stringify(additional)))
   }
  }
 

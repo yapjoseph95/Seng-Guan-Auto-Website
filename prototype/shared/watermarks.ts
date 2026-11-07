@@ -7,3 +7,5 @@ export type WatermarkPlacement = {
 }
 
 export type WatermarkAsset = { id: string; name: string; url: string }
+
+export const maxWatermarksPerPhoto = 10

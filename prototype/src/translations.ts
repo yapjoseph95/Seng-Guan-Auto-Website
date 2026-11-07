@@ -515,4 +515,9 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Watermark not found.": ["Watermark not found.", "Tera air tidak ditemui.", "找不到水印。"],
   "Invalid watermark placement.": ["Invalid watermark placement.", "Kedudukan tera air tidak sah.", "水印设置无效。"],
   "Could not load the image.": ["Could not load the image.", "Imej tidak dapat dimuatkan.", "无法载入图片。"],
+  "Drag a watermark onto the photo, or select it to add it.": ["Drag a watermark onto the photo, or select it to add it.", "Seret tera air ke atas foto, atau pilih untuk menambahkannya.", "把水印拖到照片上，或点击缩略图添加。"],
+  "Add watermark {name}": ["Add watermark {name}", "Tambah tera air {name}", "添加水印 {name}"],
+  "Watermarks on this photo": ["Watermarks on this photo", "Tera air pada foto ini", "此照片的水印"],
+  "Remove watermark {number}": ["Remove watermark {number}", "Buang tera air {number}", "移除第 {number} 个水印"],
+  "Too many watermarks for this photo.": ["Too many watermarks for this photo.", "Foto ini telah mencapai had 10 tera air.", "这张照片已达到 10 个水印的上限。"],
 }

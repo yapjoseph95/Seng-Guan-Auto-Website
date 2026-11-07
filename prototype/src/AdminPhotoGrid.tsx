@@ -13,7 +13,7 @@ import { useLocale } from './locale'
 
 import type { WatermarkPlacement } from '../shared/watermarks'
 
-export type AdminPhoto = { id: string; url: string; original_url?: string; watermark?: WatermarkPlacement | null }
+export type AdminPhoto = { id: string; url: string; original_url?: string; watermark?: WatermarkPlacement | null; watermarks?: WatermarkPlacement[] }
 
 function PhotoTile({ photo, index, total, selected, onPreview, onMove, onRemove, onWatermark }: {
   photo: AdminPhoto

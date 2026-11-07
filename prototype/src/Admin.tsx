@@ -207,20 +207,20 @@ export default function Admin() {
  const [libraryOpen,setLibraryOpen]=useState(false)
  const [watermarkPhotoId,setWatermarkPhotoId]=useState<string | null>(null)
  const watermarkPhoto = edit?.photos.find(photo => photo.id === watermarkPhotoId)
- const watermarkChanges = useRef(new Map<string, {placement:WatermarkPlacement | null; render?:Blob; url?:string}>())
+ const watermarkChanges = useRef(new Map<string, {placements:WatermarkPlacement[]; render?:Blob; url?:string}>())
  const clearWatermarkChanges = () => {
   for (const {url} of watermarkChanges.current.values()) if (url) URL.revokeObjectURL(url)
   watermarkChanges.current.clear()
  }
- const changeWatermark = (mark: WatermarkPlacement | null, render?: Blob) => {
+ const changeWatermark = (marks: WatermarkPlacement[], render?: Blob) => {
   if (!edit || !watermarkPhoto) return
   const original = watermarkPhoto.original_url ?? watermarkPhoto.url
   const previousUrl = watermarkChanges.current.get(watermarkPhoto.id)?.url
   const url = render ? URL.createObjectURL(render) : undefined
   if (previousUrl) URL.revokeObjectURL(previousUrl)
-  watermarkChanges.current.set(watermarkPhoto.id,{placement:mark,render,url})
+  watermarkChanges.current.set(watermarkPhoto.id,{placements:marks,render,url})
   update({photos:edit.photos.map(photo => photo.id === watermarkPhoto.id
-   ? {...photo, original_url:original, watermark:mark, url:url ?? original} : photo)})
+   ? {...photo, original_url:original, watermark:marks[0] ?? null, watermarks:marks, url:url ?? original} : photo)})
   setWatermarkPhotoId(null)
  }
  const [previewId,setPreviewId]=useState<string | null>(null)
@@ -282,11 +282,11 @@ export default function Admin() {
   setNotice('')
   const { photos, photo: _cover, ...details } = edit
   const form = new FormData()
-  const watermarks: Record<string,WatermarkPlacement | null> = {}
+  const watermarks: Record<string,WatermarkPlacement[]> = {}
   for (const photo of photos) {
    const change = watermarkChanges.current.get(photo.id)
    if (!change) continue
-   watermarks[photo.id] = change.placement
+   watermarks[photo.id] = change.placements
    if (change.render) form.set('watermark:'+photo.id,change.render,'watermarked.jpg')
   }
   form.set('vehicle',JSON.stringify({
@@ -521,8 +521,8 @@ export default function Admin() {
    </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'尚未保存')}</span><button type="button" onClick={close} disabled={!!busy}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
    {error&&<p className="admin-error" role="alert">{t(error)}</p>}
    </form></section>
-   {watermarkPhoto && <PhotoWatermarkEditor photoUrl={watermarkPhoto.original_url ?? watermarkPhoto.url}
-    initial={watermarkPhoto.watermark ?? null} request={api} onApply={changeWatermark} onClose={() => setWatermarkPhotoId(null)} />}
+   {watermarkPhoto && <PhotoWatermarkEditor photos={edit.photos} photo={watermarkPhoto} onSelect={setWatermarkPhotoId}
+    request={api} onApply={changeWatermark} onClose={() => setWatermarkPhotoId(null)} />}
    </div></div>}
   {libraryOpen && <WatermarkLibrary request={api} onClose={() => setLibraryOpen(false)} />}
   {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}
