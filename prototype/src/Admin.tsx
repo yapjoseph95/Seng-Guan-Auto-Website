@@ -4,7 +4,7 @@ import { CarFront, Check, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCir
 import type { VehicleStatus } from './data'
 import logo from './assets/logo-dark.svg'
 import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
-import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
+import { maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
 import './Admin.css'
 export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;description:string;status:VehicleStatus;updated_at:string;featured:boolean;photos:AdminPhoto[];photo:string}
 const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,description:'',status:'draft',updated_at:'',featured:false,photos:[],photo:''})
@@ -30,10 +30,16 @@ async function compress(file:File) {
   return new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})
  } finally { bitmap.close() }
 }
-type StagedPhoto = { file: File; url: string }
-function releasePhotos(staged: Map<string, StagedPhoto>) {
- for (const photo of staged.values()) URL.revokeObjectURL(photo.url)
+function releasePhotos(staged: Map<string, string>, discard = false) {
+ for (const [id,url] of staged) {
+  URL.revokeObjectURL(url)
+  if (discard) discardPhoto(id)
+ }
  staged.clear()
+}
+
+function discardPhoto(id: string) {
+ void api(`staged-photos/${id}`,{method:'DELETE'}).catch(() => {})
 }
 
 function PreviewGallery({ photos, index, onSelect }: {
@@ -158,6 +164,7 @@ export default function Admin() {
  const [loading,setLoading]=useState(true)
  const [busy,setBusy]=useState('')
  const [uploadProgress,setUploadProgress]=useState<{number:number;total:number}|null>(null)
+ const processingPhotos = busy === '处理照片 {number}/{total}…' || busy === '上传照片 {number}/{total}…'
  const [error,setError]=useState('')
  const [notice,setNotice]=useState('')
  const [query,setQuery]=useState('')
@@ -171,7 +178,7 @@ export default function Admin() {
  const previewNumber = edit?.photos.findIndex(photo => photo.id === previewPhoto?.id) ?? -1
  const [confirmDelete,setConfirmDelete]=useState<ManagedVehicle|null>(null)
  const fileInput=useRef<HTMLInputElement>(null)
- const stagedPhotos=useRef(new Map<string, StagedPhoto>())
+ const stagedPhotos=useRef(new Map<string, string>())
  const originalVehicle=useRef<{updatedAt:string; photoOrder:string[]; createId:string} | null>(null)
  useEffect(() => {
   const staged = stagedPhotos.current
@@ -194,7 +201,7 @@ export default function Admin() {
  },[Boolean(edit),Boolean(confirmDelete)])
  const close = () => {
   if (busy || (dirty && !window.confirm(t('还有未保存的修改，确定离开吗？')))) return
-  releasePhotos(stagedPhotos.current)
+  releasePhotos(stagedPhotos.current,true)
   setEdit(null)
   setDirty(false)
   setError('')
@@ -217,7 +224,6 @@ export default function Admin() {
    ...details, updatedAt:original.updatedAt, originalPhotoOrder:original.photoOrder,
    createId:original.createId, photoOrder:photos.map(photo => photo.id),
   }))
-  for (const [id, {file}] of stagedPhotos.current) form.set('photo:' + id,file)
   try {
    const saved = await api<ManagedVehicle>('vehicles' + (edit.id ? '/' + edit.id : ''), {
     method: edit.id ? 'PUT' : 'POST', body: form,
@@ -245,24 +251,21 @@ export default function Admin() {
   setError('')
   setNotice('')
   try {
-   const compressed: File[] = []
-   let size = Array.from(stagedPhotos.current.values()).reduce((total, photo) => total + photo.file.size, 0)
    for (const [index, file] of selected.entries()) {
     setUploadProgress({ number:index + 1, total:selected.length })
     setBusy('处理照片 {number}/{total}…')
     const photo = await compress(file)
     if (photo.size > maxPhotoBytes) throw new Error('Please upload a JPEG, PNG or WebP photo under 7 MB.')
-    size += photo.size
-    if (size > maxNewPhotoBytes) throw new Error('New photos must total 36 MB or less per save.')
-    compressed.push(photo)
-   }
-   const photos = compressed.map(file => {
     const id = crypto.randomUUID()
-    const url = URL.createObjectURL(file)
-    stagedPhotos.current.set(id,{file,url})
-    return {id,url}
-   })
-   update({ photos:[...edit.photos,...photos] })
+    const form = new FormData()
+    form.set('file',photo)
+    setBusy('上传照片 {number}/{total}…')
+    await api(`staged-photos/${id}`,{method:'POST',body:form})
+    const url = URL.createObjectURL(photo)
+    stagedPhotos.current.set(id,url)
+    setEdit(vehicle => vehicle ? { ...vehicle, photos:[...vehicle.photos,{id,url}] } : vehicle)
+    setDirty(true)
+   }
   } catch (error) {
    setError((error as Error).message)
   } finally {
@@ -273,8 +276,9 @@ export default function Admin() {
   if (!edit || !window.confirm(t('删除这张照片？'))) return
   const staged = stagedPhotos.current.get(photo.id)
   if (staged) {
-   URL.revokeObjectURL(staged.url)
+   URL.revokeObjectURL(staged)
    stagedPhotos.current.delete(photo.id)
+   discardPhoto(photo.id)
   }
   update({ photos:edit.photos.filter(item => item.id !== photo.id) })
   setError('')
@@ -366,7 +370,7 @@ export default function Admin() {
     mobileOpen={mobilePreviewOpen} onClose={() => setMobilePreviewOpen(false)} />
    <section className="admin-editor"><div className="admin-editor-heading"><div><p>{t(edit.id?'EDIT VEHICLE':'NEW VEHICLE')}</p><h2 id="vehicle-editor-title">{t(edit.id?'编辑车辆':'新增车辆')}</h2></div><button aria-label={t("关闭编辑")} onClick={close} disabled={!!busy}><X/></button></div>
    <form onSubmit={save}><fieldset disabled={!!busy}>
-    <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/{maxVehiclePhotos}</span></h3><p>{t('拖动照片可调整顺序，第一张为封面。照片和车辆资料会在点击保存后一起更新。')}</p>
+    <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/{maxVehiclePhotos}</span></h3><p>{t('选好照片后会立即上传。拖动可调整顺序，第一张为封面。保存后，照片和车辆资料会一起更新到官网。')}</p>
      <input ref={fileInput} className="admin-file" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void selectPhotos(e.target.files)}/>
      <AdminPhotoGrid photos={edit.photos} previewedId={previewPhoto?.id}
       onPreview={photo => {
@@ -379,6 +383,11 @@ export default function Admin() {
        <ImagePlus size={28} aria-hidden="true" />
       </button>
      </AdminPhotoGrid>
+     {processingPhotos && uploadProgress && <div className="admin-photo-upload-status" role="status">
+      <LoaderCircle size={18} className="admin-spin" aria-hidden="true" />
+      <span>{t(busy,uploadProgress)}</span>
+      <span className="admin-photo-upload-track" aria-hidden="true" />
+     </div>}
     </section>
     <div className="admin-fields">
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>

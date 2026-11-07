@@ -77,7 +77,36 @@ async function deletePhotoObjects(env: Env, keys: string[]) {
  await env.PHOTOS.delete(keys).catch(() => console.error('Vehicle photo cleanup failed.'))
 }
 
-async function saveVehicle(request: Request, env: Env, existingId?: string) {
+const stagedPhotoUnavailable = 'An uploaded photo is no longer available. Remove it and upload it again.'
+
+async function stagedPhotoPrefix(email: string) {
+ const digest = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(email.toLowerCase()))
+ const owner = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2,'0')).join('')
+ return `staged-vehicle-photos/${owner}/`
+}
+
+async function stagePhoto(request: Request, env: Env, email: string, id: string) {
+ if (!newVehicleIdPattern.test(id)) throw new HttpError(400,'Invalid request.')
+ const key = (await stagedPhotoPrefix(email)) + id
+ if (request.method === 'DELETE') {
+  await env.PHOTOS.delete(key)
+  return json({ id })
+ }
+ if (request.method !== 'POST') throw new HttpError(405,'Method not allowed.')
+ const length = Number(request.headers.get('Content-Length'))
+ if (!Number.isSafeInteger(length) || length <= 0 || length > maxPhotoBytes + 4096) {
+  throw new HttpError(413,'Photos must be smaller than 8 MB.')
+ }
+ const form = await request.formData().catch(() => { throw new HttpError(400,'Invalid request.') })
+ const file = await checkedPhoto(form.get('file'))
+ const staged = await env.PHOTOS.put(key,file,{
+  httpMetadata:{contentType:file.type}, onlyIf:{etagDoesNotMatch:'*'},
+ })
+ if (!staged) throw new HttpError(409,'Invalid request.')
+ return json({ id },201)
+}
+
+async function saveVehicle(request: Request, env: Env, email: string, existingId?: string) {
  const length = Number(request.headers.get('Content-Length'))
  if (!Number.isSafeInteger(length) || length <= 0 || length > maxNewPhotoBytes + 128 * 1024) {
   throw new HttpError(413,photoLimitMessage)
@@ -102,14 +131,27 @@ async function saveVehicle(request: Request, env: Env, existingId?: string) {
   throw new HttpError(409,changedVehicle)
  }
  const oldById = new Map(existing.map(photo => [photo.id, photo]))
- const uploads = new Map<string,{file:File;key:string}>()
+ const uploads = new Map<string,{key:string;type:string;size:number;source:File|string}>()
+ const prefix = await stagedPhotoPrefix(email)
  let uploadBytes = 0
  for (const photoId of order) {
   if (oldById.has(photoId)) continue
-  const file = await checkedPhoto(form.get('photo:' + photoId))
-  uploadBytes += file.size
-  if (uploadBytes > maxNewPhotoBytes) throw new HttpError(413,photoLimitMessage)
-  uploads.set(photoId,{file,key:`vehicles/${id}/${crypto.randomUUID()}`})
+  const key = `vehicles/${id}/${crypto.randomUUID()}`
+  const inline = form.get('photo:' + photoId)
+  if (inline !== null) {
+   const file = await checkedPhoto(inline)
+   uploadBytes += file.size
+   if (uploadBytes > maxNewPhotoBytes) throw new HttpError(413,photoLimitMessage)
+   uploads.set(photoId,{key,type:file.type,size:file.size,source:file})
+  } else {
+   const source = prefix + photoId
+   const staged = newVehicleIdPattern.test(photoId) ? await env.PHOTOS.head(source) : null
+   const type = staged?.httpMetadata?.contentType
+   if (!staged || !type || !photoTypes.includes(type) || staged.size > maxPhotoBytes) {
+    throw new HttpError(409,stagedPhotoUnavailable)
+   }
+   uploads.set(photoId,{key,type,size:staged.size,source})
+  }
  }
 
  const removed = existing.filter(photo => !order.includes(photo.id))
@@ -132,7 +174,7 @@ async function saveVehicle(request: Request, env: Env, existingId?: string) {
   const upload = uploads.get(photoId)
   if (upload) {
    statements.push(env.DB.prepare('INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) VALUES(?,?,?,?,?,?)')
-    .bind(photoId,id,upload.key,upload.file.type,upload.file.size,position))
+    .bind(photoId,id,upload.key,upload.type,upload.size,position))
   } else {
    statements.push(env.DB.prepare('UPDATE photos SET position=? WHERE id=? AND vehicle_id=?').bind(position,photoId,id))
   }
@@ -140,9 +182,17 @@ async function saveVehicle(request: Request, env: Env, existingId?: string) {
 
  const attemptedKeys: string[] = []
  try {
-  for (const {file,key} of uploads.values()) {
+  for (const {key,type,source} of uploads.values()) {
+   let contents: File | ArrayBuffer
+   if (typeof source === 'string') {
+    const staged = await env.PHOTOS.get(source)
+    if (!staged) throw new HttpError(409,stagedPhotoUnavailable)
+    contents = await staged.arrayBuffer()
+   } else {
+    contents = source
+   }
    attemptedKeys.push(key)
-   await env.PHOTOS.put(key,file,{httpMetadata:{contentType:file.type}})
+   await env.PHOTOS.put(key,contents,{httpMetadata:{contentType:type}})
   }
   const results = await env.DB.batch(statements)
   if (!results[0].meta.changes) throw new HttpError(409,changedVehicle)
@@ -159,7 +209,8 @@ async function saveVehicle(request: Request, env: Env, existingId?: string) {
   throw error
  }
 
- await deletePhotoObjects(env,removed.map(photo => photo.object_key))
+ const stagedKeys = Array.from(uploads.values()).flatMap(({source}) => typeof source === 'string' ? [source] : [])
+ await deletePhotoObjects(env,[...removed.map(photo => photo.object_key),...stagedKeys])
  return json(await vehicle(env,id,true),existingId ? 200 : 201)
 }
 export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
@@ -175,6 +226,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    if (!['GET','HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site')) throw new HttpError(403,'Please make changes from the admin dashboard.')
   } else if (!['GET','HEAD'].includes(request.method)) throw new HttpError(405,'Method not allowed.')
   if (admin && parts[0] === 'session' && request.method === 'GET') return json({ email })
+  if (admin && parts[0] === 'staged-photos' && parts.length === 2) return await stagePhoto(request,env,email,parts[1])
   if (parts[0] === 'photos' && parts[1] && request.method === 'GET') {
    const p = await env.DB.prepare("SELECT p.* FROM photos p JOIN vehicles v ON v.id=p.vehicle_id WHERE p.id=?" + (admin ? '' : " AND v.status!='draft'")).bind(parts[1]).first<{object_key:string,content_type:string}>()
    if (!p) throw new HttpError(404,'Photo not found.')
@@ -195,7 +247,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   if (!admin) throw new HttpError(403,'Not authorized.')
   if (request.headers.get('Content-Type')?.startsWith('multipart/form-data')
     && (parts.length === 1 && request.method === 'POST' || parts.length === 2 && request.method === 'PUT')) {
-   return await saveVehicle(request,env,id)
+   return await saveVehicle(request,env,email,id)
   }
   if (!id && request.method === 'POST') {
    const data = await body(request); data.status = 'draft'

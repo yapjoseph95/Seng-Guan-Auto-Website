@@ -463,7 +463,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "目标位置：{number}。": ["Target position {number}.","Kedudukan sasaran {number}.","目标位置：{number}。"],
   "照片已放到第 {number} 个位置。": ["Photo placed in position {number}.","Gambar diletakkan pada kedudukan {number}.","照片已放到第 {number} 个位置。"],
   "已取消拖动。": ["Drag cancelled.","Seretan dibatalkan.","已取消拖动。"],
-  "拖动照片可调整顺序，第一张为封面。照片和车辆资料会在点击保存后一起更新。": ["Drag photos to reorder. The first photo is the cover. Photos and vehicle details update together when you save.","Seret gambar untuk menyusun semula. Gambar pertama ialah muka depan. Gambar dan butiran kenderaan dikemas kini bersama apabila anda menyimpan.","拖动照片可调整顺序，第一张为封面。照片和车辆资料会在点击保存后一起更新。"],
+  "选好照片后会立即上传。拖动可调整顺序，第一张为封面。保存后，照片和车辆资料会一起更新到官网。": ["Photos upload as soon as you select them. Drag to reorder, with the first photo as the cover. Save to update the photos and vehicle details on the website.","Gambar dimuat naik sebaik sahaja dipilih. Seret untuk menyusun semula. Gambar pertama menjadi muka depan. Simpan untuk mengemas kini gambar dan butiran kenderaan di laman web.","选好照片后会立即上传。拖动可调整顺序，第一张为封面。保存后，照片和车辆资料会一起更新到官网。"],
   "草稿已保存。": ["Draft saved.","Draf disimpan.","草稿已保存。"],
   "尚未保存": ["Not yet saved","Belum disimpan","尚未保存"],
   "This vehicle changed while you were editing. Reload it before saving.": ["This vehicle changed while you were editing. Reload it before saving.","Kenderaan ini telah berubah semasa disunting. Muat semula sebelum menyimpan.","编辑期间车辆资料已变更。请重新载入后再保存。"],
@@ -473,4 +473,6 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "照片预览": ["Photo preview","Pratonton gambar","照片预览"],
   "关闭照片预览": ["Close photo preview","Tutup pratonton gambar","关闭照片预览"],
   "添加照片后可预览。": ["Add a photo to preview it.","Tambah gambar untuk melihat pratonton.","添加照片后可预览。"],
+  "上传照片 {number}/{total}…": ["Uploading photo {number}/{total}…","Memuat naik gambar {number}/{total}…","正在上传照片 {number}/{total}…"],
+  "An uploaded photo is no longer available. Remove it and upload it again.": ["An uploaded photo is no longer available. Remove it and upload it again.","Gambar yang dimuat naik tidak lagi tersedia. Buang dan muat naik semula.","有一张已上传的照片已失效。请移除后重新上传。"],
 }

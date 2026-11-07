@@ -26,9 +26,25 @@ class Statement {
  async all(){return {results:sql.prepare(this.query).all(...this.params as any[])}}
  async run(){const r=sql.prepare(this.query).run(...this.params as any[]);return {meta:{changes:Number(r.changes)}}}
 }
-const objects=new Map<string,Uint8Array>()
+const objects=new Map<string,{bytes:Uint8Array;type:string}>()
 let onPut: (() => void) | undefined
-const env={DB:{prepare:(query:string)=>new Statement(query),batch:async(stmts:Statement[])=>{sql.exec('BEGIN');try{const r=await Promise.all(stmts.map(s=>s.run()));sql.exec('COMMIT');return r}catch(e){sql.exec('ROLLBACK');throw e}}},PHOTOS:{put:async(k:string,b:Blob)=>{objects.set(k,new Uint8Array(await b.arrayBuffer()));onPut?.()},get:async(k:string)=>objects.has(k)?{body:objects.get(k)}:null,delete:async(keys:string|string[])=>{for(const k of Array.isArray(keys)?keys:[keys])objects.delete(k)}},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
+const env={DB:{prepare:(query:string)=>new Statement(query),batch:async(stmts:Statement[])=>{sql.exec('BEGIN');try{const r=await Promise.all(stmts.map(s=>s.run()));sql.exec('COMMIT');return r}catch(e){sql.exec('ROLLBACK');throw e}}},PHOTOS:{
+ put:async(key:string,body:Blob|ArrayBuffer,options?:{httpMetadata?:{contentType?:string};onlyIf?:unknown})=>{
+  if(options?.onlyIf&&objects.has(key))return null
+  objects.set(key,{bytes:new Uint8Array(body instanceof Blob?await body.arrayBuffer():body),type:options?.httpMetadata?.contentType??''})
+  onPut?.()
+  return {key}
+ },
+ head:async(key:string)=>{
+  const photo=objects.get(key)
+  return photo?{size:photo.bytes.byteLength,httpMetadata:{contentType:photo.type}}:null
+ },
+ get:async(key:string)=>{
+  const photo=objects.get(key)
+  return photo?{body:photo.bytes,arrayBuffer:async()=>photo.bytes.slice().buffer}:null
+ },
+ delete:async(keys:string|string[])=>{for(const key of Array.isArray(keys)?keys:[keys])objects.delete(key)},
+},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
 const users:Record<string,unknown>={valid:{email:'admin@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},other:{email:'other@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},unverified:{email:'admin@example.test'}}
 const sent:string[]=[]
 const originalFetch=globalThis.fetch
@@ -181,4 +197,36 @@ test('a multipart save commits details, uploads, cover order and removals togeth
   assert.deepEqual(unchanged.photos.map((photo: {id:string})=>photo.id),['new-cover','initial-2'])
  } finally { onPut=undefined }
  assert.equal((await call(path,'DELETE')).status,200)
+})
+
+test('selected photos can upload privately before the vehicle save',async()=>{
+ const id=crypto.randomUUID()
+ const stagedPath='/api/admin/staged-photos/'+id
+ const form=new FormData()
+ form.set('file',new File([readFileSync(new URL('../../resources/CarPhotos/1.jpg',import.meta.url))],'car.jpg',{type:'image/jpeg'}))
+ assert.equal((await call(stagedPath,'POST',form,false)).status,401)
+ assert.equal((await call(stagedPath,'POST',form,true,'https://attacker.test')).status,403)
+ assert.equal((await call(stagedPath,'POST',form)).status,201)
+ assert.equal((await call(stagedPath,'POST',form)).status,409)
+ assert.equal((await call('/api/photos/'+id,'GET',undefined,false)).status,404)
+ assert.equal(sql.prepare('SELECT id FROM photos WHERE id=?').get(id),undefined)
+ assert.equal(objects.size,1)
+ const saveForm=new FormData()
+ saveForm.set('vehicle',JSON.stringify({createId:crypto.randomUUID(),name:'Uploaded privately',make:'Toyota',year:2020,status:'available',photoOrder:[id]}))
+ onPut=()=>{throw Error('Simulated publish failure')}
+ try {
+  assert.equal((await call('/api/admin/vehicles','POST',saveForm)).status,500)
+  assert.equal(objects.size,1)
+  assert.equal((await call('/api/photos/'+id,'GET',undefined,false)).status,404)
+ } finally { onPut=undefined }
+ const published=await call('/api/admin/vehicles','POST',saveForm)
+ assert.equal(published.status,201)
+ const vehicle=await published.json() as {id:string;photo:string}
+ assert.equal(vehicle.photo,'/api/admin/photos/'+id)
+ assert.equal((await call('/api/photos/'+id,'GET',undefined,false)).status,200)
+ assert.equal(objects.size,1)
+ assert.ok([...objects.keys()][0].startsWith('vehicles/'))
+ assert.equal((await call(stagedPath,'DELETE')).status,200)
+ assert.equal(objects.size,1)
+ assert.equal((await call('/api/admin/vehicles/'+vehicle.id,'DELETE')).status,200)
 })
