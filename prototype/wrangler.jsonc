@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "seng-guan-auto-website",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-11-06",
+  "d1_databases": [{"binding":"DB","database_name":"seng-guan-auto-inventory","database_id":"1e179b61-81a9-45dd-a012-ea3d1e5249a4","migrations_dir":"migrations"}],
+  "r2_buckets": [{"binding":"PHOTOS","bucket_name":"seng-guan-auto-vehicle-photos"}]
+}

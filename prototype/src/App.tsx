@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -14,8 +14,9 @@ import showroom from './assets/showroom.jpg'
 import angKinGuanPortrait from '../../resources/team/1.jpg'
 import johnAngPortrait from '../../resources/team/2.jpg'
 import angZiWeiPortrait from '../../resources/team/john.jpg'
-import { contact, directions, faqItems, pages, vehicles, type Direction, type PageId, type Vehicle } from './data'
+import { contact, directions, faqItems, pages, vehicles as fallbackVehicles, type Direction, type PageId, type Vehicle } from './data'
 import './App.css'
+import VehicleDetails from './VehicleDetails'
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
@@ -23,6 +24,11 @@ type RouteState = { variant: string; page: PageId }
 
 const isOfficialSite = import.meta.env.VITE_OFFICIAL_SITE === 'true'
 const publicPaths: Record<PageId, string> = { home: '/', cars: '/cars', finance: '/financing', about: '/about', faq: '/faq', contact: '/contact' }
+
+const InventoryContext = createContext<Vehicle[]>(fallbackVehicles)
+const InventoryStatusContext = createContext<'loading' | 'ready' | 'error'>('ready')
+const useVehicles = () => useContext(InventoryContext)
+const useFeaturedVehicles = () => useVehicles().filter(v => v.status !== 'sold' && v.featured !== false)
 
 const defaultRoute: RouteState = { variant: 'greenlight', page: 'home' }
 
@@ -51,6 +57,16 @@ function preventImageContextMenu(event: MouseEvent<HTMLDivElement>) {
 }
 
 function App() {
+  const [inventory, setInventory] = useState<Vehicle[]>(isOfficialSite ? [] : fallbackVehicles)
+  const [inventoryStatus, setInventoryStatus] = useState<'loading' | 'ready' | 'error'>(isOfficialSite ? 'loading' : 'ready')
+  useEffect(() => {
+    if (!isOfficialSite) return
+    const controller = new AbortController()
+    const load = () => fetch('/api/vehicles', { signal: controller.signal, cache: 'no-store' }).then(r => { if (!r.ok) throw Error('Inventory unavailable'); return r.json() }).then(data => { if (!Array.isArray(data.vehicles)) throw Error('Invalid inventory'); setInventory(data.vehicles.map((v: Vehicle) => ({ ...v, year: String(v.year) }))); setInventoryStatus('ready') }).catch(() => { if (!controller.signal.aborted) setInventoryStatus('error') })
+    void load()
+    window.addEventListener('focus', load)
+    return () => { controller.abort(); window.removeEventListener('focus', load) }
+  }, [])
   const [route, setRoute] = useState<RouteState>(readRoute)
   const [menuOpen, setMenuOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -236,6 +252,8 @@ function App() {
   }
 
   return (
+    <InventoryContext.Provider value={inventory}>
+    <InventoryStatusContext.Provider value={inventoryStatus}>
     <div className={`prototype-app${isOfficialSite ? ' is-official-site' : ''}`} data-variant={variant.id} ref={appRef} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
       {variant.id === 'greenlight' && <div className="site-atmosphere" aria-hidden="true" />}
       <a className="skip-link" href="#main-content">Skip to content</a>
@@ -266,6 +284,8 @@ function App() {
       />}
       <div className="notice" aria-live="polite" aria-atomic="true">{notice}</div>
     </div>
+    </InventoryStatusContext.Provider>
+    </InventoryContext.Provider>
   )
 }
 
@@ -444,14 +464,13 @@ function HomePage({ variant, goToPage }: { variant: Direction; goToPage: (page: 
 }
 
 function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
-  const columns = [
-    [vehicles[4], vehicles[0], vehicles[5], vehicles[2]],
-    [vehicles[1], vehicles[7], vehicles[3], vehicles[0]],
-    [vehicles[6], vehicles[2], vehicles[3], vehicles[5]],
-  ]
+  const vehicles = useFeaturedVehicles()
+  const columns = Array.from({length: 3}, (_, column) => Array.from({length:4}, (_, row) => vehicles[(column * 4 + row) % vehicles.length])).filter(() => vehicles.length > 0)
+
 
   return (
     <div className="featured-display">
+      {!columns.length && <img className="featured-showroom-fallback" src={showroom} alt="Seng Guan Auto showroom" />}
       <div className="showroom-gallery" aria-hidden="true">
         {columns.map((column, columnIndex) => (
           <div className={`showroom-gallery-column showroom-gallery-column--${columnIndex + 1}`} key={columnIndex}>
@@ -478,12 +497,16 @@ function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
 }
 
 function ShowroomHeroImage() {
-  const [activeIndex, setActiveIndex] = useState(1)
+  const vehicles = useFeaturedVehicles()
+  const [activeIndex, setActiveIndex] = useState(0)
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null)
-  const activeIndexRef = useRef(1)
+  const activeIndexRef = useRef(0)
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    activeIndexRef.current = 0
+    setActiveIndex(0)
+    setIncomingIndex(null)
+    if (vehicles.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
     let fadeTimeout = 0
     const interval = window.setInterval(() => {
@@ -500,10 +523,11 @@ function ShowroomHeroImage() {
       window.clearInterval(interval)
       window.clearTimeout(fadeTimeout)
     }
-  }, [])
+  }, [vehicles.map(v => v.id + v.photo).join(',')])
 
   return (
     <div className="showroom-image" aria-hidden="true">
+      {!vehicles.length && <img className="showroom-photo showroom-photo--visible" src={showroom} alt="" />}
       {vehicles.map((vehicle, index) => {
         const isVisible = index === activeIndex && incomingIndex === null || index === incomingIndex
         return (
@@ -539,6 +563,7 @@ const homeSections: Record<string, string[]> = {
 }
 
 function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
+  const vehicles = useVehicles()
   const primaryCar = vehicles[1]
   const budgetCar = vehicles[2]
   switch (variant.id) {
@@ -623,7 +648,7 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
         <section className="hero hero--journal">
           <div className="journal-masthead"><span>THE SENG GUAN JOURNAL</span><span>BANTING · SELANGOR</span></div>
           <div className="journal-grid">
-            <div className="journal-copy hero-copy"><p className="journal-date">The showroom, this week</p><h1>Every car has a story. Start with yours.</h1><p>Browse a few of the vehicles featured on our site, then get the latest details from the live listings.</p><button className="button button--primary" onClick={() => goToPage('cars')}>Turn the first page <ArrowRight size={17} aria-hidden="true" /></button></div>
+            <div className="journal-copy hero-copy"><p className="journal-date">The showroom, this week</p><h1>Every car has a story. Start with yours.</h1><p>Browse a few of the vehicles featured on our site, then explore each car’s photos and details.</p><button className="button button--primary" onClick={() => goToPage('cars')}>Turn the first page <ArrowRight size={17} aria-hidden="true" /></button></div>
             <div className="journal-photo hero-art"><img src={showroom} alt="Seng Guan Auto showroom frontage in Banting" width="1072" height="603" fetchPriority="high" /><span>Lot 712 · Batu 18 · Banting</span></div>
           </div>
           <div className="journal-foot"><span>Cars, people, and the road ahead</span><span>Read the buying guide <ArrowDownRight size={15} aria-hidden="true" /></span></div>
@@ -652,7 +677,7 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
           <div className="showroom-copy hero-copy">
             <p className="showroom-kicker"><span>Used cars</span><i aria-hidden="true" /> Banting, Selangor</p>
             <h1>Your next car.<br /><span>Right here.</span></h1>
-            <p>Explore the featured selection from Seng Guan Auto. Check current availability and details on our live listings.</p>
+            <p>Explore the featured selection from Seng Guan Auto. View vehicle photos and details, or ask our team about current availability.</p>
             <div className="hero-actions showroom-actions"><button className="button button--primary" onClick={() => goToPage('cars')}>Browse vehicles <ArrowRight size={17} aria-hidden="true" /></button><button className="button button--outline-light" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" /> Loan calculator</button></div>
           </div>
         </section>
@@ -684,23 +709,28 @@ function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (
       ) : (
         <div className="section-heading"><div><p className="section-label">A few to get you started</p><h2>Featured vehicles</h2></div><button className="text-link" onClick={() => goToPage('cars')}>See all featured cars <ArrowRight size={17} aria-hidden="true" /></button></div>
       )}
-      <p className="data-note">Featured vehicles from Seng Guan Auto. Live prices and availability are on <a href={contact.inventory} target="_blank" rel="noreferrer">Carlist</a>.</p>
+      <p className="data-note">Explore vehicle photos and details on our website. You can also find us on <a href={contact.inventory} target="_blank" rel="noreferrer">Carlist</a>.</p>
     </section>
   )
 }
 
 function VehicleCard({ car, compact = false }: { car: Vehicle; compact?: boolean }) {
+  const [details, setDetails] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
+  const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => { if (!isPlainLeftClick(event)) return; if (isOfficialSite || car.photos) { event.preventDefault(); setDetails(true) } }
   return (
     <article className={`vehicle-card${compact ? ' vehicle-card--compact' : ''}`}>
-      <a className="vehicle-photo" href={contact.inventory} target="_blank" rel="noreferrer" aria-label={`Check current details for ${car.year} ${car.name} on Carlist`}>
+      <a className="vehicle-photo" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer" aria-label={`View photos and details for ${car.year} ${car.name}`}>
         <img src={car.photo} alt={`${car.year} ${car.name}`} width="300" height="200" loading="lazy" />
-        <span className="vehicle-year">{car.year}</span>
+        <span className="vehicle-year">{car.status === 'sold' ? 'SOLD' : car.year}</span>
       </a>
       <div className="vehicle-info">
         <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
+        {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString()}</p>}
+        {car.mileage != null && <p>{car.mileage.toLocaleString()} km</p>}
         <div className="vehicle-specs"><span><CarFront size={14} aria-hidden="true" /> {car.body}</span><span><Gauge size={14} aria-hidden="true" /> {car.transmission}</span></div>
-        <a className="vehicle-link" href={contact.inventory} target="_blank" rel="noreferrer">Check live details <ArrowUpRight size={15} aria-hidden="true" /></a>
+        <a className="vehicle-link" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer">{isOfficialSite || car.photos ? 'View vehicle' : 'Check live details'} <ArrowUpRight size={15} aria-hidden="true" /></a>
       </div>
+      {details && <VehicleDetails car={car} onClose={() => setDetails(false)} />}
     </article>
   )
 }
@@ -761,6 +791,8 @@ function FaqTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
 }
 
 function InventoryPage({ variant }: { variant: Direction }) {
+  const vehicles = useVehicles()
+  const inventoryStatus = useContext(InventoryStatusContext)
   const [search, setSearch] = useState('')
   const [make, setMake] = useState('All makes')
   const makes = ['All makes', ...Array.from(new Set(vehicles.map((item) => item.make)))]
@@ -768,11 +800,11 @@ function InventoryPage({ variant }: { variant: Direction }) {
     const matchesMake = make === 'All makes' || car.make === make
     const text = `${car.year} ${car.name} ${car.body}`.toLowerCase()
     return matchesMake && text.includes(search.toLowerCase())
-  }), [make, search])
+  }), [make, search, vehicles])
 
   return (
     <div className={`content-page content-page--cars content-page--${variant.id}`}>
-      <PageIntro eyebrow="The featured selection" title="Find a car to look closer at." description="Explore our featured vehicles. Open Carlist for current stock, prices, mileage, and availability." />
+      <PageIntro eyebrow="The featured selection" title="Find a car to look closer at." description="Explore our vehicles, view all photos and specifications, and ask our team about the car you like." />
       <section className="inventory-browser" aria-label="Featured vehicle browser">
         <div className="inventory-tools">
           <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">Search featured vehicles</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search make or model…" type="search" /></label>
@@ -781,8 +813,8 @@ function InventoryPage({ variant }: { variant: Direction }) {
           </div>
           <span className="result-count"><SlidersHorizontal size={15} aria-hidden="true" /> {filtered.length} featured {filtered.length === 1 ? 'car' : 'cars'}</span>
         </div>
-        {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>No featured cars match that search.</h2><p>Try another model or select “All makes”.</p><button className="button button--primary" onClick={() => { setSearch(''); setMake('All makes') }}>Reset filters</button></div>}
-        <p className="data-note">Featured selection. <a href={contact.inventory} target="_blank" rel="noreferrer">See current listings and availability on Carlist <ArrowUpRight size={13} aria-hidden="true" /></a></p>
+        {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.'}</h2><p>{inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another model or select “All makes”.'}</p><button className="button button--primary" onClick={() => { setSearch(''); setMake('All makes') }}>Reset filters</button></div>}
+        <p className="data-note">Featured selection. <a href={contact.inventory} target="_blank" rel="noreferrer">More listings on Carlist <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
     </div>
   )

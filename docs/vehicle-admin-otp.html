@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seng Guan Auto 管理后台验证码</title>
+</head>
+<body style="margin:0;background:#101112;color:#f5f5f5;font-family:Arial,sans-serif">
+  <div style="max-width:520px;margin:0 auto;padding:36px 20px">
+    <div style="background:#191b1d;border:1px solid #343638;border-top:3px solid #eb302c;border-radius:8px;padding:28px">
+      <p style="margin:0 0 16px;color:#f5f5f5;font-size:14px;font-weight:bold;letter-spacing:1px">SENG GUAN AUTO</p>
+      <h1 style="margin:0 0 12px;font-size:24px">管理后台登录验证码</h1>
+      <p style="margin:0 0 20px;color:#c4c6c8;line-height:1.6">请在后台登录页输入以下验证码。验证码在 10 分钟内有效。</p>
+      <p style="margin:0 0 20px;padding:16px;background:#101112;border-radius:6px;color:#ffffff;font-family:monospace;font-size:32px;font-weight:bold;letter-spacing:6px;text-align:center">{{ .Token }}</p>
+      <p style="margin:0;color:#c4c6c8;font-size:14px;line-height:1.6">请勿与他人分享验证码。如果这次登录并非由你发起，可以忽略这封邮件。</p>
+    </div>
+  </div>
+</body>
+</html>

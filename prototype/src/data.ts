@@ -109,7 +109,7 @@ export const directions: Direction[] = [
 ]
 
 export type Vehicle = {
-  id: number
+  id: number | string
   name: string
   make: string
   year: string
@@ -117,6 +117,12 @@ export type Vehicle = {
   fuel: string
   transmission: string
   photo: string
+  photos?: { id: string; url: string }[]
+  status?: 'draft' | 'available' | 'sold'
+  featured?: boolean
+  price?: number | null
+  mileage?: number | null
+  description?: string
 }
 
 // Sample stock and descriptions copied from the existing homepage for layout evaluation.
@@ -147,7 +153,7 @@ export const contact = {
 }
 
 export const faqItems = [
-  { category: 'Vehicles', question: 'What vehicles are featured on this site?', answer: 'This site features a selection of vehicles from Seng Guan Auto. For live stock, prices, and mileage, open the Seng Guan Auto listings on Carlist.' },
+  { category: 'Vehicles', question: 'What vehicles are featured on this site?', answer: 'This site features a selection of vehicles from Seng Guan Auto. Click a vehicle to see its photos, specifications, price and description. Contact our team to confirm availability.' },
   { category: 'Vehicles', question: 'Can I arrange a test drive?', answer: 'Contact the dealership by phone or WhatsApp to ask about the vehicle you are interested in and arrange a suitable time.' },
   { category: 'Financing', question: 'Can I estimate a monthly payment?', answer: 'Use the on-page calculator to create an illustrative estimate from the car price, down payment, rate, and loan term you enter. Confirm actual rates and terms with the dealership and finance provider.' },
   { category: 'Financing', question: 'What documents might I need?', answer: 'Common requirements include identity, driving licence, and income or employment documents. Ask the team which documents apply to your situation.' },

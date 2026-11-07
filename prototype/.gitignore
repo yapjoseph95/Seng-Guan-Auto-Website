@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+admin-resources.json
+.dev.vars
+.wrangler/

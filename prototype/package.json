@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "bundle": "pnpm build && node scripts/inline-html.mjs",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:server": "tsc -p tsconfig.server.json",
+    "test:api": "tsx --test tests/vehicle-api.test.ts"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
@@ -64,6 +66,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261104.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -73,7 +76,10 @@
     "postcss": "^8.5.31",
     "tailwindcss": "3.4.1",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
-    "vite": "^8.3.4"
-  }
+    "vite": "^8.3.4",
+    "wrangler": "^4.158.0"
+  },
+  "packageManager": "pnpm@11.25.0"
 }

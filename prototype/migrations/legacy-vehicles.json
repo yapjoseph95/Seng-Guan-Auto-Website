@@ -1,0 +1,98 @@
+[
+  {
+    "id": "legacy-1",
+    "name": "Toyota Harrier 2.4 G",
+    "make": "Toyota",
+    "year": 2008,
+    "body": "SUV",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-1",
+    "object_key": "vehicles/legacy-1/original.jpg",
+    "file": "resources/CarPhotos/1.jpg"
+  },
+  {
+    "id": "legacy-2",
+    "name": "BMW 530i 2.0",
+    "make": "BMW",
+    "year": 2024,
+    "body": "Sedan",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-2",
+    "object_key": "vehicles/legacy-2/original.jpg",
+    "file": "resources/CarPhotos/2.jpg"
+  },
+  {
+    "id": "legacy-3",
+    "name": "Perodua Myvi 1.3 Ezi",
+    "make": "Perodua",
+    "year": 2013,
+    "body": "Hatchback",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-3",
+    "object_key": "vehicles/legacy-3/original.jpg",
+    "file": "resources/CarPhotos/3.jpg"
+  },
+  {
+    "id": "legacy-4",
+    "name": "Toyota Vellfire 2.4 Z",
+    "make": "Toyota",
+    "year": 2013,
+    "body": "MPV",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-4",
+    "object_key": "vehicles/legacy-4/original.jpg",
+    "file": "resources/CarPhotos/4.jpg"
+  },
+  {
+    "id": "legacy-5",
+    "name": "Toyota Camry 2.0 G",
+    "make": "Toyota",
+    "year": 2004,
+    "body": "Sedan",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-5",
+    "object_key": "vehicles/legacy-5/original.jpg",
+    "file": "resources/CarPhotos/5.jpg"
+  },
+  {
+    "id": "legacy-6",
+    "name": "Honda Civic 1.8 S",
+    "make": "Honda",
+    "year": 2016,
+    "body": "Sedan",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-6",
+    "object_key": "vehicles/legacy-6/original.jpg",
+    "file": "resources/CarPhotos/6.jpg"
+  },
+  {
+    "id": "legacy-7",
+    "name": "Toyota Estima 2.0 G",
+    "make": "Toyota",
+    "year": 2010,
+    "body": "MPV",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-7",
+    "object_key": "vehicles/legacy-7/original.jpg",
+    "file": "resources/CarPhotos/7.jpg"
+  },
+  {
+    "id": "legacy-8",
+    "name": "Perodua Myvi 1.5 SE",
+    "make": "Perodua",
+    "year": 2014,
+    "body": "Hatchback",
+    "fuel": "Petrol",
+    "transmission": "Automatic",
+    "photo_id": "legacy-photo-8",
+    "object_key": "vehicles/legacy-8/original.jpg",
+    "file": "resources/CarPhotos/8.jpg"
+  }
+]
