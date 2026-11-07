@@ -9,7 +9,7 @@ import {
   ArrowDown, ArrowUp, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator, CalendarDays,
   CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, HeartHandshake, Mail, MapPin,
   Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
-  Settings2, SlidersHorizontal, Wrench, X,
+  Settings2, Share2, SlidersHorizontal, Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
@@ -727,30 +727,61 @@ function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (
 function VehicleCard({ car }: { car: Vehicle }) {
   const { t, locale } = useLocale()
   const [details, setDetails] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
+  const [copied, setCopied] = useState(false)
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
   const mileage = formatMileage(car.mileage,car.mileage_band,locale)
-  const status = car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : null
+  const status = car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : car.status === 'available' ? t('AVAILABLE') : null
   const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!isPlainLeftClick(event) || (!isOfficialSite && !car.photos)) return
     event.preventDefault()
     setDetails(true)
   }
 
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(false), 2200)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
+  const shareVehicle = async () => {
+    const url = new URL(href, window.location.href).href
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: car.name, url })
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+    } catch {
+      window.prompt(t('Copy this vehicle link'), url)
+    }
+  }
+
   return (
     <article className="vehicle-card">
       <a className="vehicle-card-link" href={href} onClick={viewDetails} target="_blank" rel="noreferrer"
         aria-label={t('View photos and details for {year} {name}', { year: car.year, name: car.name })}>
-        <div className="vehicle-photo">
-          <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
-          {status && <span className="vehicle-status">{status}</span>}
+        <div className="vehicle-media">
+          <div className="vehicle-photo">
+            <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
+          </div>
+          {status && <span className={`vehicle-status vehicle-status--${car.status}`}>{status}</span>}
         </div>
         <div className="vehicle-info">
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
           <div className="vehicle-specs">
-            <span><CalendarDays size={14} aria-hidden="true" /> {car.year}</span>
-            {mileage && <span><Gauge size={14} aria-hidden="true" /> {mileage}</span>}
-            {car.body && <span><CarFront size={14} aria-hidden="true" /> {t(car.body)}</span>}
-            {car.transmission && <span><Settings2 size={14} aria-hidden="true" /> {t(car.transmission)}</span>}
+            <div className="vehicle-spec-pair">
+              <span><CalendarDays size={14} aria-hidden="true" /> {car.year}</span>
+              {mileage && <span><Gauge size={14} aria-hidden="true" /> {mileage}</span>}
+            </div>
+            {(car.body || car.transmission) && <div className="vehicle-spec-pair">
+              {car.body && <span><CarFront size={14} aria-hidden="true" /> {t(car.body)}</span>}
+              {car.transmission && <span><Settings2 size={14} aria-hidden="true" /> {t(car.transmission)}</span>}
+            </div>}
           </div>
           {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
           {car.published_at && <time className="vehicle-published-date" dateTime={car.published_at}>
@@ -758,6 +789,11 @@ function VehicleCard({ car }: { car: Vehicle }) {
           </time>}
         </div>
       </a>
+      {isOfficialSite && <button type="button" className="vehicle-share" onClick={() => void shareVehicle()}
+        aria-label={t('Share {name}', {name:car.name})}>
+        <Share2 size={17} aria-hidden="true" />
+      </button>}
+      {isOfficialSite && <span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span>}
       {details && <VehicleDetails car={car} onClose={() => setDetails(false)} />}
     </article>
   )
