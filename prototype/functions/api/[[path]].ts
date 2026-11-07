@@ -150,13 +150,17 @@ const inRange = (n: unknown, min = 0): n is number => typeof n === 'number' && N
 
 async function watermarkLibrary(request: Request, env: Env, id?: string) {
  if (request.method === 'PUT' && id) {
-  const {scale,opacity} = await body(request)
+  const {scale,opacity,x,y} = await body(request)
   if (!inRange(scale,.1) || !inRange(opacity)) throw new HttpError(400,'Invalid watermark defaults.')
   if (id !== 'settings') {
-   const result = await env.DB.prepare('UPDATE watermark_assets SET default_scale=?,default_opacity=? WHERE id=?')
-    .bind(scale,opacity,id).run()
+   if ((x !== undefined && !inRange(x)) || (y !== undefined && !inRange(y))) {
+    throw new HttpError(400,'Invalid watermark defaults.')
+   }
+   const result = await env.DB.prepare(
+    'UPDATE watermark_assets SET default_scale=?,default_opacity=?,default_x=COALESCE(?,default_x),default_y=COALESCE(?,default_y) WHERE id=?'
+   ).bind(scale,opacity,x ?? null,y ?? null,id).run()
    if (!result.meta.changes) throw new HttpError(404,'Watermark not found.')
-   return json({scale,opacity})
+   return json({scale,opacity,x,y})
   }
   await env.DB.prepare(
    'INSERT INTO watermark_settings(id,scale,opacity) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET scale=excluded.scale,opacity=excluded.opacity'
@@ -170,13 +174,16 @@ async function watermarkLibrary(request: Request, env: Env, id?: string) {
   return imageResponse(image.body,asset.content_type,true)
  }
  if (request.method === 'GET') {
-  const assets = await env.DB.prepare('SELECT id,name,default_scale,default_opacity FROM watermark_assets ORDER BY name,id')
-   .all<{id:string;name:string;default_scale:number|null;default_opacity:number|null}>()
-  const defaults = await env.DB.prepare('SELECT scale,opacity FROM watermark_settings WHERE id=1').first<WatermarkDefaults>()
-   ?? defaultWatermarkSettings
-  const watermarks = assets.results.map(({id,name,default_scale,default_opacity}) => ({
+  const assets = await env.DB.prepare('SELECT id,name,default_scale,default_opacity,default_x,default_y FROM watermark_assets ORDER BY name,id')
+   .all<{id:string;name:string;default_scale:number|null;default_opacity:number|null;default_x:number|null;default_y:number|null}>()
+  const defaults = await env.DB.prepare('SELECT scale,opacity FROM watermark_settings WHERE id=1').first<Pick<WatermarkDefaults,'scale' | 'opacity'>>()
+   ?? {scale:defaultWatermarkSettings.scale,opacity:defaultWatermarkSettings.opacity}
+  const watermarks = assets.results.map(({id,name,default_scale,default_opacity,default_x,default_y}) => ({
    id,name,url:'/api/admin/watermarks/'+id,
-   defaults:{scale:default_scale ?? defaults.scale,opacity:default_opacity ?? defaults.opacity},
+   defaults:{
+    scale:default_scale ?? defaults.scale,opacity:default_opacity ?? defaults.opacity,
+    x:default_x ?? defaultWatermarkSettings.x,y:default_y ?? defaultWatermarkSettings.y,
+   },
   }))
   return json({watermarks,defaults})
  }

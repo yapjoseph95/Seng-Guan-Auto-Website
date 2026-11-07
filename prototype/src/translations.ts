@@ -528,4 +528,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Saving defaults…": ["Saving defaults…", "Menyimpan tetapan lalai…", "正在保存默认值…"],
   "Watermark defaults saved.": ["Watermark defaults saved.", "Tetapan lalai tera air disimpan.", "已保存水印默认值。"],
   "Invalid watermark defaults.": ["Invalid watermark defaults.", "Tetapan lalai tera air tidak sah.", "水印默认值无效。"],
+  "Default horizontal position": ["Default horizontal position","Kedudukan mendatar lalai","默认水平位置"],
+  "Default vertical position": ["Default vertical position","Kedudukan menegak lalai","默认垂直位置"],
+  "Watermark preview on a sample vehicle": ["Watermark preview on a sample vehicle","Pratonton tera air pada foto contoh","示例车辆照片上的水印预览"],
 }

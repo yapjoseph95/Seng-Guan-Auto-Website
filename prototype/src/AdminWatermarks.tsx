@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Upload, X } from 'lucide-react'
 import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkAsset, type WatermarkDefaults, type WatermarkLibraryData, type WatermarkPlacement } from '../shared/watermarks'
 import { maxPhotoBytes } from '../shared/vehicle-photos'
 import { useLocale } from './locale'
+import sampleVehiclePhoto from './assets/cars/1.jpg'
 import type { AdminPhoto } from './AdminPhotoGrid'
 
 export type WatermarkRequest = <T>(path: string, options?: RequestInit) => Promise<T>
@@ -10,7 +11,7 @@ export type WatermarkRequest = <T>(path: string, options?: RequestInit) => Promi
 const clamp = (value: number) => Math.min(1, Math.max(0, value))
 type Size = { width: number; height: number }
 
-function watermarkBounds(photo: Size, mark: Size, placement: WatermarkPlacement) {
+function watermarkBounds(photo: Size, mark: Size, placement: WatermarkDefaults) {
  const width = Math.min(photo.width, photo.height * mark.width / mark.height) * placement.scale
  const height = width * mark.height / mark.width
  return { width, height, x: (photo.width - width) * placement.x, y: (photo.height - height) * placement.y }
@@ -74,6 +75,9 @@ function WatermarkSliders({value,disabled,onChange,defaults = false}: {
   {([
    ['scale',defaults ? 'Default watermark size' : 'Watermark size',10],
    ['opacity',defaults ? 'Default watermark opacity' : 'Watermark opacity',0],
+   ...(defaults ? [
+    ['x','Default horizontal position',0], ['y','Default vertical position',0],
+   ] as const : []),
   ] as const).map(([key,label,min]) => {
    const percent = Math.round(value[key]*100)
    return <label key={key}>
@@ -90,11 +94,14 @@ function WatermarkAssetSettings({asset,fallback,disabled,saving,onSave}: {
  onSave:(id:string,defaults:WatermarkDefaults) => Promise<void>
 }) {
  const { t } = useLocale()
- const saved = asset.defaults ?? fallback
+ const saved = {...fallback,...asset.defaults}
  const [draft,setDraft] = useState(saved)
  const [error,setError] = useState('')
  const [notice,setNotice] = useState('')
- const changed = draft.scale !== saved.scale || draft.opacity !== saved.opacity
+ const [previewSize,setPreviewSize] = useState<Size>()
+ const [assetSize,setAssetSize] = useState<Size>()
+ const bounds = previewSize && assetSize && watermarkBounds(previewSize,assetSize,draft)
+ const changed = draft.scale !== saved.scale || draft.opacity !== saved.opacity || draft.x !== saved.x || draft.y !== saved.y
 
  const submit = async (event: FormEvent) => {
   event.preventDefault()
@@ -110,8 +117,18 @@ function WatermarkAssetSettings({asset,fallback,disabled,saving,onSave}: {
  }
 
  return <li>
-  <img src={asset.url} alt="" />
+  <img src={asset.url} alt="" onLoad={event => setAssetSize({
+   width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight,
+  })} />
   <h3>{asset.name}</h3>
+  <div className="admin-watermark-default-preview">
+   <img src={sampleVehiclePhoto} alt={t('Watermark preview on a sample vehicle')} onLoad={event => setPreviewSize({
+    width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight,
+   })} />
+   {bounds && previewSize && <img className="admin-watermark-default-overlay" src={asset.url} alt=""
+    style={{width:`${bounds.width/previewSize.width*100}%`,left:`${bounds.x/previewSize.width*100}%`,
+     top:`${bounds.y/previewSize.height*100}%`,opacity:draft.opacity}} />}
+  </div>
   <form className="admin-watermark-form" aria-label={asset.name} onSubmit={submit}>
    <WatermarkSliders value={draft} disabled={disabled} defaults onChange={change => {
     setDraft(current => ({...current,...change}))
@@ -144,7 +161,7 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
    .then(data => {
     if (!active) return
     setAssets(data.watermarks)
-    setDefaults(data.defaults ?? defaultWatermarkSettings)
+    setDefaults({...defaultWatermarkSettings,...data.defaults})
    })
    .catch(error => { if (active) setError((error as Error).message) })
   return () => { active = false }
@@ -248,7 +265,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
    .then(data => {
     if (!active) return
     setAssets(data.watermarks)
-    setDefaults(data.defaults ?? defaultWatermarkSettings)
+    setDefaults({...defaultWatermarkSettings,...data.defaults})
    })
    .catch(error => { if (active) setError((error as Error).message) })
   return () => { active = false }
@@ -319,18 +336,9 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
   return frame && x >= frame.left && x <= frame.right && y >= frame.top && y <= frame.bottom ? frame : null
  }
 
- const addWatermark = (asset: WatermarkAsset, drop?: {x:number;y:number;frame:DOMRect}) => {
-  if (!canAdd || !photoSize) return
-  const placement = {watermarkId:asset.id,x:marks.length % 2 === 0 ? .95 : .05,
-   y:marks.length < 2 ? .95 : .05,...(asset.defaults ?? defaults)}
-  const size = assetSizes[asset.id]
-  if (drop && size) {
-   const bounds = watermarkBounds(photoSize,size,placement)
-   const width = bounds.width / photoSize.width
-   const height = bounds.height / photoSize.height
-   placement.x = width < 1 ? clamp(((drop.x-drop.frame.left)/drop.frame.width-width/2)/(1-width)) : 0
-   placement.y = height < 1 ? clamp(((drop.y-drop.frame.top)/drop.frame.height-height/2)/(1-height)) : 0
-  }
+ const addWatermark = (asset: WatermarkAsset) => {
+  if (!canAdd) return
+  const placement = {watermarkId:asset.id,...defaults,...asset.defaults}
   setSelected(marks.length)
   updateMarks(previous => [...previous,placement])
  }
@@ -356,8 +364,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
   assetDrag.current = null
   suppressAssetClick.current = start.moved
   setGhost(null)
-  const frame = frameAt(event.clientX,event.clientY)
-  if (start.moved && frame) addWatermark(asset,{x:event.clientX,y:event.clientY,frame})
+  if (start.moved && frameAt(event.clientX,event.clientY)) addWatermark(asset)
  }
 
  const removeWatermark = (layer: number) => {

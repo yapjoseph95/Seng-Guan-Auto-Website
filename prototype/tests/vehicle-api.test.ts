@@ -19,6 +19,7 @@ sql.exec(readFileSync(new URL('../migrations/0006_watermarks.sql',import.meta.ur
 sql.exec(readFileSync(new URL('../migrations/0007_watermark_layers.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0008_watermark_defaults.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0009_watermark_asset_defaults.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0010_watermark_default_position.sql',import.meta.url),'utf8'))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
@@ -289,7 +290,7 @@ test('named watermarks stay private and a vehicle save publishes only the render
  assert.equal((await call(library,'POST',upload)).status,409)
  assert.equal((await call(asset.url,'GET',undefined,false)).status,401)
  assert.equal((await call(asset.url)).status,200)
- assert.deepEqual((await (await call(library)).json() as any).watermarks,[{...asset,defaults:{scale:.28,opacity:.8}}])
+ assert.deepEqual((await (await call(library)).json() as any).watermarks,[{...asset,defaults:{scale:.28,opacity:.8,x:.95,y:.95}}])
  const id = crypto.randomUUID()
  const photoId = 'watermark-cover'
  const mark = {watermarkId:asset.id,x:.3,y:.6,scale:.4,opacity:.35}
@@ -356,10 +357,12 @@ test('watermark assets retain independent defaults and use the former shared def
  const otherId = crypto.randomUUID()
  sql.prepare("INSERT INTO watermark_assets(id,name,content_type) VALUES(?,?,'image/jpeg')").run(otherId,'Other watermark')
  const path = library+'/'+asset.id
- const values = {scale:.53,opacity:.37}
+ const values = {scale:.53,opacity:.37,x:0,y:.42}
  assert.equal((await call(path,'PUT',values,false)).status,401)
  assert.equal((await call(path,'PUT',values,true,'https://attacker.test')).status,403)
  assert.equal((await call(path,'PUT',{...values,scale:.09})).status,400)
+ assert.equal((await call(path,'PUT',{...values,x:1.1})).status,400)
+ assert.equal((await call(path,'PUT',{...values,y:null})).status,400)
  assert.equal((await call(library+'/'+crypto.randomUUID(),'PUT',values)).status,404)
  const updated = await call(path,'PUT',values)
  assert.equal(updated.status,200)
@@ -368,9 +371,11 @@ test('watermark assets retain independent defaults and use the former shared def
  assert.equal(other.status,200)
  const {watermarks,defaults} = await (await call(library)).json() as any
  assert.deepEqual(watermarks.find((item:any)=>item.id===asset.id).defaults,values)
- assert.deepEqual(watermarks.find((item:any)=>item.id===otherId).defaults,{scale:.7,opacity:0})
+ assert.deepEqual(watermarks.find((item:any)=>item.id===otherId).defaults,{scale:.7,opacity:0,x:.95,y:.95})
  assert.deepEqual(defaults,{scale:1,opacity:0})
  sql.prepare('INSERT INTO watermark_assets(id,name,content_type) VALUES(?,?,?)').run(crypto.randomUUID(),'Legacy fallback','image/jpeg')
+ assert.equal((await call(path,'PUT',{scale:.6,opacity:.5})).status,200)
  const refreshed = await (await call(library)).json() as any
- assert.deepEqual(refreshed.watermarks.find((item:any)=>item.name==='Legacy fallback').defaults,defaults)
+ assert.deepEqual(refreshed.watermarks.find((item:any)=>item.id===asset.id).defaults,{scale:.6,opacity:.5,x:0,y:.42})
+ assert.deepEqual(refreshed.watermarks.find((item:any)=>item.name==='Legacy fallback').defaults,{...defaults,x:.95,y:.95})
 })
