@@ -1,3 +1,4 @@
+import { formatMileage } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
@@ -726,6 +727,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
   const { t, locale } = useLocale()
   const [details, setDetails] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
+  const mileage = formatMileage(car.mileage,car.mileage_band,locale)
   const status = car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : null
   const viewDetails = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!isPlainLeftClick(event) || (!isOfficialSite && !car.photos)) return
@@ -745,7 +747,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
           <div className="vehicle-specs">
             <span><CalendarDays size={14} aria-hidden="true" /> {car.year}</span>
-            {car.mileage != null && <span><Gauge size={14} aria-hidden="true" /> {car.mileage.toLocaleString(locale)} km</span>}
+            {mileage && <span><Gauge size={14} aria-hidden="true" /> {mileage}</span>}
             {car.body && <span><CarFront size={14} aria-hidden="true" /> {t(car.body)}</span>}
             {car.transmission && <span><Settings2 size={14} aria-hidden="true" /> {t(car.transmission)}</span>}
           </div>

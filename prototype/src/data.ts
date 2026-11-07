@@ -1,3 +1,4 @@
+import type { MileageBand } from '../shared/vehicle-mileage'
 import car1 from './assets/cars/1.jpg'
 import car2 from './assets/cars/2.jpg'
 import car3 from './assets/cars/3.jpg'
@@ -124,6 +125,7 @@ export type Vehicle = {
   featured?: boolean
   price?: number | null
   mileage?: number | null
+  mileage_band?: MileageBand | null
   description?: string
 }
 

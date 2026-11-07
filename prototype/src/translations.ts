@@ -475,4 +475,5 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "添加照片后可预览。": ["Add a photo to preview it.","Tambah gambar untuk melihat pratonton.","添加照片后可预览。"],
   "上传照片 {number}/{total}…": ["Uploading photo {number}/{total}…","Memuat naik gambar {number}/{total}…","正在上传照片 {number}/{total}…"],
   "An uploaded photo is no longer available. Remove it and upload it again.": ["An uploaded photo is no longer available. Remove it and upload it again.","Gambar yang dimuat naik tidak lagi tersedia. Buang dan muat naik semula.","有一张已上传的照片已失效。请移除后重新上传。"],
+  "选择里程范围": ["Select mileage range","Pilih julat perbatuan","选择里程范围"],
 }

@@ -1,4 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
+import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
 import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
 type Row = Record<string, unknown>
@@ -27,7 +28,9 @@ function fields(data: Record<string, unknown>) {
  }
  const status = data.status || 'draft'
  if (!['draft','available','reserved','sold'].includes(String(status))) throw new HttpError(400, 'Invalid publication status.')
- return [text('name',160,true),text('make',80,true),year,text('body',60),text('fuel',60),text('transmission',60),number('price'),number('mileage'),text('description',10000),status,data.featured === true ? 1 : 0]
+ const mileageBand = data.mileage_band ?? null
+ if (mileageBand !== null && !isMileageBand(mileageBand)) throw new HttpError(400,'Please check mileage.')
+ return [text('name',160,true),text('make',80,true),year,text('body',60),text('fuel',60),text('transmission',60),number('price'),mileageBand === null ? number('mileage') : null,text('description',10000),status,data.featured === true ? 1 : 0,mileageBand]
 }
 const photoTypes = ['image/jpeg', 'image/png', 'image/webp']
 async function checkedPhoto(file: unknown) {
@@ -54,10 +57,14 @@ async function body(request: Request) {
  if (!request.headers.get('content-type')?.includes('application/json')) throw new HttpError(415, 'Expected JSON.')
  return parseBody(await limitedText(request,40000))
 }
-const insertVehicle = 'INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
+const insertVehicle = 'INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,mileage_band) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)'
 const timestamp = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 const nextUpdatedAt = `CASE WHEN ${timestamp} <= updated_at THEN strftime('%Y-%m-%dT%H:%M:%fZ',updated_at,'+0.001 seconds') ELSE ${timestamp} END`
-const updateVehicle = `UPDATE vehicles SET name=?,make=?,year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,updated_at=${nextUpdatedAt} WHERE id=?`
+const updateVehicle = `UPDATE vehicles SET name=?,make=?,year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
+function preserveMileageBand(data: Record<string, unknown>) {
+ return !Object.hasOwn(data,'mileage_band') && (data.mileage == null || data.mileage === '') ? 1 : 0
+}
+
 const photoIdPattern = /^[a-zA-Z0-9-]{1,80}$/
 const newVehicleIdPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/
 const changedVehicle = 'This vehicle changed while you were editing. Reload it before saving.'
@@ -163,7 +170,7 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
     (SELECT json_group_array(id) FROM (SELECT id FROM photos WHERE vehicle_id=? ORDER BY position,id))=?
     THEN updated_at ELSE NULL END WHERE id=?`
   ).bind(data.updatedAt,id,currentIds,id))
-  statements.push(env.DB.prepare(updateVehicle).bind(...values,id))
+  statements.push(env.DB.prepare(updateVehicle).bind(...values,preserveMileageBand(data),id))
  } else {
   statements.push(env.DB.prepare(insertVehicle).bind(id,...values))
  }
@@ -298,7 +305,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM photos WHERE vehicle_id=?').bind(id).first<{n:number}>()
     if(!count?.n)throw new HttpError(400,'Upload at least one photo before publishing.')
    }
-   const statements=[env.DB.prepare(updateVehicle).bind(...values,id)]
+   const statements=[env.DB.prepare(updateVehicle).bind(...values,preserveMileageBand(data),id)]
    if(data.photoOrder!==undefined) {
     const existing=await env.DB.prepare('SELECT id FROM photos WHERE vehicle_id=?').bind(id).all<{id:string}>()
     if(!Array.isArray(data.photoOrder)||data.photoOrder.length!==existing.results.length||new Set(data.photoOrder).size!==data.photoOrder.length||data.photoOrder.some((p:unknown)=>!existing.results.some(e=>e.id===p)))throw new HttpError(409,'Photos have changed. Please reload this vehicle.')

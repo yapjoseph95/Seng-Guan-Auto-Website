@@ -13,6 +13,7 @@ sql.exec(`
  INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) VALUES('existing-photo','existing','old/key','image/jpeg',100,3);
 `)
 sql.exec('BEGIN; '+reservedMigration+' COMMIT;')
+sql.exec(readFileSync(new URL('../migrations/0004_vehicle_mileage_band.sql',import.meta.url),'utf8'))
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
 assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[])
@@ -229,4 +230,24 @@ test('selected photos can upload privately before the vehicle save',async()=>{
  assert.equal((await call(stagedPath,'DELETE')).status,200)
  assert.equal(objects.size,1)
  assert.equal((await call('/api/admin/vehicles/'+vehicle.id,'DELETE')).status,200)
+})
+
+test('mileage bands persist without replacing legacy exact mileage on unrelated edits', async () => {
+ const base={name:'Mileage test',make:'Proton',year:2021,status:'draft',mileage:38000}
+ const created=await call('/api/admin/vehicles','POST',base)
+ assert.equal(created.status,201)
+ const vehicle=await created.json() as {id:string;mileage:number;mileage_band:number|null}
+ assert.equal(vehicle.mileage,38000)
+ const path='/api/admin/vehicles/'+vehicle.id
+ assert.equal((await call(path,'PUT',{...base,mileage_band:39999})).status,400)
+ const changed=await call(path,'PUT',{...base,mileage_band:40000})
+ assert.equal(changed.status,200)
+ const band=await changed.json() as {mileage:number|null;mileage_band:number}
+ assert.equal(band.mileage,null)
+ assert.equal(band.mileage_band,40000)
+ const legacySave=await call(path,'PUT',{...base,mileage:null,name:'Legacy edit'})
+ assert.equal((await legacySave.json() as {mileage_band:number}).mileage_band,40000)
+ const cleared=await call(path,'PUT',{...base,mileage:null,mileage_band:null})
+ assert.equal((await cleared.json() as {mileage_band:null}).mileage_band,null)
+ await call(path,'DELETE')
 })

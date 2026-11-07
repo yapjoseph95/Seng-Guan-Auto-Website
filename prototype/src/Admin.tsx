@@ -1,3 +1,4 @@
+import { formatMileage, isMileageBand, mileageBands, type MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { CarFront, Check, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
@@ -6,8 +7,8 @@ import logo from './assets/logo-dark.svg'
 import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
 import { maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
 import './Admin.css'
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;description:string;status:VehicleStatus;updated_at:string;featured:boolean;photos:AdminPhoto[];photo:string}
-const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,description:'',status:'draft',updated_at:'',featured:false,photos:[],photo:''})
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;status:VehicleStatus;updated_at:string;featured:boolean;photos:AdminPhoto[];photo:string}
+const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',featured:true,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
  let response=await execute()
@@ -120,6 +121,12 @@ function PhotoPreview({ photos, index, onSelect, mobileOpen, onClose }: {
 
 const statuses = { draft: '草稿', available: '在售', reserved: '已保留', sold: '已售' }
 const publishedStatuses = ['available', 'reserved', 'sold'] as const
+const editorStatuses = [...publishedStatuses, 'draft'] as const
+const commonMakes = [
+ 'Audi', 'BMW', 'BYD', 'Chery', 'Ford', 'GWM', 'Honda', 'Hyundai', 'Isuzu', 'Jaecoo',
+ 'Kia', 'Lexus', 'Mazda', 'Mercedes-Benz', 'MG', 'MINI', 'Mitsubishi', 'Nissan',
+ 'Perodua', 'Peugeot', 'Porsche', 'Proton', 'Subaru', 'Suzuki', 'Toyota', 'Volkswagen', 'Volvo',
+]
 const amountFormat = new Intl.NumberFormat('en-MY')
 
 function VehicleAmountInput({ value, onChange }: {
@@ -391,14 +398,38 @@ export default function Admin() {
     </section>
     <div className="admin-fields">
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>
-     <label>{t("品牌")}<input required maxLength={80} value={edit.make} onChange={e=>update({make:e.target.value})} placeholder="Toyota"/></label>
+     <label>{t("品牌")}
+      <input list="admin-makes" required maxLength={80} value={edit.make}
+       onChange={e=>update({make:e.target.value})} placeholder="Toyota" autoComplete="off" />
+      <datalist id="admin-makes">
+       {[...new Set([...commonMakes,...vehicles.map(vehicle => vehicle.make)])].sort().map(make => <option key={make} value={make} />)}
+      </datalist>
+     </label>
      <label>{t("年份")}<input required type="number" min="1950" max={new Date().getFullYear()+1} value={edit.year} onChange={e=>update({year:Number(e.target.value)})}/></label>
      <label>{t("售价 (RM)")}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
-     <label>{t("里程 (km)")}<VehicleAmountInput value={edit.mileage} onChange={mileage => update({ mileage })} /></label>
+     <label>{t("里程 (km)")}
+      <select value={edit.mileage_band ?? (edit.mileage == null ? '' : 'exact')} onChange={e => {
+       const value = Number(e.target.value)
+       if (e.target.value !== 'exact') update({ mileage:null, mileage_band:isMileageBand(value) ? value : null })
+      }}>
+       <option value="">{t('选择里程范围')}</option>
+       {edit.mileage != null && <option value="exact">{formatMileage(edit.mileage,null,locale)}</option>}
+       {mileageBands.map(band => <option key={band} value={band}>{formatMileage(null,band,locale)}</option>)}
+      </select>
+     </label>
      <label>{t("车身类型")}<select value={edit.body} onChange={e=>update({body:e.target.value})}>{['Sedan','SUV','MPV','Hatchback','Pickup','Coupe','Van','Wagon','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("排挡")}<select value={edit.transmission} onChange={e=>update({transmission:e.target.value})}>{['Automatic','Manual'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("燃油")}<select value={edit.fuel} onChange={e=>update({fuel:e.target.value})}>{['Petrol','Diesel','Hybrid','Electric','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
-     <label>{t("展示状态")}<select value={edit.status} onChange={e=>update({status:e.target.value as ManagedVehicle['status']})} >{Object.entries(statuses).map(([k,v])=><option key={k} value={k}>{t(v)}</option>)}</select></label>
+     <div className="admin-wide admin-editor-status">
+      <span id="editor-status-label">{t("展示状态")}</span>
+      <fieldset className="admin-status-control admin-status-control--editor" aria-labelledby="editor-status-label" data-status={edit.status}>
+       {editorStatuses.map(status => <label key={status}>
+        <input type="radio" name="editor-vehicle-status" value={status}
+         checked={edit.status === status} onChange={() => update({status})} />
+        <span>{t(statuses[status])}</span>
+       </label>)}
+      </fieldset>
+     </div>
      <label className="admin-wide">{t("车辆介绍")}<textarea rows={4} maxLength={10000} value={edit.description} onChange={e=>update({description:e.target.value})} placeholder={t("车况、配备及其他说明（内容会展示在官网）")}/></label>
      <label className="admin-checkbox admin-wide"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
     </div>
