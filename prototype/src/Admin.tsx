@@ -1,10 +1,11 @@
 import { useLocale, LanguageSelect } from './locale'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, CarFront, Check, ImagePlus, LoaderCircle, LogOut, Plus, Search, Trash2, X } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { ArrowLeft, ArrowRight, CarFront, Check, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import type { VehicleStatus } from './data'
 import logo from './assets/logo-dark.svg'
 import './Admin.css'
 type Photo = { id: string; url: string }
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;description:string;status:'draft'|'available'|'sold';featured:boolean;photos:Photo[];photo:string}
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;description:string;status:VehicleStatus;featured:boolean;photos:Photo[];photo:string}
 const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,description:'',status:'draft',featured:false,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
@@ -28,7 +29,45 @@ async function compress(file:File) {
   return new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})
  } finally { bitmap.close() }
 }
-const statuses={draft:'草稿',available:'在售',sold:'已售'}
+const statuses = { draft: '草稿', available: '在售', reserved: '已保留', sold: '已售' }
+const publishedStatuses = ['available', 'reserved', 'sold'] as const
+const amountFormat = new Intl.NumberFormat('en-MY')
+
+function VehicleAmountInput({ value, onChange }: {
+ value: number | null
+ onChange: (value: number | null) => void
+}) {
+ const change = (event: ChangeEvent<HTMLInputElement>) => {
+  const input = event.currentTarget
+  const digits = input.value.replace(/[,\s]/g, '')
+  if (!/^\d{0,9}$/.test(digits)) return
+  const digitOffset = input.value.slice(0, input.selectionStart ?? input.value.length).replace(/\D/g, '').length
+  const next = digits ? Number(digits) : null
+  const formatted = next === null ? '' : amountFormat.format(next)
+  let caret = 0
+  for (let remaining = digitOffset; caret < formatted.length && remaining > 0; caret++) {
+   if (formatted[caret] !== ',') remaining--
+  }
+  onChange(next)
+  requestAnimationFrame(() => {
+   if (document.activeElement === input && input.value === formatted) input.setSelectionRange(caret, caret)
+  })
+ }
+
+ return <input
+  type="text"
+  inputMode="numeric"
+  value={value === null ? '' : amountFormat.format(value)}
+  onChange={change}
+  onKeyDown={(event) => {
+   const input = event.currentTarget
+   const caret = input.selectionStart
+   if (caret === null || caret !== input.selectionEnd) return
+   if (event.key === 'Backspace' && input.value[caret - 1] === ',') input.setSelectionRange(caret - 1, caret - 1)
+   if (event.key === 'Delete' && input.value[caret] === ',') input.setSelectionRange(caret + 1, caret + 1)
+  }}
+ />
+}
 export default function Admin() {
   const { t, locale } = useLocale()
  const [vehicles,setVehicles]=useState<ManagedVehicle[]>([])
@@ -40,6 +79,7 @@ export default function Admin() {
  const [notice,setNotice]=useState('')
  const [query,setQuery]=useState('')
  const [filter,setFilter]=useState('all')
+ const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
  const [confirmDelete,setConfirmDelete]=useState<ManagedVehicle|null>(null)
@@ -93,25 +133,92 @@ export default function Admin() {
   if(!confirmDelete)return;setBusy('删除车辆…');setError('')
   try{await api(`vehicles/${confirmDelete.id}`,{method:'DELETE'});setConfirmDelete(null);if(edit?.id===confirmDelete.id){setEdit(null);setDirty(false)}await refresh();setNotice('车辆已删除。')}catch(e){setError((e as Error).message)}finally{setBusy('')}
  }
+ const openEditor = (vehicle: ManagedVehicle) => {
+  if (dirty && !window.confirm(t('放弃未保存的修改？'))) return
+  setEdit({ ...vehicle, photos: [...vehicle.photos] })
+  setDirty(false)
+  setError('')
+  setNotice('')
+ }
+ const changeStatus = async (vehicle: ManagedVehicle, status: typeof publishedStatuses[number]) => {
+  setUpdatingStatus(vehicle.id)
+  setError('')
+  setNotice('')
+  try {
+   const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+   setVehicles(current => current.map(item => item.id === saved.id ? saved : item))
+  } catch (error) {
+   setError((error as Error).message)
+  } finally {
+   setUpdatingStatus(null)
+  }
+ }
  const visible=vehicles.filter(v=>(filter==='all'||v.status===filter)&&`${v.make} ${v.name} ${v.year}`.toLowerCase().includes(query.toLowerCase()))
  return <div className="inventory-admin">
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
-   <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><button className="admin-primary" disabled={!!busy||loading||!email} onClick={()=>{if(dirty&&!window.confirm(t('放弃未保存的修改？')))return;setEdit(empty());setDirty(false);setError('');setNotice('')}}><Plus size={18}/>{t("新增车辆")}</button></div>
+   <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div>
    <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success"><Check size={17}/>{t(notice)}</p>}</div>
-   <div className="admin-stats">{(['all','available','draft','sold'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
+   <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("搜索品牌、车型或年份")} aria-label={t("搜索车辆")}/></label>
-   {loading?<p className="admin-empty"><LoaderCircle className="admin-spin"/>{t("正在载入车辆…")}</p>:<div className="admin-list">{visible.map(v=><article key={v.id} className="admin-car"><div className="admin-car-photo">{v.photo?<img src={v.photo} alt={v.name}/>:<CarFront/>}<span className={`admin-status admin-status--${v.status}`}>{t(statuses[v.status])}</span></div><div className="admin-car-copy"><p>{v.year} · {v.make}{v.featured?' · '+t('首页推荐'):''}</p><h2>{v.name}</h2><span>{v.price!==null?'RM '+v.price.toLocaleString(locale):t('售价未填写')} · {t(v.photos.length === 1 ? '{count} 张照片（单张）' : '{count} 张照片',{count:v.photos.length})}</span><div><button onClick={()=>{if(dirty&&!window.confirm(t('放弃未保存的修改？')))return;setEdit({...v,photos:[...v.photos]});setDirty(false);setError('');setNotice('')}}>{t("编辑资料")} <ArrowRight size={15}/></button><button className="admin-delete" aria-label={t('删除 {name}',{name:v.name})} onClick={()=>setConfirmDelete(v)}><Trash2 size={16}/></button></div></div></article>)}</div>}
+   {loading ? <p className="admin-empty"><LoaderCircle className="admin-spin" />{t('正在载入车辆…')}</p> : (
+    <div className="admin-list">
+     {visible.map(vehicle => (
+      <article key={vehicle.id} className="admin-car">
+       <div className="admin-car-photo">
+        {vehicle.photo ? <img src={vehicle.photo} alt={vehicle.name} /> : <CarFront aria-hidden="true" />}
+        <span className={`admin-status admin-status--${vehicle.status}`}>{t(statuses[vehicle.status])}</span>
+       </div>
+       <button type="button" className="admin-card-edit" disabled={!!updatingStatus}
+        aria-label={t('编辑 {name}', { name: vehicle.name })} title={t('编辑资料')}
+        onClick={() => openEditor(vehicle)}>
+        <span className="admin-card-icon"><Pencil size={17} aria-hidden="true" /></span>
+       </button>
+       <button type="button" className="admin-card-icon admin-card-delete" disabled={!!updatingStatus}
+        aria-label={t('删除 {name}', { name: vehicle.name })} title={t('删除 {name}', { name: vehicle.name })}
+        onClick={() => setConfirmDelete(vehicle)}>
+        <Trash2 size={17} aria-hidden="true" />
+       </button>
+       <div className="admin-car-copy">
+        <p>{vehicle.year} · {vehicle.make}{vehicle.featured && vehicle.status === 'available' ? ' · ' + t('首页推荐') : ''}</p>
+        <h2>{vehicle.name}</h2>
+        <span>{vehicle.price === null ? t('售价未填写') : 'RM ' + vehicle.price.toLocaleString(locale)} · {t(
+         vehicle.photos.length === 1 ? '{count} 张照片（单张）' : '{count} 张照片', { count: vehicle.photos.length },
+        )}</span>
+        <fieldset className="admin-status-control"
+         aria-label={t('车辆状态：{name}', { name: vehicle.name })}
+         aria-busy={updatingStatus === vehicle.id}
+         data-status={vehicle.status}
+         disabled={!vehicle.photos.length || !!updatingStatus}>
+         {publishedStatuses.map(status => (
+          <label key={status}>
+           <input type="radio" name={`vehicle-status-${vehicle.id}`} value={status}
+            checked={vehicle.status === status} onChange={() => void changeStatus(vehicle, status)} />
+           <span>{t(statuses[status])}</span>
+          </label>
+         ))}
+        </fieldset>
+        {!vehicle.photos.length && <p className="admin-status-hint">{t('Upload at least one photo before publishing.')}</p>}
+       </div>
+      </article>
+     ))}
+    </div>
+   )}
    {!loading&&!visible.length&&<div className="admin-empty"><CarFront size={32}/><h2>{t(query?'没有找到这辆车':'这里将展示你的车辆')}</h2><p>{t(query?'试试其他车型或品牌。':'点击「新增车辆」，填写资料并上传照片。')}</p></div>}
   </main>
   {edit&&<div className="admin-overlay"><section className="admin-editor" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title"><div className="admin-editor-heading"><div><p>{t(edit.id?'EDIT VEHICLE':'NEW VEHICLE')}</p><h2 id="vehicle-editor-title">{t(edit.id?'编辑车辆':'新增车辆')}</h2></div><button aria-label={t("关闭编辑")} onClick={close} disabled={!!busy}><X/></button></div>
    <form onSubmit={save}><fieldset disabled={!!busy}>
+    <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/20</span></h3><p>{t(edit.id?'第一张为封面。照片上传与删除会即时保存；调整顺序后请点击保存。照片会自动压缩。':'先保存草稿，再上传车辆照片。')}</p>
+     <input ref={fileInput} className="admin-file" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void upload(e.target.files)}/>
+     <button type="button" className="admin-upload" disabled={!edit.id||!!busy} onClick={()=>fileInput.current?.click()}><ImagePlus size={21}/>{t("选择照片上传")}</button>
+     <div className="admin-photos">{edit.photos.map((p,i)=><div key={p.id}><img src={p.url} alt={t('车辆照片 {number}',{number:i+1})}/>{i===0&&<span>{t("封面")}</span>}<div><button type="button" aria-label={t('照片 {number} 前移',{number:i+1})} disabled={i===0} onClick={()=>movePhoto(i,-1)}><ArrowLeft size={16}/></button><button type="button" aria-label={t('照片 {number} 后移',{number:i+1})} disabled={i===edit.photos.length-1} onClick={()=>movePhoto(i,1)}><ArrowRight size={16}/></button><button type="button" aria-label={t('删除照片 {number}',{number:i+1})} onClick={()=>void removePhoto(p)}><Trash2 size={16}/></button></div></div>)}</div>
+    </section>
     <div className="admin-fields">
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>
      <label>{t("品牌")}<input required maxLength={80} value={edit.make} onChange={e=>update({make:e.target.value})} placeholder="Toyota"/></label>
      <label>{t("年份")}<input required type="number" min="1950" max={new Date().getFullYear()+1} value={edit.year} onChange={e=>update({year:Number(e.target.value)})}/></label>
-     <label>{t("售价 (RM)")}<input type="number" min="0" max="100000000" step="1" value={edit.price??''} onChange={e=>update({price:e.target.value===''?null:Number(e.target.value)})}/></label>
-     <label>{t("里程 (km)")}<input type="number" min="0" max="100000000" step="1" value={edit.mileage??''} onChange={e=>update({mileage:e.target.value===''?null:Number(e.target.value)})}/></label>
+     <label>{t("售价 (RM)")}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
+     <label>{t("里程 (km)")}<VehicleAmountInput value={edit.mileage} onChange={mileage => update({ mileage })} /></label>
      <label>{t("车身类型")}<select value={edit.body} onChange={e=>update({body:e.target.value})}>{['Sedan','SUV','MPV','Hatchback','Pickup','Coupe','Van','Wagon','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("排挡")}<select value={edit.transmission} onChange={e=>update({transmission:e.target.value})}>{['Automatic','Manual'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("燃油")}<select value={edit.fuel} onChange={e=>update({fuel:e.target.value})}>{['Petrol','Diesel','Hybrid','Electric','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
@@ -119,11 +226,6 @@ export default function Admin() {
      <label className="admin-wide">{t("车辆介绍")}<textarea rows={4} maxLength={10000} value={edit.description} onChange={e=>update({description:e.target.value})} placeholder={t("车况、配备及其他说明（内容会展示在官网）")}/></label>
      <label className="admin-checkbox admin-wide"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
     </div>
-    <section className="admin-photo-section"><h3>{t("车辆照片")} <span>{edit.photos.length}/20</span></h3><p>{t(edit.id?'第一张为封面。照片上传与删除会即时保存；调整顺序后请点击保存。照片会自动压缩。':'先保存草稿，再上传车辆照片。')}</p>
-     <input ref={fileInput} className="admin-file" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void upload(e.target.files)}/>
-     <button type="button" className="admin-upload" disabled={!edit.id||!!busy} onClick={()=>fileInput.current?.click()}><ImagePlus size={21}/>{t("选择照片上传")}</button>
-     <div className="admin-photos">{edit.photos.map((p,i)=><div key={p.id}><img src={p.url} alt={t('车辆照片 {number}',{number:i+1})}/>{i===0&&<span>{t("封面")}</span>}<div><button type="button" aria-label={t('照片 {number} 前移',{number:i+1})} disabled={i===0} onClick={()=>movePhoto(i,-1)}><ArrowLeft size={16}/></button><button type="button" aria-label={t('照片 {number} 后移',{number:i+1})} disabled={i===edit.photos.length-1} onClick={()=>movePhoto(i,1)}><ArrowRight size={16}/></button><button type="button" aria-label={t('删除照片 {number}',{number:i+1})} onClick={()=>void removePhoto(p)}><Trash2 size={16}/></button></div></div>)}</div>
-    </section>
    </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'新车辆将先保存为草稿')}</span><button type="button" onClick={close} disabled={!!busy}>{t("返回")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
    {error&&<p className="admin-error" role="alert">{t(error)}</p>}{notice&&<p className="admin-success" role="status">{t(notice)}</p>}
    </form></section></div>}

@@ -29,7 +29,7 @@ const publicPaths: Record<PageId, string> = { home: '/', cars: '/cars', finance:
 const InventoryContext = createContext<Vehicle[]>(fallbackVehicles)
 const InventoryStatusContext = createContext<'loading' | 'ready' | 'error'>('ready')
 const useVehicles = () => useContext(InventoryContext)
-const useFeaturedVehicles = () => useVehicles().filter(v => v.status !== 'sold' && v.featured !== false)
+const useFeaturedVehicles = () => useVehicles().filter(v => (v.status === 'available' || !v.status) && v.featured !== false)
 
 const defaultRoute: RouteState = { variant: 'greenlight', page: 'home' }
 
@@ -730,7 +730,7 @@ function VehicleCard({ car, compact = false }: { car: Vehicle; compact?: boolean
     <article className={`vehicle-card${compact ? ' vehicle-card--compact' : ''}`}>
       <a className="vehicle-photo" onClick={viewDetails} href={isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory} target="_blank" rel="noreferrer" aria-label={t('View photos and details for {year} {name}', { year: car.year, name: car.name })}>
         <img src={car.photo} alt={`${car.year} ${car.name}`} width="300" height="200" loading="lazy" />
-        <span className="vehicle-year">{car.status === 'sold' ? t('SOLD') : car.year}</span>
+        <span className="vehicle-year">{car.status === 'sold' ? t('SOLD') : car.status === 'reserved' ? t('RESERVED') : car.year}</span>
       </a>
       <div className="vehicle-info">
         <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>

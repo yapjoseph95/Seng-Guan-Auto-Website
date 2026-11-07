@@ -28,9 +28,10 @@
 
 ## 更新与删除
 
-- 文字、价格、状态与照片排序：点击保存后生效。
+- 点击车卡或右上角的铅笔进入编辑。编辑页顶部是照片，售价和里程会自动加上千位逗号。
+- 车辆卡片可直接切换「在售」「已保留」「已售」，状态即时保存。文字、价格和照片排序在编辑页保存后生效。
 - 照片上传、删除：即时保存。操作在售车辆的照片会同步更新官网。
-- 已售车辆：选择「已售」并保存，保留车辆详情，但不再用于首页推荐。
+- 已保留和已售车辆仍会展示在车辆列表，附状态标签，并退出首页推荐。切回在售后，原有的推荐设定会恢复生效。
 - 暂时不展示：改为「草稿」。
 - 永久删除：车辆列表点击垃圾桶并确认，车辆资料与照片会删除。一般售出建议标为已售，避免丢失资料。
 - 前台重新打开/刷新会读取最新资料；已打开的页面重新获得焦点时也会刷新车辆列表。
@@ -44,7 +45,7 @@
 - Pages 正式项目：seng-guan-auto-website，发布分支 production-2026-11-05。
 - D1：seng-guan-auto-inventory，ID 1e179b61-81a9-45dd-a012-ea3d1e5249a4。
 - 私有 R2：seng-guan-auto-vehicle-photos，仅通过服务端检查发布状态后提供照片。
-- 数据库结构：prototype/migrations/0001_vehicles.sql 与 prototype/migrations/0002_auth_limits.sql。
+- 数据库结构：prototype/migrations/0001_vehicles.sql、prototype/migrations/0002_auth_limits.sql、prototype/migrations/0003_reserved_vehicles.sql。
 - 现有网站 8 辆展示车辆及原封面已迁入，未填的价格、里程保留空白，未虚构库存资料。请实际使用前核对在售状态。
 - 升级前代码备份分支：backup/pre-vehicle-admin-2026-11-06。
 - 本地代码历史备份：/Users/josephyap/Documents/ChatGPT/Backups/Seng-Guan-Auto/2026-11-06-before-admin/website.bundle。

@@ -7,6 +7,18 @@ import { onRequest } from '../functions/api/[[path]].ts'
 const sql=new DatabaseSync(':memory:')
 sql.exec(readFileSync(new URL('../migrations/0001_vehicles.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0002_auth_limits.sql',import.meta.url),'utf8'))
+const reservedMigration = readFileSync(new URL('../migrations/0003_reserved_vehicles.sql',import.meta.url),'utf8')
+sql.exec(`
+ INSERT INTO vehicles(id,name,make,year,status) VALUES('existing','Existing car','Toyota',2020,'sold');
+ INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) VALUES('existing-photo','existing','old/key','image/jpeg',100,3);
+`)
+sql.exec('BEGIN; '+reservedMigration+' COMMIT;')
+assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
+assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
+assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[])
+sql.exec("DELETE FROM vehicles WHERE id='existing'")
+assert.equal(sql.prepare('SELECT count(*) AS count FROM photos').get()?.count,0)
+
 class Statement {
  constructor(public query:string, public params:unknown[]=[]){}
  bind(...values:unknown[]){return new Statement(this.query,values)}
@@ -56,6 +68,7 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  const created=await call('/api/admin/vehicles','POST',sample);assert.equal(created.status,201);const draft=await created.json() as any;assert.equal(draft.status,'draft')
  assert.deepEqual((await (await call('/api/vehicles','GET',undefined,false)).json() as any).vehicles,[])
  assert.equal((await call('/api/admin/vehicles/'+draft.id,'PUT',sample)).status,400)
+ assert.equal((await call('/api/admin/vehicles/'+draft.id,'PATCH',{status:'reserved'})).status,400)
  const spoof=new FormData();spoof.append('file',new File(['not a JPEG'],'fake.jpg',{type:'image/jpeg'}));assert.equal((await call(`/api/admin/vehicles/${draft.id}/photos`,'POST',spoof)).status,400)
  assert.equal(objects.size,0)
  const ids=[]
@@ -64,6 +77,21 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.equal((await call('/api/admin/vehicles/'+draft.id,'PUT',{...sample,photoOrder:[ids[0],ids[0]]})).status,409)
  const publish=await call('/api/admin/vehicles/'+draft.id,'PUT',{...sample,photoOrder:[...ids].reverse()});assert.equal(publish.status,200);assert.equal((await publish.json() as any).photos[0].id,ids[1])
  const published=(await (await call('/api/vehicles','GET',undefined,false)).json() as any).vehicles;assert.equal(published.length,1);assert.equal(published[0].price,45000);assert.equal(published[0].description,'Test description');assert(!JSON.stringify(published).includes('object_key'))
+ const adminPath='/api/admin/vehicles/'+draft.id
+ assert.equal((await call(adminPath,'PUT',{...sample,status:'reserved'})).status,200)
+ assert.equal((await call(adminPath,'PATCH',{status:'reserved'},false)).status,401)
+ assert.equal((await call(adminPath,'PATCH',{status:'reserved'},true,'https://attacker.test')).status,403)
+ assert.equal((await call(adminPath,'PATCH',{status:'invalid'})).status,400)
+ for (const status of ['reserved','sold','available']) {
+  const response=await call(adminPath,'PATCH',{status,name:'Ignored'})
+  assert.equal(response.status,200)
+  const publicVehicle=await (await call('/api/vehicles/'+draft.id,'GET',undefined,false)).json() as any
+  assert.equal(publicVehicle.status,status)
+  assert.equal(publicVehicle.name,sample.name)
+  assert.equal(publicVehicle.price,sample.price)
+  assert.equal(publicVehicle.mileage,sample.mileage)
+  assert.deepEqual(publicVehicle.photos.map((photo: {id:string})=>photo.id),[...ids].reverse())
+ }
  assert.equal((await call('/api/photos/'+ids[1],'GET',undefined,false)).status,200)
  assert.equal((await call(`/api/admin/vehicles/${draft.id}/photos/${ids[0]}`,'DELETE')).status,200)
  assert.equal((await call(`/api/admin/vehicles/${draft.id}/photos/${ids[1]}`,'DELETE')).status,400)

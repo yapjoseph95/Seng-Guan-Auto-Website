@@ -25,7 +25,7 @@ function fields(data: Record<string, unknown>) {
   return n
  }
  const status = data.status || 'draft'
- if (!['draft','available','sold'].includes(String(status))) throw new HttpError(400, 'Invalid publication status.')
+ if (!['draft','available','reserved','sold'].includes(String(status))) throw new HttpError(400, 'Invalid publication status.')
  return [text('name',160,true),text('make',80,true),year,text('body',60),text('fuel',60),text('transmission',60),number('price'),number('mileage'),text('description',10000),status,data.featured === true ? 1 : 0]
 }
 async function body(request: Request) {
@@ -71,6 +71,20 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    return json(await vehicle(env,id,true),201)
   }
   if (!id) throw new HttpError(404,'Vehicle not found.')
+  if (parts.length === 2 && request.method === 'PATCH') {
+   const { status } = await body(request)
+   if (status !== 'available' && status !== 'reserved' && status !== 'sold') {
+    throw new HttpError(400,'Invalid publication status.')
+   }
+   const result = await env.DB.prepare(
+    "UPDATE vehicles SET status=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND EXISTS (SELECT 1 FROM photos WHERE vehicle_id=?)"
+   ).bind(status,id,id).run()
+   if (!result.meta.changes) {
+    await vehicle(env,id,true)
+    throw new HttpError(400,'Upload at least one photo before publishing.')
+   }
+   return json(await vehicle(env,id,true))
+  }
   await vehicle(env,id,true)
   if (parts[2] === 'photos' && request.method === 'POST') {
    const length=Number(request.headers.get('Content-Length'))

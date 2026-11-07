@@ -463,4 +463,8 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Photos have changed. Please reload this vehicle.": ["Photos have changed. Please reload this vehicle.","Gambar telah berubah. Muat semula butiran kenderaan ini.","照片资料已变更。请重新载入此车辆。"],
   "Unable to complete the request. Please try again.": ["Unable to complete the request. Please try again.", "Permintaan tidak dapat diselesaikan. Sila cuba lagi.", "暂时无法完成请求，请重试。"],
   "Explore the Seng Guan Auto car selection, estimate a payment, and plan a visit to Banting.": ["Explore the Seng Guan Auto car selection, estimate a payment, and plan a visit to Banting.", "Lihat pilihan kereta Seng Guan Auto, anggar bayaran dan rancang lawatan ke Banting.", "浏览 Seng Guan Auto 精选车辆、估算月供，并安排到访万津展厅。"],
+  "RESERVED": ["RESERVED","DITEMPAH","已保留"],
+  "已保留": ["Reserved","Ditempah","已保留"],
+  "编辑 {name}": ["Edit {name}","Sunting {name}","编辑 {name}"],
+  "车辆状态：{name}": ["Status for {name}","Status untuk {name}","车辆状态：{name}"],
 }

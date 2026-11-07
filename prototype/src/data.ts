@@ -108,6 +108,8 @@ export const directions: Direction[] = [
   },
 ]
 
+export type VehicleStatus = 'draft' | 'available' | 'reserved' | 'sold'
+
 export type Vehicle = {
   id: number | string
   name: string
@@ -118,7 +120,7 @@ export type Vehicle = {
   transmission: string
   photo: string
   photos?: { id: string; url: string }[]
-  status?: 'draft' | 'available' | 'sold'
+  status?: VehicleStatus
   featured?: boolean
   price?: number | null
   mileage?: number | null
