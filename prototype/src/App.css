@@ -448,7 +448,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-advanced-toggle > svg { flex: none; }
 .prototype-app .inventory-advanced-toggle[aria-expanded=true]:not(:disabled) > svg:last-child { transform: rotate(180deg); }
 .inventory-filter-count { min-width: 22px; padding: 2px 5px; text-align: center; border-radius: 999px; background: var(--brand); color: white; font-size: 12px; }
-.inventory-refine { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.inventory-refine { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: 12px; }
 .inventory-refine[hidden] { display: none; }
 .inventory-refine label, .inventory-sort label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
 .inventory-refine select, .inventory-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
@@ -460,14 +460,16 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-sort select option { background: var(--paper); color: var(--ink); }
 .inventory-sort-direction.button { min-height: 44px; padding: 0; border: 0; }
 .inventory-sort-direction.button:hover { background: var(--paper); }
-.inventory-prices { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.inventory-refine .inventory-price-filter { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
-.inventory-price-value { color: var(--ink); font-variant-numeric: tabular-nums; }
-.inventory-price-filter input { grid-column: 1 / -1; width: 100%; height: 44px; margin: 0; accent-color: var(--brand); cursor: pointer; }
+.inventory-price-filter { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 13px; }
+.inventory-price-slider { position: relative; display: flex; align-items: center; height: 44px; touch-action: none; user-select: none; }
+.inventory-price-track { position: relative; flex: 1; height: 4px; border-radius: 4px; background: var(--line); }
+.inventory-price-range { position: absolute; height: 100%; border-radius: inherit; background: var(--brand); }
+.inventory-price-thumb { display: block; position: relative; width: 18px; height: 18px; border: 2px solid var(--ink); border-radius: 50%; background: var(--brand); cursor: grab; }
+.inventory-price-thumb::after { position: absolute; inset: -10px; content: ""; }
+.inventory-price-thumb:active { cursor: grabbing; }
+.inventory-price-thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.inventory-price-values { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 6px; color: var(--ink); font-size: 11px; font-variant-numeric: tabular-nums; }
 .inventory-refine > .inventory-reset.button { justify-self: end; min-height: 44px; }
-@media (max-width: 540px) {
-  .inventory-prices { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-}
 .inventory-reset { grid-column: 1 / -1; justify-self: start; }
 .vehicle-published-date { display: block; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
 .inventory-grid { padding: 24px 0 15px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }

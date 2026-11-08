@@ -1,3 +1,4 @@
+import * as Slider from '@radix-ui/react-slider'
 import WhatsAppGlyph from './WhatsAppGlyph'
 import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
 import { useLocale, LanguageSelect } from './locale'
@@ -872,8 +873,8 @@ function InventoryPage({ variant }: { variant: Direction }) {
   const [year, setYear] = useState('')
   const [bodyType, setBodyType] = useState('')
   const priceLimit = 1_000_000
-  const [minPrice, setMinPrice] = useState(0)
-  const [maxPrice, setMaxPrice] = useState(priceLimit)
+  const [priceRange, setPriceRange] = useState([0,priceLimit])
+  const [minPrice,maxPrice] = priceRange
   const [sort, setSort] = useState<'published' | 'year' | 'price'>('published')
   const [ascending, setAscending] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
@@ -899,8 +900,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
     setMake('')
     setYear('')
     setBodyType('')
-    setMinPrice(0)
-    setMaxPrice(priceLimit)
+    setPriceRange([0,priceLimit])
   }
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -983,21 +983,18 @@ function InventoryPage({ variant }: { variant: Direction }) {
                 {bodyTypes.map(option => <option key={option} value={option}>{t(option)}</option>)}
               </select>
             </label>
-            <div className="inventory-prices">
-              <label className="inventory-price-filter">
-                <span id="inventory-min-price-label">{t("Min. price (RM)")}</span>
-                <span className="inventory-price-value" aria-hidden="true">{formatPrice(minPrice)}</span>
-                <input type="range" min={0} max={priceLimit} step={10_000} value={minPrice}
-                  aria-labelledby="inventory-min-price-label" aria-valuetext={formatPrice(minPrice)}
-                  onChange={event => setMinPrice(Math.min(event.currentTarget.valueAsNumber, maxPrice))} />
-              </label>
-              <label className="inventory-price-filter">
-                <span id="inventory-max-price-label">{t("Max. price (RM)")}</span>
-                <span className="inventory-price-value" aria-hidden="true">{formatPrice(maxPrice)}</span>
-                <input type="range" min={0} max={priceLimit} step={10_000} value={maxPrice}
-                  aria-labelledby="inventory-max-price-label" aria-valuetext={formatPrice(maxPrice)}
-                  onChange={event => setMaxPrice(Math.max(event.currentTarget.valueAsNumber, minPrice))} />
-              </label>
+            <div className="inventory-price-filter">
+              <span id="inventory-price-label">{t("Price range")}</span>
+              <Slider.Root className="inventory-price-slider" role="group" aria-labelledby="inventory-price-label"
+                min={0} max={priceLimit} step={10_000} value={priceRange} onValueChange={setPriceRange}>
+                <Slider.Track className="inventory-price-track"><Slider.Range className="inventory-price-range" /></Slider.Track>
+                <Slider.Thumb className="inventory-price-thumb" aria-label={t("Min. price (RM)")} aria-valuetext={formatPrice(minPrice)} />
+                <Slider.Thumb className="inventory-price-thumb" aria-label={t("Max. price (RM)")} aria-valuetext={formatPrice(maxPrice)} />
+              </Slider.Root>
+              <div className="inventory-price-values" aria-hidden="true">
+                <span>{formatPrice(minPrice)}</span>
+                <span>{formatPrice(maxPrice)}</span>
+              </div>
             </div>
             <button className="button button--plain inventory-reset" type="button" onClick={resetFilters}>{t("Clear All")}</button>
           </div>

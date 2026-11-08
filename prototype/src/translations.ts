@@ -484,6 +484,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Search make, model, year or plate": ["Search make, model, year or plate", "Cari jenama, model, tahun atau nombor plat", "搜索品牌、车型、年份或车牌号"],
   "Manufactured year": ["Manufactured year", "Tahun pembuatan", "制造年份"],
   "All years": ["All years", "Semua tahun", "所有年份"],
+  "Price range": ["Price range", "Julat harga", "价格范围"],
   "Min. price (RM)": ["Min. price (RM)", "Harga min. (RM)", "最低价格 (RM)"],
   "Max. price (RM)": ["Max. price (RM)", "Harga maks. (RM)", "最高价格 (RM)"],
   "Sort by": ["Sort by", "Susun mengikut", "排序依据"],
