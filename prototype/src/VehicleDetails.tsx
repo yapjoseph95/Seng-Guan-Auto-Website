@@ -3,7 +3,8 @@ import { formatPublicationDate } from './vehicle-date'
 import { formatMileage } from '../shared/vehicle-mileage'
 import { useLocale } from './locale'
 import { useEffect, useId, useRef, useState } from 'react'
-import { CalendarDays, CarFront, Fuel, Gauge, Pause, Play, Settings2, X } from 'lucide-react'
+import type { PointerEvent } from 'react'
+import { CalendarDays, CarFront, ChevronLeft, ChevronRight, Fuel, Gauge, Pause, Play, Settings2, X } from 'lucide-react'
 import type { Vehicle } from './data'
 import { contact } from './data'
 export function VehicleSpecs({car,showFuel = false}: {car:Vehicle; showFuel?:boolean}) {
@@ -27,6 +28,8 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
  const { t, locale } = useLocale()
  const dialog = useRef<HTMLDialogElement>(null)
  const thumbnails = useRef<HTMLDivElement>(null)
+ const gesture = useRef<{id:number; x:number; y:number} | null>(null)
+ const dragged = useRef(false)
  const [index,setIndex] = useState(0)
  const [paused,setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
  const photos = car.photos?.length ? car.photos : [{id:'cover',url:car.photo}]
@@ -40,7 +43,7 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
  useEffect(() => {
   if (paused || photos.length < 2) return
   const timer = window.setInterval(() => {
-   if (!document.hidden) setIndex(current => (current + 1) % photos.length)
+   if (!document.hidden && !gesture.current) setIndex(current => (current + 1) % photos.length)
   },5000)
   return () => window.clearInterval(timer)
  }, [index,paused,photos.length])
@@ -55,6 +58,36 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
   }
  }, [index])
 
+ const stepPhoto = (direction: number) => {
+  setIndex(current => (current + direction + photos.length) % photos.length)
+ }
+
+ const startGesture = (event: PointerEvent<HTMLDivElement>) => {
+  if (photos.length < 2 || !event.isPrimary || event.button !== 0) return
+  dragged.current = false
+  gesture.current = {id:event.pointerId, x:event.clientX, y:event.clientY}
+  // Keep an edge button as the click target when the gesture is a tap.
+  const edge = (event.target as Element).closest('.vehicle-gallery-edge')
+  const captureTarget = edge ?? event.currentTarget
+  captureTarget.setPointerCapture(event.pointerId)
+ }
+
+ const finishGesture = (event: PointerEvent<HTMLDivElement>) => {
+  const start = gesture.current
+  if (!start || start.id !== event.pointerId) return
+  gesture.current = null
+  const dx = event.clientX - start.x
+  const dy = event.clientY - start.y
+  dragged.current = Math.hypot(dx,dy) > 12
+  if (Math.abs(dx) >= 35 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+   stepPhoto(dx < 0 ? 1 : -1)
+  }
+ }
+
+ const clearGesture = (event: PointerEvent<HTMLDivElement>) => {
+  if (gesture.current?.id === event.pointerId) gesture.current = null
+ }
+
  const dismiss = () => {
   dialog.current?.close()
   onClose()
@@ -66,7 +99,20 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
   onClick={event => {if (event.target === event.currentTarget) dismiss()}}>
   <button type="button" className="vehicle-dialog-close" onClick={dismiss} aria-label={t('Close vehicle details')}><X /></button>
   <div className="vehicle-gallery">
-   <img src={photos[index]?.url} alt={t('{name} — photo {number}',{name:car.name,number:index+1})} />
+   <div className="vehicle-gallery-frame" onPointerDown={startGesture} onPointerUp={finishGesture}
+    onPointerCancel={clearGesture} onLostPointerCapture={clearGesture}>
+    <img src={photos[index]?.url} draggable={false} alt={t('{name} — photo {number}',{name:car.name,number:index+1})} />
+    {photos.length > 1 && <>
+     <button type="button" className="vehicle-gallery-edge vehicle-gallery-edge--previous"
+      aria-label={t('Previous photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(-1)}}>
+      <ChevronLeft size={20} aria-hidden="true" />
+     </button>
+     <button type="button" className="vehicle-gallery-edge vehicle-gallery-edge--next"
+      aria-label={t('Next photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(1)}}>
+      <ChevronRight size={20} aria-hidden="true" />
+     </button>
+    </>}
+   </div>
    {photos.length > 1 && <div className="vehicle-gallery-controls">
     <div className="vehicle-gallery-thumbnails" ref={thumbnails}>
      {photos.map((photo,position) => <button type="button" key={photo.id}
@@ -91,7 +137,10 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
    <h2 id="vehicle-detail-title">{car.name}</h2>
    {car.price != null && <strong className="vehicle-price">RM {car.price.toLocaleString(locale)}</strong>}
    <VehicleSpecs car={car} showFuel />
-   {car.description && <p className="vehicle-description">{car.description}</p>}
+   {car.description && <>
+    <h3 className="vehicle-description-title">{t('Vehicle Description')}</h3>
+    <p className="vehicle-description">{car.description}</p>
+   </>}
    <a className="button button--whatsapp" href={`${contact.whatsapp}?text=${encodeURIComponent(message)}`}
     target="_blank" rel="noreferrer"><WhatsAppGlyph />{t('Ask about this car')}</a>
   </div>

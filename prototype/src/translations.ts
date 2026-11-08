@@ -229,6 +229,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Use ← / → to compare · state is in the URL": ["Use ← / → to compare · state is in the URL","Gunakan ← / → untuk membandingkan · pilihan disimpan dalam URL","用 ← / → 比较 · 当前选项记录在网址中"],
   "Close vehicle details": ["Close vehicle details","Tutup butiran kenderaan","关闭车辆详情"],
   "Previous photo": ["Previous photo","Gambar sebelumnya","上一张照片"],
+  "Vehicle Description": ["Vehicle Description","Penerangan kenderaan","车辆介绍"],
   "Next photo": ["Next photo","Gambar seterusnya","下一张照片"],
   "Ask about this car": ["Ask about this car","Tanya tentang kereta ini","咨询这辆车"],
   "返回官网": ["Back to website","Kembali ke laman web","返回官网"],
