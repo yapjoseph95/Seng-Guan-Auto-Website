@@ -1,8 +1,9 @@
+import WhatsAppGlyph from './WhatsAppGlyph'
 import { formatPublicationDate } from './vehicle-date'
 import { formatMileage } from '../shared/vehicle-mileage'
 import { useLocale } from './locale'
 import { useEffect, useId, useRef, useState } from 'react'
-import { CalendarDays, CarFront, ChevronLeft, ChevronRight, Fuel, Gauge, Settings2, X } from 'lucide-react'
+import { CalendarDays, CarFront, Fuel, Gauge, Pause, Play, Settings2, X } from 'lucide-react'
 import type { Vehicle } from './data'
 import { contact } from './data'
 export function VehicleSpecs({car,showFuel = false}: {car:Vehicle; showFuel?:boolean}) {
@@ -23,26 +24,76 @@ export function VehicleSpecs({car,showFuel = false}: {car:Vehicle; showFuel?:boo
 }
 
 export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>void}) {
-  const { t, locale } = useLocale()
- const dialog=useRef<HTMLDialogElement>(null)
- const [index,setIndex]=useState(0)
- const photos=car.photos?.length?car.photos:[{id:'cover',url:car.photo}]
- useEffect(()=>{const d=dialog.current;d?.showModal();const closed=()=>onClose();d?.addEventListener('close',closed);return()=>{d?.removeEventListener('close',closed);d?.close()}},[onClose])
- const message=t('Hi, I am interested in the {year} {name}. Is it available?', {year:car.year,name:car.name})
- return <dialog ref={dialog} className="vehicle-dialog" aria-labelledby="vehicle-detail-title" onClick={e=>{if(e.target===e.currentTarget)onClose()}}>
-  <button className="vehicle-dialog-close" onClick={onClose} aria-label={t("Close vehicle details")}><X/></button>
-  <div className="vehicle-gallery"><img src={photos[index]?.url} alt={t('{name} — photo {number}', {name:car.name,number:index+1})}/>{photos.length>1&&<div><button onClick={()=>setIndex((index-1+photos.length)%photos.length)} aria-label={t("Previous photo")}><ChevronLeft/></button><span>{index+1} / {photos.length}</span><button onClick={()=>setIndex((index+1)%photos.length)} aria-label={t("Next photo")}><ChevronRight/></button></div>}</div>
+ const { t, locale } = useLocale()
+ const dialog = useRef<HTMLDialogElement>(null)
+ const thumbnails = useRef<HTMLDivElement>(null)
+ const [index,setIndex] = useState(0)
+ const [paused,setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+ const photos = car.photos?.length ? car.photos : [{id:'cover',url:car.photo}]
+
+ useEffect(() => {
+  const modal = dialog.current
+  modal?.showModal()
+  return () => modal?.close()
+ }, [])
+
+ useEffect(() => {
+  if (paused || photos.length < 2) return
+  const timer = window.setInterval(() => {
+   if (!document.hidden) setIndex(current => (current + 1) % photos.length)
+  },5000)
+  return () => window.clearInterval(timer)
+ }, [index,paused,photos.length])
+
+ useEffect(() => {
+  const strip = thumbnails.current
+  const active = strip?.children[index] as HTMLElement | undefined
+  if (!strip || !active) return
+  if (active.offsetLeft < strip.scrollLeft) strip.scrollLeft = active.offsetLeft
+  else if (active.offsetLeft + active.offsetWidth > strip.scrollLeft + strip.clientWidth) {
+   strip.scrollLeft = active.offsetLeft + active.offsetWidth - strip.clientWidth
+  }
+ }, [index])
+
+ const dismiss = () => {
+  dialog.current?.close()
+  onClose()
+ }
+ const message = t('Hi, I am interested in the {year} {name}. Is it available?', {year:car.year,name:car.name})
+
+ return <dialog ref={dialog} className="vehicle-dialog" aria-labelledby="vehicle-detail-title"
+  onCancel={event => {event.preventDefault(); dismiss()}}
+  onClick={event => {if (event.target === event.currentTarget) dismiss()}}>
+  <button type="button" className="vehicle-dialog-close" onClick={dismiss} aria-label={t('Close vehicle details')}><X /></button>
+  <div className="vehicle-gallery">
+   <img src={photos[index]?.url} alt={t('{name} — photo {number}',{name:car.name,number:index+1})} />
+   {photos.length > 1 && <div className="vehicle-gallery-controls">
+    <div className="vehicle-gallery-thumbnails" ref={thumbnails}>
+     {photos.map((photo,position) => <button type="button" key={photo.id}
+      aria-label={t('预览照片 {number}',{number:position+1})} aria-current={index === position ? 'true' : undefined}
+      onClick={() => setIndex(position)}>
+      <img src={photo.url} alt="" loading="lazy" />
+     </button>)}
+    </div>
+    <button type="button" className="vehicle-gallery-play"
+     aria-label={t(paused ? 'Play photo slideshow' : 'Pause photo slideshow')} onClick={() => setPaused(value => !value)}>
+     {paused ? <Play size={18} aria-hidden="true" /> : <Pause size={18} aria-hidden="true" />}
+    </button>
+   </div>}
+  </div>
   <div className="vehicle-dialog-copy">
-   <p className="section-label">{car.year} · {car.make}{car.status==='sold'?' · '+t('SOLD'):car.status==='reserved'?' · '+t('RESERVED'):''}</p>
+   <div className="vehicle-dialog-meta">
+    <p className="section-label vehicle-dialog-make">{car.make}</p>
+    {car.published_at && <time className="vehicle-published-date" dateTime={car.published_at}>
+     {t('Published {date}',{date:formatPublicationDate(car.published_at,locale)})}
+    </time>}
+   </div>
    <h2 id="vehicle-detail-title">{car.name}</h2>
-   {car.price!=null&&<strong className="vehicle-price">RM {car.price.toLocaleString(locale)}</strong>}
+   {car.price != null && <strong className="vehicle-price">RM {car.price.toLocaleString(locale)}</strong>}
    <VehicleSpecs car={car} showFuel />
-   {car.published_at&&<p className="vehicle-published-date"><time dateTime={car.published_at}>
-    {t('Published {date}', { date:formatPublicationDate(car.published_at,locale) })}
-   </time></p>}
-   {car.description&&<p className="vehicle-description">{car.description}</p>}
+   {car.description && <p className="vehicle-description">{car.description}</p>}
    <a className="button button--whatsapp" href={`${contact.whatsapp}?text=${encodeURIComponent(message)}`}
-    target="_blank" rel="noreferrer">{t("Ask about this car ↗")}</a>
+    target="_blank" rel="noreferrer"><WhatsAppGlyph />{t('Ask about this car')}</a>
   </div>
  </dialog>
 }

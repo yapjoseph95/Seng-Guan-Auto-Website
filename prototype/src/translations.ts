@@ -230,7 +230,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Close vehicle details": ["Close vehicle details","Tutup butiran kenderaan","关闭车辆详情"],
   "Previous photo": ["Previous photo","Gambar sebelumnya","上一张照片"],
   "Next photo": ["Next photo","Gambar seterusnya","下一张照片"],
-  "Ask about this car ↗": ["Ask about this car ↗","Tanya tentang kereta ini ↗","咨询这辆车 ↗"],
+  "Ask about this car": ["Ask about this car","Tanya tentang kereta ini","咨询这辆车"],
   "返回官网": ["Back to website","Kembali ke laman web","返回官网"],
     "BUILT ON TRUST.": ["BUILT ON TRUST.","DIBINA ATAS KEPERCAYAAN.","以信任为本。"],
   "你的车行。": ["Your showroom.","Bilik pameran anda.","你的车行。"],
@@ -543,4 +543,6 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Check availability for {year} {name}": ["Check availability for {year} {name}","Semak ketersediaan {year} {name}","查看 {year} {name} 的状态"],
   "Advanced search": ["Advanced search","Carian lanjutan","高级搜索"],
   "All body types": ["All body types","Semua jenis badan","所有车身类型"],
+  "Play photo slideshow": ["Play photo slideshow","Mainkan tayangan foto","播放照片轮播"],
+  "Pause photo slideshow": ["Pause photo slideshow","Jeda tayangan foto","暂停照片轮播"],
 }
