@@ -1,16 +1,15 @@
 import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
 import { formatPublicationDate } from './vehicle-date'
-import { formatMileage } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
-  ArrowDown, ArrowUp, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator, CalendarDays,
-  CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, HeartHandshake, Mail, MapPin,
+  ArrowDown, ArrowUp, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator,
+  CarFront, Check, ChevronDown, CircleHelp, Clock, HeartHandshake, Mail, MapPin,
   Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
-  Settings2, SlidersHorizontal, Wrench, X,
+  SlidersHorizontal, Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
@@ -20,7 +19,7 @@ import johnAngPortrait from '../../resources/team/2.jpg'
 import angZiWeiPortrait from '../../resources/team/john.jpg'
 import { contact, directions, faqItems, pages, vehicles as fallbackVehicles, type Direction, type PageId, type Vehicle } from './data'
 import './App.css'
-import VehicleDetails, { VehicleUnavailable } from './VehicleDetails'
+import VehicleDetails, { VehicleSpecs, VehicleUnavailable } from './VehicleDetails'
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
@@ -730,7 +729,6 @@ function VehicleCard({ car }: { car: Vehicle }) {
   const [opened, setOpened] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
   const [copied, setCopied] = useState(false)
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
-  const mileage = formatMileage(car.mileage,car.mileage_band,locale)
   const available = car.status === 'available'
   const unavailableStatus = car.status === 'sold' || car.status === 'reserved' ? car.status : null
   const stamp = unavailableStatus ? t(unavailableStatus === 'sold' ? 'SOLD' : 'RESERVED') : null
@@ -792,16 +790,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
         </div>
         <div className="vehicle-info">
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
-          <div className="vehicle-specs">
-            <div className="vehicle-spec-pair">
-              <span><CalendarDays size={14} aria-hidden="true" /> {car.year}</span>
-              {mileage && <span><Gauge size={14} aria-hidden="true" /> {mileage}</span>}
-            </div>
-            {(car.body || car.transmission) && <div className="vehicle-spec-pair">
-              {car.body && <span><CarFront size={14} aria-hidden="true" /> {t(car.body)}</span>}
-              {car.transmission && <span><Settings2 size={14} aria-hidden="true" /> {t(car.transmission)}</span>}
-            </div>}
-          </div>
+          <VehicleSpecs car={car} />
           {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
           {car.published_at && <time className="vehicle-published-date" dateTime={car.published_at}>
             {t('Published {date}', { date: formatPublicationDate(car.published_at, locale) })}
