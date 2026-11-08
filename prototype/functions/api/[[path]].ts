@@ -6,7 +6,7 @@ import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/
 import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkDefaults, type WatermarkPlacement } from '../../shared/watermarks'
 import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength } from '../../shared/vehicle-template'
 type Row = Record<string, unknown>
-const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at,description_template'
+const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at,description_template,listing_updated_at'
 const vehicleFields = (admin: boolean) => admin
  ? 'vehicles.*, (SELECT plate_number FROM vehicle_private_details WHERE vehicle_id=vehicles.id) AS plate_number'
  : publicVehicleFields
@@ -92,6 +92,7 @@ const storedMake = 'COALESCE((SELECT make FROM vehicles WHERE make = ? COLLATE N
 const insertVehicle = `INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,description_template,mileage_band) VALUES(?,?,${storedMake},?,?,?,?,?,?,?,?,?,?,?)`
 const timestamp = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 const nextUpdatedAt = `CASE WHEN ${timestamp} <= updated_at THEN strftime('%Y-%m-%dT%H:%M:%fZ',updated_at,'+0.001 seconds') ELSE ${timestamp} END`
+const touchListing = `UPDATE vehicles SET listing_updated_at=${nextUpdatedAt},updated_at=${nextUpdatedAt} WHERE id=? AND published_at IS NOT NULL`
 const updateVehicle = `UPDATE vehicles SET name=?,make=${storedMake},year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,description_template=COALESCE(?,description_template),mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
 function preserveMileageBand(data: Record<string, unknown>) {
  return !Object.hasOwn(data,'mileage_band') && (data.mileage == null || data.mileage === '') ? 1 : 0
@@ -310,7 +311,6 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
     (SELECT json_group_array(id) FROM (SELECT id FROM photos WHERE vehicle_id=? ORDER BY position,id))=?
     THEN updated_at ELSE NULL END WHERE id=?`
   ).bind(data.updatedAt,id,currentIds,id))
-  statements.push(env.DB.prepare(updateVehicle).bind(...values,preserveMileageBand(data),id))
  } else {
   statements.push(env.DB.prepare(insertVehicle).bind(id,...values))
  }
@@ -364,6 +364,12 @@ async function saveVehicle(request: Request, env: Env, email: string, existingId
   }
  }
 
+ if (existingId) {
+  if (currentIds !== JSON.stringify(order) || rendered.length || replacedRenders.length) {
+   statements.push(env.DB.prepare(touchListing).bind(id))
+  }
+  statements.push(env.DB.prepare(updateVehicle).bind(...values,preserveMileageBand(data),id))
+ }
  const attemptedKeys: string[] = []
  try {
   for (const {key,type,source} of [...uploads.values(),...rendered]) {
@@ -480,7 +486,10 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    const type=file.type
    await env.PHOTOS.put(key,file,{httpMetadata:{contentType:type}})
    try {
-    const r=await env.DB.prepare('INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) SELECT ?,?,?,?,?,COALESCE(MAX(position),-1)+1 FROM photos WHERE vehicle_id=? HAVING COUNT(*)<20').bind(photoId,id,key,type,file.size,id).run()
+    const [r]=await env.DB.batch([
+     env.DB.prepare('INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) SELECT ?,?,?,?,?,COALESCE(MAX(position),-1)+1 FROM photos WHERE vehicle_id=? HAVING COUNT(*)<20').bind(photoId,id,key,type,file.size,id),
+     env.DB.prepare(touchListing+' AND changes()>0').bind(id),
+    ])
     if(!r.meta.changes) throw new HttpError(400,'Maximum 20 photos per vehicle.')
    } catch(e) { await env.PHOTOS.delete(key); throw e }
    return json(await vehicle(env,id,true),201)
@@ -488,7 +497,10 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   if (parts[2] === 'photos' && parts[3] && request.method === 'DELETE') {
    const photo=await env.DB.prepare('SELECT p.object_key,w.object_key AS render_key FROM photos p'+photoJoin+' WHERE p.id=? AND p.vehicle_id=?').bind(parts[3],id).first<StoredPhoto>()
    if(!photo) throw new HttpError(404,'Photo not found.')
-   const r=await env.DB.prepare("DELETE FROM photos WHERE id=? AND vehicle_id=? AND ((SELECT status FROM vehicles WHERE id=?)='draft' OR (SELECT COUNT(*) FROM photos WHERE vehicle_id=?)>1)").bind(parts[3],id,id,id).run()
+   const [r]=await env.DB.batch([
+    env.DB.prepare("DELETE FROM photos WHERE id=? AND vehicle_id=? AND ((SELECT status FROM vehicles WHERE id=?)='draft' OR (SELECT COUNT(*) FROM photos WHERE vehicle_id=?)>1)").bind(parts[3],id,id,id),
+    env.DB.prepare(touchListing+' AND changes()>0').bind(id),
+   ])
    if(!r.meta.changes)throw new HttpError(400,'Published vehicles need at least one photo. Save as draft first.')
    await deletePhotoObjects(env,[photo.object_key,...(photo.render_key ? [photo.render_key] : [])])
    return json(await vehicle(env,id,true))
@@ -503,6 +515,9 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    if(data.photoOrder!==undefined) {
     const existing=await env.DB.prepare('SELECT id FROM photos WHERE vehicle_id=?').bind(id).all<{id:string}>()
     if(!Array.isArray(data.photoOrder)||data.photoOrder.length!==existing.results.length||new Set(data.photoOrder).size!==data.photoOrder.length||data.photoOrder.some((p:unknown)=>!existing.results.some(e=>e.id===p)))throw new HttpError(409,'Photos have changed. Please reload this vehicle.')
+    statements.unshift(env.DB.prepare(touchListing +
+     ' AND (SELECT json_group_array(id) FROM (SELECT id FROM photos WHERE vehicle_id=? ORDER BY position,id))<>?'
+    ).bind(id,id,JSON.stringify(data.photoOrder)))
     statements.push(...data.photoOrder.map((p:string,i:number)=>env.DB.prepare('UPDATE photos SET position=? WHERE id=? AND vehicle_id=?').bind(i,p,id)))
    }
    await env.DB.batch(statements)

@@ -14,7 +14,7 @@ import type { WatermarkPlacement } from '../shared/watermarks'
 import AdminVehicleTemplate from './AdminVehicleTemplate'
 import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength, type VehicleTemplate, type VehicleTemplateLanguage } from '../shared/vehicle-template'
 import './Admin.css'
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;updated_at:string;published_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;updated_at:string;published_at?:string|null;listing_updated_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
 const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
@@ -522,7 +522,12 @@ export default function Admin() {
      <label className="admin-checkbox"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
     </section>
     <div className="admin-fields">
-     {edit.published_at&&<p className="admin-wide admin-published-date">{t('Published {date}', { date:formatPublicationDate(edit.published_at,locale) })}</p>}
+     {edit.published_at && <p className="admin-wide admin-published-date">
+      <time dateTime={edit.published_at}>{t('Published on {date}',{date:formatPublicationDate(edit.published_at,locale)})}</time>
+      {edit.listing_updated_at && <>{', '}<time dateTime={edit.listing_updated_at}>
+       {t('Updated on {date}',{date:formatPublicationDate(edit.listing_updated_at,locale)})}
+      </time></>}
+     </p>}
      <label className="admin-wide">{t("车型名称")}<input required maxLength={160} value={edit.name} onChange={e=>update({name:e.target.value})} placeholder={t("例如 Toyota Harrier 2.4 G")}/></label>
      <label>{t("品牌")}
       <input list="admin-makes" required maxLength={80} value={edit.make}

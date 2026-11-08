@@ -21,6 +21,7 @@ sql.exec(readFileSync(new URL('../migrations/0008_watermark_defaults.sql',import
 sql.exec(readFileSync(new URL('../migrations/0009_watermark_asset_defaults.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0010_watermark_default_position.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0013_vehicle_templates.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0014_vehicle_listing_updates.sql',import.meta.url),'utf8'))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
@@ -109,6 +110,7 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.equal((await call('/api/admin/vehicles/'+draft.id,'PUT',{...sample,photoOrder:[ids[0],ids[0]]})).status,409)
  const publish=await call('/api/admin/vehicles/'+draft.id,'PUT',{...sample,photoOrder:[...ids].reverse()});assert.equal(publish.status,200);assert.equal((await publish.json() as any).photos[0].id,ids[1])
  const published=(await (await call('/api/vehicles','GET',undefined,false)).json() as any).vehicles;assert.equal(published.length,1);assert.equal(published[0].price,45000);assert.equal(published[0].description,'Test description');assert(!JSON.stringify(published).includes('object_key'))
+ assert.equal(published[0].listing_updated_at,null)
  const publicationDate = published[0].published_at
  assert.ok(Number.isFinite(Date.parse(publicationDate)))
  assert.equal(Object.hasOwn(published[0],'plate_number'),false)
@@ -125,6 +127,7 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
   const publicVehicle=await (await call('/api/vehicles/'+draft.id,'GET',undefined,false)).json() as any
   assert.equal(publicVehicle.status,status)
   assert.equal(publicVehicle.published_at,publicationDate)
+  assert.ok(Date.parse(publicVehicle.listing_updated_at)>Date.parse(publicationDate))
   assert.equal(Object.hasOwn(publicVehicle,'plate_number'),false)
   assert.equal(publicVehicle.name,sample.name)
   assert.equal(publicVehicle.price,sample.price)
@@ -179,6 +182,15 @@ test('a multipart save commits details, uploads, cover order and removals togeth
  assert.equal(first.photo,'/api/admin/photos/initial-1')
  assert.equal(first.plate_number,'WXY 4321')
  assert.ok(Number.isFinite(Date.parse(first.published_at)))
+ assert.equal(first.listing_updated_at,null)
+ const noChange = new FormData()
+ noChange.set('vehicle',JSON.stringify({...details,updatedAt:first.updated_at,
+  originalPhotoOrder:['initial-1','initial-2'],photoOrder:['initial-1','initial-2']}))
+ const unchanged = await call(path,'PUT',noChange)
+ assert.equal(unchanged.status,200)
+ const same = await unchanged.json() as any
+ assert.equal(same.listing_updated_at,null)
+ first.updated_at = same.updated_at
  assert.equal(Object.hasOwn(await (await call(publicPath,'GET',undefined,false)).json() as object,'plate_number'),false)
  assert.equal((await call('/api/admin/vehicles','POST',create(['initial-1','initial-2']))).status,409)
  const edit=()=>{
@@ -202,6 +214,8 @@ test('a multipart save commits details, uploads, cover order and removals togeth
  assert.equal(updated.status,200)
  const saved=await (await call(publicPath,'GET',undefined,false)).json() as any
  assert.equal(saved.name,'After')
+ assert.equal(saved.published_at,first.published_at)
+ assert.ok(Date.parse(saved.listing_updated_at)>Date.parse(first.published_at))
  assert.deepEqual(saved.photos.map((photo: {id:string})=>photo.id),['new-cover','initial-2'])
  assert.equal(saved.photo,'/api/photos/new-cover')
  assert.equal((await call('/api/photos/initial-1','GET',undefined,false)).status,404)
@@ -221,6 +235,12 @@ test('a multipart save commits details, uploads, cover order and removals togeth
   assert.equal(unchanged.name,'After')
   assert.deepEqual(unchanged.photos.map((photo: {id:string})=>photo.id),['new-cover','initial-2'])
  } finally { onPut=undefined }
+ const reorder = new FormData()
+ reorder.set('vehicle',JSON.stringify({...details,name:'After',updatedAt:'2030-01-01T00:00:00.000Z',
+  originalPhotoOrder:['new-cover','initial-2'],photoOrder:['initial-2','new-cover']}))
+ const reordered = await call(path,'PUT',reorder)
+ assert.equal(reordered.status,200)
+ assert.ok(Date.parse((await reordered.json() as any).listing_updated_at)>Date.parse(saved.listing_updated_at))
  assert.equal((await call(path,'DELETE')).status,200)
 })
 
@@ -325,6 +345,8 @@ test('named watermarks stay private and a vehicle save publishes only the render
  const updated = await update.json() as any
  assert.equal(updated.photos[0].watermark.opacity,.7)
  assert.deepEqual(updated.photos[0].watermarks,layers)
+ assert.equal(admin.listing_updated_at,null)
+ assert.ok(Date.parse(updated.listing_updated_at)>Date.parse(admin.published_at))
  assert.notEqual(updated.photo,admin.photo)
  const removed = await call(path,'PUT',payload([],updated.updated_at))
  assert.equal(removed.status,200)

@@ -1,6 +1,5 @@
 import WhatsAppGlyph from './WhatsAppGlyph'
 import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
-import { formatPublicationDate } from './vehicle-date'
 import { useLocale, LanguageSelect } from './locale'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
@@ -20,7 +19,7 @@ import johnAngPortrait from '../../resources/team/2.jpg'
 import angZiWeiPortrait from '../../resources/team/john.jpg'
 import { contact, directions, faqItems, pages, vehicles as fallbackVehicles, type Direction, type PageId, type Vehicle } from './data'
 import './App.css'
-import VehicleDetails, { VehicleSpecs, VehicleUnavailable } from './VehicleDetails'
+import VehicleDetails, { VehicleListingDate, VehicleSpecs, VehicleUnavailable } from './VehicleDetails'
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
 
@@ -793,9 +792,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
           <VehicleSpecs car={car} />
           {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
-          {car.published_at && <time className="vehicle-published-date" dateTime={car.published_at}>
-            {t('Published {date}', { date: formatPublicationDate(car.published_at, locale) })}
-          </time>}
+          <VehicleListingDate car={car} />
         </div>
       </a>
       {isOfficialSite && <button type="button" className="vehicle-share" onClick={() => void shareVehicle()}

@@ -24,6 +24,15 @@ export function VehicleSpecs({car,showFuel = false}: {car:Vehicle; showFuel?:boo
  </div>
 }
 
+export function VehicleListingDate({car}: {car:Vehicle}) {
+ const { t, locale } = useLocale()
+ const date = car.listing_updated_at ?? car.published_at
+ if (!date) return null
+ return <time className="vehicle-published-date" dateTime={date}>
+  {t(car.listing_updated_at ? 'Updated on {date}' : 'Published on {date}',{date:formatPublicationDate(date,locale)})}
+ </time>
+}
+
 export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>void}) {
  const { t, locale, language } = useLocale()
  const dialog = useRef<HTMLDialogElement>(null)
@@ -131,9 +140,7 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
   <div className="vehicle-dialog-copy">
    <div className="vehicle-dialog-meta">
     <p className="section-label vehicle-dialog-make">{car.make}</p>
-    {car.published_at && <time className="vehicle-published-date" dateTime={car.published_at}>
-     {t('Published {date}',{date:formatPublicationDate(car.published_at,locale)})}
-    </time>}
+    <VehicleListingDate car={car} />
    </div>
    <h2 id="vehicle-detail-title">{car.name}</h2>
    {car.price != null && <strong className="vehicle-price">RM {car.price.toLocaleString(locale)}</strong>}
