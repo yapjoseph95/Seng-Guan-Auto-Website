@@ -452,7 +452,8 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-refine[hidden] { display: none; }
 .inventory-refine label, .inventory-sort label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
 .inventory-refine select, .inventory-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
-.inventory-sort { width: min(100%, 236px); justify-self: end; display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
+.inventory-view-row { display: grid; grid-template-columns: minmax(0, 236px) auto; justify-content: space-between; align-items: center; gap: 8px; }
+.inventory-sort { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
 .inventory-sort label { grid-template-columns: fit-content(5em) minmax(0, 1fr); align-items: center; }
 .inventory-sort-select { position: relative; min-width: 0; }
 .inventory-sort-select > svg { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); color: var(--ink); pointer-events: none; }
@@ -460,6 +461,14 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-sort select option { background: var(--paper); color: var(--ink); }
 .inventory-sort-direction.button { min-height: 44px; padding: 0; border: 0; }
 .inventory-sort-direction.button:hover { background: var(--paper); }
+.inventory-layout-switch { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(2, 34px); min-height: 44px; padding: 3px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); }
+.inventory-layout-switch::before { content: ""; position: absolute; z-index: -1; inset: 3px auto 3px 3px; width: 34px; border-radius: 4px; background: color-mix(in srgb, var(--brand) 23%, var(--paper)); }
+.inventory-layout-switch[data-photo=true]::before { transform: translateX(34px); }
+.inventory-layout-switch button { display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
+.inventory-layout-switch button[aria-pressed=true] { color: var(--ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .inventory-layout-switch::before { transition: transform 160ms ease; }
+}
 .inventory-price-filter { display: grid; gap: 6px; min-width: 0; color: var(--muted); font-size: 13px; }
 .inventory-price-slider { position: relative; display: flex; align-items: center; height: 44px; touch-action: none; user-select: none; }
 .inventory-price-track { position: relative; flex: 1; height: 4px; border-radius: 4px; background: var(--line); }
@@ -1018,6 +1027,19 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
     padding: 5px 8px; background: var(--ink); color: var(--paper); border-radius: 4px;
     font-size: 11px; pointer-events: none;
   }
+}
+
+.inventory-grid.inventory-grid--photo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inventory-grid--photo .vehicle-card-link { display: flex; flex-direction: column; }
+@media (max-width: 760px) {
+  .inventory-grid.inventory-grid--photo { grid-template-columns: minmax(0, 1fr); }
+  .is-official-site .inventory-grid--photo .vehicle-photo { flex: none; aspect-ratio: var(--vehicle-photo-ratio); }
+  .is-official-site .inventory-grid--photo .vehicle-info { padding: 16px; }
+  .is-official-site .inventory-grid--photo .vehicle-title > span { min-height: 0; padding-inline-end: 0; margin-bottom: 6px; }
+  .is-official-site .inventory-grid--photo .vehicle-title h3 { font-size: clamp(19px, 5vw, 26px); }
+  .is-official-site .inventory-grid--photo .vehicle-card-link .vehicle-specs { display: flex; gap: 6px 10px; }
+  .is-official-site .inventory-grid--photo .vehicle-card-link .vehicle-spec-pair { display: contents; }
+  .is-official-site .inventory-grid--photo .vehicle-share { background: var(--paper); }
 }
 
 @media (max-width: 760px) and (prefers-reduced-motion: no-preference) {

@@ -878,6 +878,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
   const [sort, setSort] = useState<'published' | 'year' | 'price'>('published')
   const [ascending, setAscending] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [photoLayout, setPhotoLayout] = useState(false)
   const filterPanel = useRef<HTMLDivElement>(null)
   const filterToggle = useRef<HTMLButtonElement>(null)
   useEffect(() => {
@@ -978,35 +979,51 @@ function InventoryPage({ variant }: { variant: Direction }) {
               <button className="button button--plain inventory-reset" type="button" onClick={resetFilters}>{t("Clear All")}</button>
             </div>
           </div>
-          <div className="inventory-sort">
-            <label><span id="inventory-sort-label">{t("Sort by")}</span>
-              <span className="inventory-sort-select">
-                <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
-                  const value = event.target.value
-                  if (value === 'published' || value === 'year' || value === 'price') setSort(value)
-                }}>
-                  <option value="published">{t("Published date")}</option>
-                  <option value="year">{t("Manufactured year")}</option>
-                  <option value="price">{t("Selling price")}</option>
-                </select>
-                <ChevronDown size={14} aria-hidden="true" />
-              </span>
-            </label>
-            <button className="button button--plain inventory-sort-direction" type="button"
-              aria-label={t("Ascending order")} aria-pressed={ascending}
-              title={t(ascending ? "Ascending order" : "Descending order")}
-              onClick={() => setAscending(value => !value)}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d={ascending
-                  ? 'M3 6h4m-4 4h7m-7 4h10m-10 4h13m4 0V6m-3 3 3-3 3 3'
-                  : 'M3 6h13m-13 4h10m-10 4h7m-7 4h4m13-12v12m-3-3 3 3 3-3'} />
-              </svg>
-            </button>
+          <div className="inventory-view-row">
+            <div className="inventory-sort">
+              <label><span id="inventory-sort-label">{t("Sort by")}</span>
+                <span className="inventory-sort-select">
+                  <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
+                    const value = event.target.value
+                    if (value === 'published' || value === 'year' || value === 'price') setSort(value)
+                  }}>
+                    <option value="published">{t("Published date")}</option>
+                    <option value="year">{t("Manufactured year")}</option>
+                    <option value="price">{t("Selling price")}</option>
+                  </select>
+                  <ChevronDown size={14} aria-hidden="true" />
+                </span>
+              </label>
+              <button className="button button--plain inventory-sort-direction" type="button"
+                aria-label={t("Ascending order")} aria-pressed={ascending}
+                title={t(ascending ? "Ascending order" : "Descending order")}
+                onClick={() => setAscending(value => !value)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d={ascending
+                    ? 'M3 6h4m-4 4h7m-7 4h10m-10 4h13m4 0V6m-3 3 3-3 3 3'
+                    : 'M3 6h13m-13 4h10m-10 4h7m-7 4h4m13-12v12m-3-3 3 3 3-3'} />
+                </svg>
+              </button>
+            </div>
+            <div className="inventory-layout-switch" role="group" aria-label={t("Vehicle layout")} data-photo={photoLayout}>
+              <button type="button" aria-label={t("Standard layout")} title={t("Standard layout")}
+                aria-pressed={!photoLayout} onClick={() => setPhotoLayout(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M12 5v14m3-10h3m-3 4h3" />
+                </svg>
+              </button>
+              <button type="button" aria-label={t("Large photo layout")} title={t("Large photo layout")}
+                aria-pressed={photoLayout} onClick={() => setPhotoLayout(true)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+                  <rect x="4" y="3" width="16" height="18" rx="2" /><path d="M4 13h16m-12 4h8" />
+                </svg>
+              </button>
+            </div>
           </div>
           {(search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
         </div>
-        {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
+        {filtered.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
         <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
     </div>
