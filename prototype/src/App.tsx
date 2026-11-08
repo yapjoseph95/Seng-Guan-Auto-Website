@@ -9,7 +9,7 @@ import {
   ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator,
   CarFront, Check, ChevronDown, CircleHelp, Clock, HeartHandshake, Mail, MapPin,
   Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
-  SlidersHorizontal, Wrench, X,
+  Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
@@ -943,10 +943,8 @@ function InventoryPage({ variant }: { variant: Direction }) {
             </div>
             <button type="button" className="button button--plain inventory-advanced-toggle"
               aria-expanded={advancedOpen} aria-controls="inventory-refine" onClick={() => setAdvancedOpen(open => !open)}>
-              <SlidersHorizontal className="inventory-advanced-icon" size={16} aria-hidden="true" />
               <span>{t('Advanced search')}</span>
               {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
-              <ChevronDown size={16} aria-hidden="true" />
             </button>
           </div>
           <div id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
