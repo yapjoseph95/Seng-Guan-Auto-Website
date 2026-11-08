@@ -3,15 +3,18 @@ import { formatPublicationDate } from './vehicle-date'
 import type { MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
-import { CarFront, Check, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Stamp, Trash2, X } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { CarFront, Check, ChevronDown, FileText, Settings, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Stamp, Trash2, X } from 'lucide-react'
 import type { VehicleStatus } from './data'
 import logo from './assets/logo-dark.svg'
 import AdminPhotoGrid, { type AdminPhoto } from './AdminPhotoGrid'
 import { maxPhotoBytes, maxVehiclePhotos } from '../shared/vehicle-photos'
 import { PhotoWatermarkEditor, WatermarkLibrary, type WatermarkPhotoChange } from './AdminWatermarks'
 import type { WatermarkPlacement } from '../shared/watermarks'
+import AdminVehicleTemplate from './AdminVehicleTemplate'
+import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength, type VehicleTemplate, type VehicleTemplateLanguage } from '../shared/vehicle-template'
 import './Admin.css'
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;status:VehicleStatus;updated_at:string;published_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;updated_at:string;published_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
 const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
@@ -186,7 +189,7 @@ function VehicleAmountInput({ value, onChange }: {
  />
 }
 export default function Admin() {
-  const { t, locale } = useLocale()
+  const { t, locale, language } = useLocale()
  const [vehicles,setVehicles]=useState<ManagedVehicle[]>([])
  const [email,setEmail]=useState('')
  const [loading,setLoading]=useState(true)
@@ -200,7 +203,8 @@ export default function Admin() {
  const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
- const [libraryOpen,setLibraryOpen]=useState(false)
+ const [settings,setSettings]=useState<'watermark'|'template'|null>(null)
+ const [templateLanguage,setTemplateLanguage]=useState<VehicleTemplateLanguage>(language)
  const [watermarkPhotoId,setWatermarkPhotoId]=useState<string | null>(null)
  const watermarkPhoto = edit?.photos.find(photo => photo.id === watermarkPhotoId)
  const watermarkChanges = useRef(new Map<string, {placements:WatermarkPlacement[]; render?:Blob; url?:string}>())
@@ -364,17 +368,49 @@ export default function Admin() {
   if(!confirmDelete)return;setBusy('删除车辆…');setError('')
   try{await api(`vehicles/${confirmDelete.id}`,{method:'DELETE'});setConfirmDelete(null);if(edit?.id===confirmDelete.id){setEdit(null);setDirty(false)}await refresh();setNotice('车辆已删除。')}catch(e){setError((e as Error).message)}finally{setBusy('')}
  }
- const openEditor = (vehicle: ManagedVehicle) => {
+ const openEditor = async (vehicle: ManagedVehicle) => {
   if (dirty && !window.confirm(t('放弃未保存的修改？'))) return
+  let template = vehicle.description_template
+  if (!vehicle.id) {
+   setBusy('Loading template…')
+   setError('')
+   try {
+    template = await api<VehicleTemplate>('vehicle-template')
+   } catch (error) {
+    setError((error as Error).message)
+    return
+   } finally {
+    setBusy('')
+   }
+  }
   releasePhotos(stagedPhotos.current)
   originalVehicle.current = { updatedAt:vehicle.updated_at, photoOrder:vehicle.photos.map(photo => photo.id), createId:crypto.randomUUID() }
   setPreviewId(null)
   setWatermarkPhotoId(null)
   setMobilePreviewOpen(false)
-  setEdit({ ...vehicle, photos: [...vehicle.photos] })
+  setTemplateLanguage(language)
+  setEdit({ ...vehicle, description_template:template, photos: [...vehicle.photos] })
   setDirty(false)
   setError('')
   setNotice('')
+ }
+ const fillTemplate = async () => {
+  if (!edit || busy) return
+  setBusy('Loading template…')
+  setError('')
+  try {
+   const defaults = await api<VehicleTemplate>('vehicle-template')
+   const content = {...defaults}
+   for (const {id} of vehicleTemplateLanguages) {
+    const current = edit.description_template?.[id]
+    if (current?.trim()) content[id] = current
+   }
+   update({description_template:content})
+  } catch (error) {
+   setError((error as Error).message)
+  } finally {
+   setBusy('')
+  }
  }
  const changeStatus = async (vehicle: ManagedVehicle, status: typeof publishedStatuses[number]) => {
   setUpdatingStatus(vehicle.id)
@@ -401,7 +437,13 @@ export default function Admin() {
  return <div className="inventory-admin">
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
-   <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><div className="admin-title-actions"><button type="button" disabled={loading||!email} onClick={() => setLibraryOpen(true)}><Stamp size={17} aria-hidden="true"/>{t('Watermark settings')}</button><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div></div>
+   <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><div className="admin-title-actions"><DropdownMenu.Root>
+    <DropdownMenu.Trigger asChild><button type="button" disabled={loading||!email||!!busy}><Settings size={17} aria-hidden="true"/>{t('Settings')}<ChevronDown size={14} aria-hidden="true"/></button></DropdownMenu.Trigger>
+    <DropdownMenu.Content className="admin-settings-menu" align="end" sideOffset={6}>
+     <DropdownMenu.Item onSelect={() => setSettings('watermark')}><Stamp size={17} aria-hidden="true"/>{t('Watermark')}</DropdownMenu.Item>
+     <DropdownMenu.Item onSelect={() => setSettings('template')}><FileText size={17} aria-hidden="true"/>{t('Vehicle Template')}</DropdownMenu.Item>
+    </DropdownMenu.Content>
+   </DropdownMenu.Root><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => void openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div></div>
    <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}</div>
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
@@ -415,7 +457,7 @@ export default function Admin() {
        </div>
        <button type="button" className="admin-card-edit" disabled={!!updatingStatus}
         aria-label={t('编辑 {name}', { name: vehicle.name })} title={t('编辑资料')}
-        onClick={() => openEditor(vehicle)}>
+        onClick={() => void openEditor(vehicle)}>
         <span className="admin-card-icon"><Pencil size={17} aria-hidden="true" /></span>
        </button>
        <button type="button" className="admin-card-icon admin-card-delete" disabled={!!updatingStatus}
@@ -477,6 +519,7 @@ export default function Admin() {
       <span>{t(busy,uploadProgress)}</span>
       <span className="admin-photo-upload-track" aria-hidden="true" />
      </div>}
+     <label className="admin-checkbox"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
     </section>
     <div className="admin-fields">
      {edit.published_at&&<p className="admin-wide admin-published-date">{t('Published {date}', { date:formatPublicationDate(edit.published_at,locale) })}</p>}
@@ -493,9 +536,6 @@ export default function Admin() {
       </datalist>
      </label>
      <label>{t("年份")}<input required type="number" min="1950" max={new Date().getFullYear()+1} value={edit.year} onChange={e=>update({year:Number(e.target.value)})}/></label>
-     <label className="admin-wide">{t('Plate number (internal only)')}
-      <input value={edit.plate_number ?? ''} maxLength={32} autoComplete="off" onChange={e=>update({plate_number:e.target.value})} />
-     </label>
      <label>{t("售价 (RM)")}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
      <label>{t("里程 (km)")}
       <VehicleAmountInput value={edit.mileage} onChange={mileage => update({ mileage, mileage_band:null })} />
@@ -503,6 +543,9 @@ export default function Admin() {
      <label>{t("车身类型")}<select value={edit.body} onChange={e=>update({body:e.target.value})}>{['Sedan','SUV','MPV','Hatchback','Pickup','Coupe','Van','Wagon','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("排挡")}<select value={edit.transmission} onChange={e=>update({transmission:e.target.value})}>{['Automatic','Manual'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
      <label>{t("燃油")}<select value={edit.fuel} onChange={e=>update({fuel:e.target.value})}>{['Petrol','Diesel','Hybrid','Electric','Other'].map(v=><option key={v} value={v}>{t(v)}</option>)}</select></label>
+     <label>{t('Plate number (internal only)')}
+      <input value={edit.plate_number ?? ''} maxLength={32} autoComplete="off" onChange={e=>update({plate_number:e.target.value})} />
+     </label>
      <div className="admin-wide admin-editor-status">
       <span id="editor-status-label">{t("展示状态")}</span>
       <fieldset className="admin-status-control admin-status-control--editor" aria-labelledby="editor-status-label" data-status={edit.status}>
@@ -514,7 +557,22 @@ export default function Admin() {
       </fieldset>
      </div>
      <label className="admin-wide">{t("车辆介绍")}<textarea rows={4} maxLength={10000} value={edit.description} onChange={e=>update({description:e.target.value})} placeholder={t("车况、配备及其他说明（内容会展示在官网）")}/></label>
-     <label className="admin-checkbox admin-wide"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
+     <div className="admin-wide admin-editor-template">
+      <div className="admin-editor-template-tools">
+       <label>{t('Template language')}
+        <select value={templateLanguage} onChange={event=>setTemplateLanguage(event.target.value as VehicleTemplateLanguage)}>
+         {vehicleTemplateLanguages.map(({id,label}) => <option key={id} value={id}>{label}</option>)}
+        </select>
+       </label>
+       <button type="button" onClick={()=>void fillTemplate()}>{t('Fill empty languages')}</button>
+      </div>
+      <label>{t('Vehicle template text')}
+       <textarea rows={5} lang={templateLanguage} maxLength={vehicleTemplateMaxLength}
+        value={edit.description_template?.[templateLanguage] ?? ''}
+        onChange={event=>update({description_template:{...(edit.description_template ?? emptyVehicleTemplate),[templateLanguage]:event.target.value}})} />
+      </label>
+      <p>{t('Shown after the description in the visitor’s selected language.')}</p>
+     </div>
     </div>
    </fieldset><div className="admin-editor-actions"><span>{busy ? t(busy, uploadProgress ?? undefined) : t(dirty?'有未保存的修改':edit.id?'已保存':'尚未保存')}</span><button type="button" onClick={close} disabled={!!busy}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} type="submit">{busy?<LoaderCircle size={17} className="admin-spin"/>:<Check size={17}/>}{t(edit.status==='draft'?'保存草稿':'保存并发布')}</button></div>
    {error&&<p className="admin-error" role="alert">{t(error)}</p>}
@@ -522,7 +580,9 @@ export default function Admin() {
    {watermarkPhoto && <PhotoWatermarkEditor photos={edit.photos} photo={watermarkPhoto} onSelect={setWatermarkPhotoId}
     request={api} onApply={applyWatermarks} onClose={() => setWatermarkPhotoId(null)} />}
    </div></div>}
-  {libraryOpen && <WatermarkLibrary request={api} onClose={() => setLibraryOpen(false)} />}
+  {settings === 'watermark' && <WatermarkLibrary request={api} onClose={() => setSettings(null)} />}
+  {settings === 'template' && <AdminVehicleTemplate request={api} onClose={() => setSettings(null)}
+   onSaved={() => {setSettings(null);setNotice('Vehicle template saved.')}} />}
   {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}
  </div>
 }

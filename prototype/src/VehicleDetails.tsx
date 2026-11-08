@@ -25,7 +25,7 @@ export function VehicleSpecs({car,showFuel = false}: {car:Vehicle; showFuel?:boo
 }
 
 export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>void}) {
- const { t, locale } = useLocale()
+ const { t, locale, language } = useLocale()
  const dialog = useRef<HTMLDialogElement>(null)
  const thumbnails = useRef<HTMLDivElement>(null)
  const gesture = useRef<{id:number; x:number; y:number} | null>(null)
@@ -92,6 +92,7 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
   dialog.current?.close()
   onClose()
  }
+ const description = [car.description,car.description_template?.[language]].filter(Boolean).join('\n\n')
  const message = t('Hi, I am interested in the {year} {name}. Is it available?', {year:car.year,name:car.name})
 
  return <dialog ref={dialog} className="vehicle-dialog" aria-labelledby="vehicle-detail-title"
@@ -137,9 +138,9 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
    <h2 id="vehicle-detail-title">{car.name}</h2>
    {car.price != null && <strong className="vehicle-price">RM {car.price.toLocaleString(locale)}</strong>}
    <VehicleSpecs car={car} showFuel />
-   {car.description && <>
+   {description && <>
     <h3 className="vehicle-description-title">{t('Vehicle Description')}</h3>
-    <p className="vehicle-description">{car.description}</p>
+    <p className="vehicle-description">{description}</p>
    </>}
    <a className="button button--whatsapp" href={`${contact.whatsapp}?text=${encodeURIComponent(message)}`}
     target="_blank" rel="noreferrer"><WhatsAppGlyph />{t('Ask about this car')}</a>

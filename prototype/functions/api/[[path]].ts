@@ -4,8 +4,9 @@ import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
 import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/vehicle-photos'
 import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkDefaults, type WatermarkPlacement } from '../../shared/watermarks'
+import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength } from '../../shared/vehicle-template'
 type Row = Record<string, unknown>
-const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at'
+const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at,description_template'
 const vehicleFields = (admin: boolean) => admin
  ? 'vehicles.*, (SELECT plate_number FROM vehicle_private_details WHERE vehicle_id=vehicles.id) AS plate_number'
  : publicVehicleFields
@@ -22,7 +23,8 @@ function formatVehicle(row: Row, photos: Row[], admin: boolean) {
   const watermarks = watermark ? [watermark,...JSON.parse(String(additional_layers ?? '[]'))] : []
   return {...photo,original_url:original,watermark,watermarks}
  })
- return { ...row, featured:!!row.featured, photos:items, photo:items[0]?.url ?? '' }
+ const description_template = typeof row.description_template === 'string' ? JSON.parse(row.description_template) : null
+ return { ...row, description_template, featured:!!row.featured, photos:items, photo:items[0]?.url ?? '' }
 }
 async function vehicle(env: Env, id: string, admin: boolean) {
  const row = await env.DB.prepare('SELECT '+vehicleFields(admin)+' FROM vehicles WHERE id = ?' + (admin ? '' : " AND status != 'draft'")).bind(id).first<Row>()
@@ -48,8 +50,19 @@ function fields(data: Record<string, unknown>) {
  const mileageBand = data.mileage_band ?? null
  if (mileageBand !== null && !isMileageBand(mileageBand)) throw new HttpError(400,'Please check mileage.')
  const make = canonicalVehicleMake(text('make',80,true))
- return [text('name',160,true),officialVehicleMake(make) ? null : make,make,year,text('body',60),text('fuel',60),text('transmission',60),number('price'),mileageBand === null ? number('mileage') : null,text('description',10000),status,data.featured === true ? 1 : 0,mileageBand]
+ return [text('name',160,true),officialVehicleMake(make) ? null : make,make,year,text('body',60),text('fuel',60),text('transmission',60),number('price'),mileageBand === null ? number('mileage') : null,text('description',10000),status,data.featured === true ? 1 : 0,data.description_template == null ? null : serializedTemplate(data.description_template),mileageBand]
 }
+function serializedTemplate(value: unknown) {
+ if (!value || typeof value !== 'object' || Array.isArray(value)) throw new HttpError(400,'Please check the vehicle template.')
+ const content = { ...emptyVehicleTemplate }
+ for (const {id} of vehicleTemplateLanguages) {
+  const text = (value as Row)[id]
+  if (typeof text !== 'string' || text.length > vehicleTemplateMaxLength) throw new HttpError(400,'Please check the vehicle template.')
+  content[id] = text.trim()
+ }
+ return JSON.stringify(content)
+}
+
 const photoTypes = ['image/jpeg', 'image/png', 'image/webp']
 async function checkedPhoto(file: unknown) {
  if (!(file instanceof File) || file.size > maxPhotoBytes || !photoTypes.includes(file.type)) {
@@ -71,15 +84,15 @@ function parseBody(text: string) {
  }
 }
 
-async function body(request: Request) {
+async function body(request: Request, maxBytes = 40000) {
  if (!request.headers.get('content-type')?.includes('application/json')) throw new HttpError(415, 'Expected JSON.')
- return parseBody(await limitedText(request,40000))
+ return parseBody(await limitedText(request,maxBytes))
 }
 const storedMake = 'COALESCE((SELECT make FROM vehicles WHERE make = ? COLLATE NOCASE ORDER BY created_at,id LIMIT 1),?)'
-const insertVehicle = `INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,mileage_band) VALUES(?,?,${storedMake},?,?,?,?,?,?,?,?,?,?)`
+const insertVehicle = `INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,description_template,mileage_band) VALUES(?,?,${storedMake},?,?,?,?,?,?,?,?,?,?,?)`
 const timestamp = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 const nextUpdatedAt = `CASE WHEN ${timestamp} <= updated_at THEN strftime('%Y-%m-%dT%H:%M:%fZ',updated_at,'+0.001 seconds') ELSE ${timestamp} END`
-const updateVehicle = `UPDATE vehicles SET name=?,make=${storedMake},year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
+const updateVehicle = `UPDATE vehicles SET name=?,make=${storedMake},year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,description_template=COALESCE(?,description_template),mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
 function preserveMileageBand(data: Record<string, unknown>) {
  return !Object.hasOwn(data,'mileage_band') && (data.mileage == null || data.mileage === '') ? 1 : 0
 }
@@ -396,7 +409,21 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    parts.shift()
    if (!['GET','HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site')) throw new HttpError(403,'Please make changes from the admin dashboard.')
   } else if (!['GET','HEAD'].includes(request.method)) throw new HttpError(405,'Method not allowed.')
-  if (admin && parts[0] === 'session' && request.method === 'GET') return json({ email })
+  if (admin && parts[0] === 'vehicle-template' && parts.length === 1) {
+  if (request.method === 'GET') {
+   const row = await env.DB.prepare('SELECT content FROM vehicle_template_settings WHERE id=1').first<{content:string}>()
+   return json(row ? JSON.parse(row.content) : emptyVehicleTemplate)
+  }
+  if (request.method === 'PUT') {
+   const content = serializedTemplate(await body(request,64000))
+   await env.DB.prepare(
+    'INSERT INTO vehicle_template_settings(id,content) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET content=excluded.content'
+   ).bind(content).run()
+   return json(JSON.parse(content))
+  }
+  throw new HttpError(405,'Method not allowed.')
+ }
+ if (admin && parts[0] === 'session' && request.method === 'GET') return json({ email })
   if (admin && parts[0] === 'staged-photos' && parts.length === 2) return await stagePhoto(request,env,email,parts[1])
   if (admin && parts[0] === 'watermarks' && parts.length <= 2) return await watermarkLibrary(request,env,parts[1])
   if (parts[0] === 'photos' && parts[1] && request.method === 'GET') {

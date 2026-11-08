@@ -20,6 +20,7 @@ sql.exec(readFileSync(new URL('../migrations/0007_watermark_layers.sql',import.m
 sql.exec(readFileSync(new URL('../migrations/0008_watermark_defaults.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0009_watermark_asset_defaults.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0010_watermark_default_position.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0013_vehicle_templates.sql',import.meta.url),'utf8'))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
@@ -437,4 +438,32 @@ test('vehicle makes are canonicalized on save and grouped case-insensitively for
  const migration = readFileSync(new URL('../migrations/0012_normalize_vehicle_makes.sql',import.meta.url),'utf8')
  sql.exec(migration)
  assert.equal(sql.prepare('SELECT make FROM vehicles WHERE id=?').get(exact.id)?.make,'Perodua')
+})
+
+test('localized vehicle templates are protected defaults and published as independent vehicle copies', async () => {
+ const settings = '/api/admin/vehicle-template'
+ const defaults = {en:'Visit us.',ms:'Kunjungi kami.',zh:'欢迎到店。'}
+ assert.equal((await call(settings,'GET',undefined,false)).status,401)
+ assert.equal((await call(settings,'PUT',defaults,true,'https://attacker.test')).status,403)
+ assert.deepEqual(await (await call(settings)).json(),{en:'',ms:'',zh:''})
+ assert.equal((await call(settings,'PUT',{...defaults,zh:123})).status,400)
+ assert.deepEqual(await (await call(settings,'PUT',defaults)).json(),defaults)
+ assert.deepEqual(await (await call(settings)).json(),defaults)
+
+ const car = {name:'Template car',make:'Toyota',year:2020,description:'Original vehicle description',status:'draft'}
+ const createId = crypto.randomUUID()
+ const form = new FormData()
+ form.set('vehicle',JSON.stringify({...car,createId,photoOrder:[],description_template:{...defaults,en:'Car-specific English'}}))
+ const created = await call('/api/admin/vehicles','POST',form)
+ assert.equal(created.status,201)
+ assert.equal((await call('/api/admin/vehicles/'+createId,'PUT',car)).status,200)
+ await call(settings,'PUT',{...defaults,en:'Future listings only'})
+ sql.prepare("UPDATE vehicles SET status='available' WHERE id=?").run(createId)
+ const published = await (await call('/api/vehicles/'+createId,'GET',undefined,false)).json() as any
+ assert.equal(published.description,car.description)
+ assert.deepEqual(published.description_template,{...defaults,en:'Car-specific English'})
+ const legacy = await call('/api/admin/vehicles','POST',car)
+ const old = await legacy.json() as any
+ assert.equal(old.description,car.description)
+ assert.equal(old.description_template,null)
 })

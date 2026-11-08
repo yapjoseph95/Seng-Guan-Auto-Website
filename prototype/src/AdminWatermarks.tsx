@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent, type ReactNode } from 'react'
+import AdminSettingsDialog from './AdminSettingsDialog'
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from 'react'
 import { Check, ChevronLeft, ChevronRight, Pencil, Upload, X } from 'lucide-react'
 import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkAsset, type WatermarkDefaults, type WatermarkLibraryData, type WatermarkPlacement } from '../shared/watermarks'
 import { maxPhotoBytes } from '../shared/vehicle-photos'
@@ -45,26 +46,6 @@ async function renderWatermarks(photoUrl: string, layers: {asset:WatermarkAsset;
   return await new Promise<Blob>((resolve,reject) =>
    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('照片处理失败。')), 'image/jpeg', .86))
  } finally { photo.close() }
-}
-
-function WatermarkDialog({ title, onClose, busy = false, children }: {
- title: string; onClose: () => void; busy?: boolean; children: ReactNode
-}) {
- const { t } = useLocale()
- const dialog = useRef<HTMLDialogElement>(null)
- useEffect(() => {
-  const modal = dialog.current
-  modal?.showModal()
-  return () => modal?.close()
- }, [])
- return <dialog ref={dialog} className="admin-watermark-dialog" aria-labelledby="admin-watermark-title"
-  onCancel={event => { event.preventDefault(); if (!busy) onClose() }}>
-  <div className="admin-watermark-heading">
-   <h2 id="admin-watermark-title">{title}</h2>
-   <button type="button" aria-label={t('Close')} disabled={busy} onClick={onClose}><X size={20} aria-hidden="true" /></button>
-  </div>
-  {children}
- </dialog>
 }
 
 function WatermarkSliders({value,disabled,onChange,defaults = false}: {
@@ -259,7 +240,7 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
   }
  }
 
- return <WatermarkDialog title={t('Watermark settings')} busy={!!busy} onClose={onClose}>
+ return <AdminSettingsDialog title={t('Watermark settings')} busy={!!busy} onClose={onClose}>
   <form onSubmit={upload} className="admin-watermark-form">
    <p>{t('Upload a JPG, PNG or WebP image. Use a transparent PNG or WebP for a logo without a background.')}</p>
    <label>{t('Watermark name')}<input required maxLength={80} value={name} disabled={!!busy} onChange={event => setName(event.target.value)} /></label>
@@ -275,7 +256,7 @@ export function WatermarkLibrary({ request, onClose }: {request:WatermarkRequest
      disabled={!!busy} saving={busy === asset.id} onSave={saveDefaults} onRename={renameAsset} />)}
    </ul>
   </>}
- </WatermarkDialog>
+ </AdminSettingsDialog>
 }
 
 function photoWatermarks(photo: AdminPhoto) {
@@ -457,7 +438,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
   }
  }
 
- return <WatermarkDialog title={t('Edit photo watermark')} busy={busy} onClose={onClose}>
+ return <AdminSettingsDialog title={t('Edit photo watermark')} busy={busy} onClose={onClose}>
   <div className="admin-watermark-view" data-multiple={photos.length > 1}>
    {photos.length > 1 && <button type="button" aria-label={t('Previous photo')} disabled={busy} onClick={() => movePhoto(-1)}>
     <ChevronLeft size={20} aria-hidden="true" />
@@ -530,5 +511,5 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
     </button>
    </div>
   </div>
- </WatermarkDialog>
+ </AdminSettingsDialog>
 }

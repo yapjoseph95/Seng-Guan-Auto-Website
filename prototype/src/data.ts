@@ -1,3 +1,4 @@
+import type { VehicleTemplate } from '../shared/vehicle-template'
 import type { MileageBand } from '../shared/vehicle-mileage'
 import car1 from './assets/cars/1.jpg'
 import car2 from './assets/cars/2.jpg'
@@ -127,6 +128,7 @@ export type Vehicle = {
   mileage?: number | null
   mileage_band?: MileageBand | null
   description?: string
+  description_template?: VehicleTemplate | null
   published_at?: string | null
 }
 
