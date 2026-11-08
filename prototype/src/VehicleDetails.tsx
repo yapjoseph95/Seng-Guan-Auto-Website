@@ -101,7 +101,8 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
   dialog.current?.close()
   onClose()
  }
- const description = [car.description,car.description_template?.[language]].filter(Boolean).join('\n\n')
+ const description = car.description
+ const template = car.description_template?.[language]
  const message = t('Hi, I am interested in the {year} {name}. Is it available?', {year:car.year,name:car.name})
 
  return <dialog ref={dialog} className="vehicle-dialog" aria-labelledby="vehicle-detail-title"
@@ -145,9 +146,13 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
    <h2 id="vehicle-detail-title">{car.name}</h2>
    {car.price != null && <strong className="vehicle-price">RM {car.price.toLocaleString(locale)}</strong>}
    <VehicleSpecs car={car} showFuel />
-   {description && <>
+   {(description || template) && <>
     <h3 className="vehicle-description-title">{t('Vehicle Description')}</h3>
-    <p className="vehicle-description">{description}</p>
+    <div className="vehicle-description">
+     {description && <p>{description}</p>}
+     {description && template && <hr />}
+     {template && <p>{template}</p>}
+    </div>
    </>}
    <a className="button button--whatsapp" href={`${contact.whatsapp}?text=${encodeURIComponent(message)}`}
     target="_blank" rel="noreferrer"><WhatsAppGlyph />{t('Ask about this car')}</a>
