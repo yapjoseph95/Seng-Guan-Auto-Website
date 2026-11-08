@@ -976,11 +976,17 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 
 .featured-showroom-fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .6; }
 
+.is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-card-link { display: grid; grid-template-columns: minmax(0, 53fr) minmax(0, 47fr); }
+.is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-media { display: flex; flex-direction: column; }
+.is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-photo { flex: 1; aspect-ratio: auto; min-height: 104px; }
+
+@media (width > 760px) {
+  .is-official-site .inventory-grid:not(.inventory-grid--photo) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-title h3 { overflow-wrap: anywhere; }
+}
+
 @media (max-width: 760px) {
   .is-official-site .inventory-grid .vehicle-card { position: relative; }
-  .is-official-site .inventory-grid .vehicle-card-link { grid-template-columns: minmax(0, 53fr) minmax(0, 47fr); }
-  .is-official-site .inventory-grid .vehicle-media { display: flex; flex-direction: column; }
-  .is-official-site .inventory-grid .vehicle-photo { flex: 1; aspect-ratio: auto; min-height: 104px; }
   .is-official-site .inventory-grid .vehicle-status {
     top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-10deg);
     min-width: 58%; padding: 5px 8px; border-radius: 0; text-align: center;
@@ -1029,11 +1035,10 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
   }
 }
 
-.inventory-grid.inventory-grid--photo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inventory-grid.inventory-grid--photo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .inventory-grid--photo .vehicle-card-link { display: flex; flex-direction: column; }
 @media (max-width: 760px) {
   .inventory-grid.inventory-grid--photo { grid-template-columns: minmax(0, 1fr); }
-  .is-official-site .inventory-grid--photo .vehicle-photo { flex: none; aspect-ratio: var(--vehicle-photo-ratio); }
   .is-official-site .inventory-grid--photo .vehicle-info { padding: 16px; }
   .is-official-site .inventory-grid--photo .vehicle-title > span { min-height: 0; padding-inline-end: 0; margin-bottom: 6px; }
   .is-official-site .inventory-grid--photo .vehicle-title h3 { font-size: clamp(19px, 5vw, 26px); }

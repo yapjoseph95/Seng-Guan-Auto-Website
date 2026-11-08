@@ -878,7 +878,15 @@ function InventoryPage({ variant }: { variant: Direction }) {
   const [sort, setSort] = useState<'published' | 'year' | 'price'>('published')
   const [ascending, setAscending] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const [photoLayout, setPhotoLayout] = useState(false)
+  const [layoutChoice, setLayoutChoice] = useState<boolean | null>(null)
+  const [wideLayout, setWideLayout] = useState(() => !window.matchMedia('(max-width: 760px)').matches)
+  const photoLayout = layoutChoice ?? wideLayout
+  useEffect(() => {
+    const narrow = window.matchMedia('(max-width: 760px)')
+    const updateLayout = () => setWideLayout(!narrow.matches)
+    narrow.addEventListener('change', updateLayout)
+    return () => narrow.removeEventListener('change', updateLayout)
+  }, [])
   const filterPanel = useRef<HTMLDivElement>(null)
   const filterToggle = useRef<HTMLButtonElement>(null)
   useEffect(() => {
@@ -1008,13 +1016,13 @@ function InventoryPage({ variant }: { variant: Direction }) {
             </div>
             <div className="inventory-layout-switch" role="group" aria-label={t("Vehicle layout")} data-photo={photoLayout}>
               <button type="button" aria-label={t("Standard layout")} title={t("Standard layout")}
-                aria-pressed={!photoLayout} onClick={() => setPhotoLayout(false)}>
+                aria-pressed={!photoLayout} onClick={() => setLayoutChoice(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M12 5v14m3-10h3m-3 4h3" />
                 </svg>
               </button>
               <button type="button" aria-label={t("Large photo layout")} title={t("Large photo layout")}
-                aria-pressed={photoLayout} onClick={() => setPhotoLayout(true)}>
+                aria-pressed={photoLayout} onClick={() => setLayoutChoice(true)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
                   <rect x="4" y="3" width="16" height="18" rx="2" /><path d="M4 13h16m-12 4h8" />
                 </svg>
