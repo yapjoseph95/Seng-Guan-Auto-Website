@@ -445,6 +445,8 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 236px) max-content; align-items: center; gap: 12px; }
 .inventory-advanced-toggle.button { min-height: 44px; max-width: 100%; justify-self: start; padding-inline: 8px; gap: 8px; border: 0; font-size: 14px; font-weight: 400; }
 .inventory-advanced-toggle.button:hover { background: var(--paper); }
+.inventory-advanced-toggle > svg { flex: none; }
+.prototype-app .inventory-advanced-toggle[aria-expanded=true]:not(:disabled) > svg:last-child { transform: rotate(180deg); }
 .inventory-filter-count { min-width: 22px; padding: 2px 5px; text-align: center; border-radius: 999px; background: var(--brand); color: white; font-size: 12px; }
 .inventory-refine { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .inventory-refine[hidden] { display: none; }
@@ -452,6 +454,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-refine select, .inventory-refine input, .inventory-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
 .inventory-sort { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
 .inventory-sort label { grid-template-columns: fit-content(5em) minmax(0, 1fr); align-items: center; }
+.inventory-sort select { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
 .inventory-sort-direction.button { min-height: 44px; padding: 0; border: 0; }
 .inventory-sort-direction.button:hover { background: var(--paper); }
 .inventory-range-error { grid-column: 1 / -1; margin: 0; color: var(--ink); font-size: 13px; }

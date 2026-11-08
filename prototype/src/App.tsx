@@ -945,6 +945,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
               aria-expanded={advancedOpen} aria-controls="inventory-refine" onClick={() => setAdvancedOpen(open => !open)}>
               <span>{t('Advanced search')}</span>
               {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
+              <ChevronDown size={16} aria-hidden="true" />
             </button>
           </div>
           <div id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
