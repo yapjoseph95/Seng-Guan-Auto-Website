@@ -926,14 +926,17 @@ function InventoryPage({ variant }: { variant: Direction }) {
             </button>
             <div className="inventory-sort">
               <label><span id="inventory-sort-label">{t("Sort by")}</span>
-                <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
-                  const value = event.target.value
-                  if (value === 'published' || value === 'year' || value === 'price') setSort(value)
-                }}>
-                  <option value="published">{t("Published date")}</option>
-                  <option value="year">{t("Manufactured year")}</option>
-                  <option value="price">{t("Selling price")}</option>
-                </select>
+                <span className="inventory-sort-select">
+                  <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
+                    const value = event.target.value
+                    if (value === 'published' || value === 'year' || value === 'price') setSort(value)
+                  }}>
+                    <option value="published">{t("Published date")}</option>
+                    <option value="year">{t("Manufactured year")}</option>
+                    <option value="price">{t("Selling price")}</option>
+                  </select>
+                  <ChevronDown size={14} aria-hidden="true" />
+                </span>
               </label>
               <button className="button button--plain inventory-sort-direction" type="button"
                 aria-label={t("Ascending order")} aria-pressed={ascending}

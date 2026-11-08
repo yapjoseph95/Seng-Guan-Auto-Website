@@ -454,7 +454,10 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-refine select, .inventory-refine input, .inventory-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
 .inventory-sort { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
 .inventory-sort label { grid-template-columns: fit-content(5em) minmax(0, 1fr); align-items: center; }
-.inventory-sort select { background: transparent; border: 0; border-radius: 0; }
+.inventory-sort-select { position: relative; min-width: 0; }
+.inventory-sort-select > svg { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); color: var(--ink); pointer-events: none; }
+.inventory-sort select { display: block; appearance: none; background: transparent; border: 0; border-radius: 0; padding-inline: 6px 21px; text-overflow: ellipsis; }
+.inventory-sort select option { background: var(--paper); color: var(--ink); }
 .inventory-sort-direction.button { min-height: 44px; padding: 0; border: 0; }
 .inventory-sort-direction.button:hover { background: var(--paper); }
 .inventory-range-error { grid-column: 1 / -1; margin: 0; color: var(--ink); font-size: 13px; }
@@ -805,8 +808,11 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .page-intro > p:last-child { font-size: 14px; }
   .inventory-tools { gap: 12px; }
   .inventory-refine { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .inventory-actions { grid-template-columns: minmax(0, 1fr) minmax(0, min(66%, 236px)); gap: 8px; }
-  .inventory-advanced-toggle.button { padding: 6px 8px; gap: 5px; }
+  .content-page--cars { padding-top: 28px; }
+  .content-page--cars > .page-intro { padding-bottom: 20px; }
+  .content-page--cars > .page-intro h1 { font-size: clamp(2rem, 10vw, 3.5rem); line-height: 1; }
+  .inventory-actions { grid-template-columns: max-content minmax(0, 236px); gap: 8px; }
+  .inventory-advanced-toggle.button { padding: 6px 4px; gap: 5px; white-space: nowrap; }
   .inventory-grid { grid-template-columns: 1fr; gap: 13px; }
   .content-page--spec-ledger .vehicle-card-link { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
   .content-page--spec-ledger .inventory-grid { grid-template-columns: 1fr; }
@@ -1019,5 +1025,10 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 
 @media (max-width: 400px) {
   .inventory-advanced-toggle.button, .inventory-sort label, .inventory-sort select, .inventory-refine select { font-size: 12px; }
-  .inventory-sort select { padding-inline: 5px; }
+  .inventory-sort select { padding-inline-start: 5px; }
+}
+
+@media (max-width: 360px) {
+  .inventory-sort label { grid-template-columns: minmax(0, 1fr); }
+  #inventory-sort-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
