@@ -10,7 +10,7 @@ import {
   ArrowDown, ArrowUp, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator, CalendarDays,
   CarFront, Check, ChevronDown, CircleHelp, Clock, Gauge, HeartHandshake, Mail, MapPin,
   Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
-  Settings2, Share, SlidersHorizontal, Wrench, X,
+  Settings2, SlidersHorizontal, Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
@@ -810,7 +810,10 @@ function VehicleCard({ car }: { car: Vehicle }) {
       </a>
       {isOfficialSite && <button type="button" className="vehicle-share" onClick={() => void shareVehicle()}
         aria-label={t('Share {name}', {name:car.name})}>
-        <Share size={17} aria-hidden="true" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M22 10.5 14 5v3C8 8.8 4 12.3 2.5 19c3.4-4.3 7.1-6.3 11.5-6.3v3.3l8-5.5Z" />
+        </svg>
       </button>}
       {isOfficialSite && <span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span>}
       {opened && (unavailableStatus
