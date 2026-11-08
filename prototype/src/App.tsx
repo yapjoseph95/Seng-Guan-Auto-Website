@@ -864,30 +864,43 @@ function FaqTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
 }
 
 function InventoryPage({ variant }: { variant: Direction }) {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
   const vehicles = useVehicles()
   const inventoryStatus = useContext(InventoryStatusContext)
   const [search, setSearch] = useState('')
   const [make, setMake] = useState('')
   const [year, setYear] = useState('')
   const [bodyType, setBodyType] = useState('')
-  const [minPrice, setMinPrice] = useState('')
-  const [maxPrice, setMaxPrice] = useState('')
+  const priceLimit = 1_000_000
+  const [minPrice, setMinPrice] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(priceLimit)
   const [sort, setSort] = useState<'published' | 'year' | 'price'>('published')
   const [ascending, setAscending] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const filterPanel = useRef<HTMLDivElement>(null)
+  const filterToggle = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!advancedOpen) return
+    const closeOutside = (event: Event) => {
+      const target = event.target
+      if (!(target instanceof Node) || filterPanel.current?.contains(target) || filterToggle.current?.contains(target)) return
+      setAdvancedOpen(false)
+    }
+    document.addEventListener('click', closeOutside, true)
+    return () => document.removeEventListener('click', closeOutside, true)
+  }, [advancedOpen])
   const makes = vehicleMakeOptions(vehicles.map(car => car.make))
   const years = Array.from(new Set(vehicles.map(car => String(car.year)))).sort((a, b) => Number(b) - Number(a))
   const bodyTypes = [...new Set(vehicles.map(car => car.body).filter(Boolean))].sort((a,b) => t(a).localeCompare(t(b)))
-  const activeFilters = [make,year,bodyType,minPrice,maxPrice].filter(Boolean).length
-  const invalidRange = Boolean(minPrice && maxPrice && Number(minPrice) > Number(maxPrice))
+  const activeFilters = [make,year,bodyType,minPrice > 0,maxPrice < priceLimit].filter(Boolean).length
+  const formatPrice = (value: number) => `RM ${value.toLocaleString(locale)}`
   const resetFilters = () => {
     setSearch('')
     setMake('')
     setYear('')
     setBodyType('')
-    setMinPrice('')
-    setMaxPrice('')
+    setMinPrice(0)
+    setMaxPrice(priceLimit)
   }
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -899,8 +912,8 @@ function InventoryPage({ variant }: { variant: Direction }) {
     return vehicles.filter(car => {
       if (make && vehicleMakeKey(car.make) !== make || year && String(car.year) !== year) return false
       if (bodyType && car.body !== bodyType) return false
-      if (minPrice !== '' && (car.price == null || car.price < Number(minPrice))) return false
-      if (maxPrice !== '' && (car.price == null || car.price > Number(maxPrice))) return false
+      if (minPrice > 0 && (car.price == null || car.price < minPrice)) return false
+      if (maxPrice < priceLimit && (car.price == null || car.price > maxPrice)) return false
       return `${car.make} ${car.year} ${car.name} ${car.body} ${t(car.body)}`.toLowerCase().includes(query)
     }).sort((a, b) => {
       const first = sortValue(a)
@@ -918,7 +931,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
         <div className="inventory-tools">
           <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">{t("Search featured vehicles")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search make or model…")} type="search" /></label>
           <div className="inventory-actions">
-            <button type="button" className="button button--plain inventory-advanced-toggle"
+            <button ref={filterToggle} type="button" className="button button--plain inventory-advanced-toggle"
               aria-expanded={advancedOpen} aria-controls="inventory-refine" onClick={() => setAdvancedOpen(open => !open)}>
               <span>{t('Advanced search')}</span>
               {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
@@ -951,7 +964,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
               </button>
             </div>
           </div>
-          <div id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
+          <div ref={filterPanel} id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
             <label><span id="inventory-make-label">{t("Filter by make")}</span>
               <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
                 <option value="">{t("All makes")}</option>
@@ -970,15 +983,25 @@ function InventoryPage({ variant }: { variant: Direction }) {
                 {bodyTypes.map(option => <option key={option} value={option}>{t(option)}</option>)}
               </select>
             </label>
-            <label>{t("Min. price (RM)")}
-              <input type="number" min="0" step="1" inputMode="numeric" value={minPrice} onChange={event => setMinPrice(event.target.value)} aria-invalid={invalidRange} />
-            </label>
-            <label>{t("Max. price (RM)")}
-              <input type="number" min="0" step="1" inputMode="numeric" value={maxPrice} onChange={event => setMaxPrice(event.target.value)} aria-invalid={invalidRange} />
-            </label>
+            <div className="inventory-prices">
+              <label className="inventory-price-filter">
+                <span id="inventory-min-price-label">{t("Min. price (RM)")}</span>
+                <span className="inventory-price-value" aria-hidden="true">{formatPrice(minPrice)}</span>
+                <input type="range" min={0} max={priceLimit} step={10_000} value={minPrice}
+                  aria-labelledby="inventory-min-price-label" aria-valuetext={formatPrice(minPrice)}
+                  onChange={event => setMinPrice(Math.min(event.currentTarget.valueAsNumber, maxPrice))} />
+              </label>
+              <label className="inventory-price-filter">
+                <span id="inventory-max-price-label">{t("Max. price (RM)")}</span>
+                <span className="inventory-price-value" aria-hidden="true">{formatPrice(maxPrice)}</span>
+                <input type="range" min={0} max={priceLimit} step={10_000} value={maxPrice}
+                  aria-labelledby="inventory-max-price-label" aria-valuetext={formatPrice(maxPrice)}
+                  onChange={event => setMaxPrice(Math.max(event.currentTarget.valueAsNumber, minPrice))} />
+              </label>
+            </div>
+            <button className="button button--plain inventory-reset" type="button" onClick={resetFilters}>{t("Clear All")}</button>
           </div>
-          {invalidRange && <p className="inventory-range-error" role="alert">{t("Maximum price must be at least the minimum price.")}</p>}
-          {(search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
+          {!advancedOpen && (search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
         </div>
         {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
         <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>
