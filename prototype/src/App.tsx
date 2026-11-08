@@ -929,76 +929,82 @@ function InventoryPage({ variant }: { variant: Direction }) {
       <PageIntro eyebrow={t("The featured selection")} title={t("Find a car to look closer at.")} description={t("Explore our vehicles, view all photos and specifications, and ask our team about the car you like.")} />
       <section className="inventory-browser" aria-label={t("Featured vehicle browser")}>
         <div className="inventory-tools">
-          <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">{t("Search featured vehicles")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search make or model…")} type="search" /></label>
-          <div className="inventory-actions">
+          <div className="inventory-search-row" onKeyDown={event => {
+            if (event.key === 'Escape' && advancedOpen) {
+              event.stopPropagation()
+              setAdvancedOpen(false)
+              filterToggle.current?.focus()
+            }
+          }}>
+            <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">{t("Search featured vehicles")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search make or model…")} type="search" /></label>
             <button ref={filterToggle} type="button" className="button button--plain inventory-advanced-toggle"
               aria-expanded={advancedOpen} aria-controls="inventory-refine" onClick={() => setAdvancedOpen(open => !open)}>
               <span>{t('Advanced search')}</span>
               {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
-              <ChevronDown size={16} aria-hidden="true" />
+              <ChevronDown size={12} aria-hidden="true" />
             </button>
-            <div className="inventory-sort">
-              <label><span id="inventory-sort-label">{t("Sort by")}</span>
-                <span className="inventory-sort-select">
-                  <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
-                    const value = event.target.value
-                    if (value === 'published' || value === 'year' || value === 'price') setSort(value)
-                  }}>
-                    <option value="published">{t("Published date")}</option>
-                    <option value="year">{t("Manufactured year")}</option>
-                    <option value="price">{t("Selling price")}</option>
-                  </select>
-                  <ChevronDown size={14} aria-hidden="true" />
-                </span>
+            <div ref={filterPanel} id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
+              <label><span id="inventory-make-label">{t("Filter by make")}</span>
+                <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
+                  <option value="">{t("All makes")}</option>
+                  {makes.map(([key,option]) => <option key={key} value={key}>{option}</option>)}
+                </select>
               </label>
-              <button className="button button--plain inventory-sort-direction" type="button"
-                aria-label={t("Ascending order")} aria-pressed={ascending}
-                title={t(ascending ? "Ascending order" : "Descending order")}
-                onClick={() => setAscending(value => !value)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d={ascending
-                    ? 'M3 6h4m-4 4h7m-7 4h10m-10 4h13m4 0V6m-3 3 3-3 3 3'
-                    : 'M3 6h13m-13 4h10m-10 4h7m-7 4h4m13-12v12m-3-3 3 3 3-3'} />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div ref={filterPanel} id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
-            <label><span id="inventory-make-label">{t("Filter by make")}</span>
-              <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
-                <option value="">{t("All makes")}</option>
-                {makes.map(([key,option]) => <option key={key} value={key}>{option}</option>)}
-              </select>
-            </label>
-            <label><span id="inventory-year-label">{t("Manufactured year")}</span>
-              <select aria-labelledby="inventory-year-label" value={year} onChange={event => setYear(event.target.value)}>
-                <option value="">{t("All years")}</option>
-                {years.map(option => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            <label><span id="inventory-body-label">{t('车身类型')}</span>
-              <select aria-labelledby="inventory-body-label" value={bodyType} onChange={event => setBodyType(event.target.value)}>
-                <option value="">{t('All body types')}</option>
-                {bodyTypes.map(option => <option key={option} value={option}>{t(option)}</option>)}
-              </select>
-            </label>
-            <div className="inventory-price-filter">
-              <span id="inventory-price-label">{t("Price range")}</span>
-              <Slider.Root className="inventory-price-slider" role="group" aria-labelledby="inventory-price-label"
-                min={0} max={priceLimit} step={10_000} value={priceRange} onValueChange={setPriceRange}>
-                <Slider.Track className="inventory-price-track"><Slider.Range className="inventory-price-range" /></Slider.Track>
-                <Slider.Thumb className="inventory-price-thumb" aria-label={t("Min. price (RM)")} aria-valuetext={formatPrice(minPrice)} />
-                <Slider.Thumb className="inventory-price-thumb" aria-label={t("Max. price (RM)")} aria-valuetext={formatPrice(maxPrice)} />
-              </Slider.Root>
-              <div className="inventory-price-values" aria-hidden="true">
-                <span>{formatPrice(minPrice)}</span>
-                <span>{formatPrice(maxPrice)}</span>
+              <label><span id="inventory-year-label">{t("Manufactured year")}</span>
+                <select aria-labelledby="inventory-year-label" value={year} onChange={event => setYear(event.target.value)}>
+                  <option value="">{t("All years")}</option>
+                  {years.map(option => <option key={option}>{option}</option>)}
+                </select>
+              </label>
+              <label><span id="inventory-body-label">{t('车身类型')}</span>
+                <select aria-labelledby="inventory-body-label" value={bodyType} onChange={event => setBodyType(event.target.value)}>
+                  <option value="">{t('All body types')}</option>
+                  {bodyTypes.map(option => <option key={option} value={option}>{t(option)}</option>)}
+                </select>
+              </label>
+              <div className="inventory-price-filter">
+                <span id="inventory-price-label">{t("Price range")}</span>
+                <Slider.Root className="inventory-price-slider" role="group" aria-labelledby="inventory-price-label"
+                  min={0} max={priceLimit} step={10_000} value={priceRange} onValueChange={setPriceRange}>
+                  <Slider.Track className="inventory-price-track"><Slider.Range className="inventory-price-range" /></Slider.Track>
+                  <Slider.Thumb className="inventory-price-thumb" aria-label={t("Min. price (RM)")} aria-valuetext={formatPrice(minPrice)} />
+                  <Slider.Thumb className="inventory-price-thumb" aria-label={t("Max. price (RM)")} aria-valuetext={formatPrice(maxPrice)} />
+                </Slider.Root>
+                <div className="inventory-price-values" aria-hidden="true">
+                  <span>{formatPrice(minPrice)}</span>
+                  <span>{formatPrice(maxPrice)}</span>
+                </div>
               </div>
+              <button className="button button--plain inventory-reset" type="button" onClick={resetFilters}>{t("Clear All")}</button>
             </div>
-            <button className="button button--plain inventory-reset" type="button" onClick={resetFilters}>{t("Clear All")}</button>
           </div>
-          {!advancedOpen && (search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
+          <div className="inventory-sort">
+            <label><span id="inventory-sort-label">{t("Sort by")}</span>
+              <span className="inventory-sort-select">
+                <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
+                  const value = event.target.value
+                  if (value === 'published' || value === 'year' || value === 'price') setSort(value)
+                }}>
+                  <option value="published">{t("Published date")}</option>
+                  <option value="year">{t("Manufactured year")}</option>
+                  <option value="price">{t("Selling price")}</option>
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </span>
+            </label>
+            <button className="button button--plain inventory-sort-direction" type="button"
+              aria-label={t("Ascending order")} aria-pressed={ascending}
+              title={t(ascending ? "Ascending order" : "Descending order")}
+              onClick={() => setAscending(value => !value)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d={ascending
+                  ? 'M3 6h4m-4 4h7m-7 4h10m-10 4h13m4 0V6m-3 3 3-3 3 3'
+                  : 'M3 6h13m-13 4h10m-10 4h7m-7 4h4m13-12v12m-3-3 3 3 3-3'} />
+              </svg>
+            </button>
+          </div>
+          {(search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
         </div>
         {filtered.length ? <div className="inventory-grid">{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
         <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>

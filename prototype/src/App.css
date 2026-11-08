@@ -442,17 +442,17 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .search-field { min-height: 48px; padding: 0 13px; display: flex; align-items: center; gap: 9px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .search-field input { width: 100%; min-width: 0; padding: 10px 0; color: var(--ink); background: transparent; border: 0; outline: none; font-size: 14px; }
 .search-field input::placeholder { color: var(--muted); opacity: 1; }
-.inventory-actions { grid-column: 1 / -1; display: grid; grid-template-columns: max-content minmax(0, 236px); align-items: center; gap: 12px; }
-.inventory-advanced-toggle.button { min-height: 44px; max-width: 100%; justify-self: start; padding-inline: 8px; gap: 8px; border: 0; font-size: 14px; font-weight: 400; }
+.inventory-search-row { position: relative; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); align-items: stretch; gap: 8px; }
+.inventory-advanced-toggle.button { position: relative; min-height: 44px; min-width: 0; padding: 4px; gap: 4px; border: 0; font-size: 11px; font-weight: 400; text-wrap: balance; }
 .inventory-advanced-toggle.button:hover { background: var(--paper); }
 .inventory-advanced-toggle > svg { flex: none; }
 .prototype-app .inventory-advanced-toggle[aria-expanded=true]:not(:disabled) > svg:last-child { transform: rotate(180deg); }
-.inventory-filter-count { min-width: 22px; padding: 2px 5px; text-align: center; border-radius: 999px; background: var(--brand); color: white; font-size: 12px; }
-.inventory-refine { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: 12px; }
+.inventory-filter-count { position: absolute; inset: 0 0 auto auto; min-width: 15px; padding: 2px 4px; text-align: center; border-radius: 999px; background: var(--brand); color: white; font-size: 10px; }
+.inventory-refine { position: absolute; z-index: 12; inset: calc(100% + 6px) 0 auto auto; width: min(100%, 680px); padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 12px 28px rgb(0 0 0 / 40%); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: 12px; }
 .inventory-refine[hidden] { display: none; }
 .inventory-refine label, .inventory-sort label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; min-width: 0; }
 .inventory-refine select, .inventory-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
-.inventory-sort { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
+.inventory-sort { width: min(100%, 236px); justify-self: end; display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
 .inventory-sort label { grid-template-columns: fit-content(5em) minmax(0, 1fr); align-items: center; }
 .inventory-sort-select { position: relative; min-width: 0; }
 .inventory-sort-select > svg { position: absolute; inset-inline-end: 4px; top: 50%; transform: translateY(-50%); color: var(--ink); pointer-events: none; }
@@ -820,8 +820,6 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .content-page--cars { padding-top: 28px; }
   .content-page--cars > .page-intro { padding-bottom: 20px; }
   .content-page--cars > .page-intro h1 { font-size: clamp(2rem, 10vw, 3.5rem); line-height: 1; }
-  .inventory-actions { grid-template-columns: max-content minmax(0, 236px); gap: 8px; }
-  .inventory-advanced-toggle.button { padding: 6px 4px; gap: 5px; white-space: nowrap; }
   .inventory-grid { grid-template-columns: 1fr; gap: 13px; }
   .content-page--spec-ledger .vehicle-card-link { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
   .content-page--spec-ledger .inventory-grid { grid-template-columns: 1fr; }
@@ -1033,11 +1031,12 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 }
 
 @media (max-width: 400px) {
-  .inventory-advanced-toggle.button, .inventory-sort label, .inventory-sort select, .inventory-refine select { font-size: 12px; }
+  .inventory-sort label, .inventory-sort select, .inventory-refine select { font-size: 12px; }
   .inventory-sort select { padding-inline-start: 5px; }
 }
 
 @media (max-width: 360px) {
+  .inventory-advanced-toggle.button { padding-inline: 2px; font-size: 10px; }
   .inventory-sort label { grid-template-columns: minmax(0, 1fr); }
   #inventory-sort-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
