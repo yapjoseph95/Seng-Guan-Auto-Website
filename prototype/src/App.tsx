@@ -875,6 +875,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
   const [maxPrice, setMaxPrice] = useState('')
   const [sort, setSort] = useState<'published' | 'year' | 'price'>('published')
   const [ascending, setAscending] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const makes = vehicleMakeOptions(vehicles.map(car => car.make))
   const years = Array.from(new Set(vehicles.map(car => String(car.year)))).sort((a, b) => Number(b) - Number(a))
   const bodyTypes = [...new Set(vehicles.map(car => car.body).filter(Boolean))].sort((a,b) => t(a).localeCompare(t(b)))
@@ -917,56 +918,58 @@ function InventoryPage({ variant }: { variant: Direction }) {
         <div className="inventory-tools">
           <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">{t("Search featured vehicles")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search make or model…")} type="search" /></label>
           <span className="result-count" role="status"><SlidersHorizontal size={15} aria-hidden="true" /> {t(filtered.length === 1 ? '{count} featured car' : '{count} featured cars', { count: filtered.length })}</span>
-          <details className="inventory-advanced">
-            <summary className="button button--plain inventory-advanced-toggle">
-              <SlidersHorizontal size={16} aria-hidden="true" /> {t('Advanced search')}
+          <div className="inventory-actions">
+            <button type="button" className="button button--plain inventory-advanced-toggle"
+              aria-expanded={advancedOpen} aria-controls="inventory-refine" onClick={() => setAdvancedOpen(open => !open)}>
+              <SlidersHorizontal className="inventory-advanced-icon" size={16} aria-hidden="true" />
+              <span>{t('Advanced search')}</span>
               {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
               <ChevronDown size={16} aria-hidden="true" />
-            </summary>
-            <div className="inventory-refine">
-              <label><span id="inventory-make-label">{t("Filter by make")}</span>
-                <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
-                  <option value="">{t("All makes")}</option>
-                  {makes.map(([key,option]) => <option key={key} value={key}>{option}</option>)}
+            </button>
+            <div className="inventory-sort">
+              <label><span id="inventory-sort-label">{t("Sort by")}</span>
+                <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
+                  const value = event.target.value
+                  if (value === 'published' || value === 'year' || value === 'price') setSort(value)
+                }}>
+                  <option value="published">{t("Published date")}</option>
+                  <option value="year">{t("Manufactured year")}</option>
+                  <option value="price">{t("Selling price")}</option>
                 </select>
               </label>
-              <label><span id="inventory-year-label">{t("Manufactured year")}</span>
-                <select aria-labelledby="inventory-year-label" value={year} onChange={event => setYear(event.target.value)}>
-                  <option value="">{t("All years")}</option>
-                  {years.map(option => <option key={option}>{option}</option>)}
-                </select>
-              </label>
-              <label><span id="inventory-body-label">{t('车身类型')}</span>
-                <select aria-labelledby="inventory-body-label" value={bodyType} onChange={event => setBodyType(event.target.value)}>
-                  <option value="">{t('All body types')}</option>
-                  {bodyTypes.map(option => <option key={option} value={option}>{t(option)}</option>)}
-                </select>
-              </label>
-              <label>{t("Min. price (RM)")}
-                <input type="number" min="0" step="1" inputMode="numeric" value={minPrice} onChange={event => setMinPrice(event.target.value)} aria-invalid={invalidRange} />
-              </label>
-              <label>{t("Max. price (RM)")}
-                <input type="number" min="0" step="1" inputMode="numeric" value={maxPrice} onChange={event => setMaxPrice(event.target.value)} aria-invalid={invalidRange} />
-              </label>
+              <button className="button button--plain inventory-sort-direction" type="button"
+                aria-label={t("Ascending order")} aria-pressed={ascending}
+                title={t(ascending ? "Ascending order" : "Descending order")}
+                onClick={() => setAscending(value => !value)}>
+                {ascending ? <ArrowUp size={18} aria-hidden="true" /> : <ArrowDown size={18} aria-hidden="true" />}
+              </button>
             </div>
-          </details>
-          <div className="inventory-sort">
-            <label><span id="inventory-sort-label">{t("Sort by")}</span>
-              <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
-                const value = event.target.value
-                if (value === 'published' || value === 'year' || value === 'price') setSort(value)
-              }}>
-                <option value="published">{t("Published date")}</option>
-                <option value="year">{t("Manufactured year")}</option>
-                <option value="price">{t("Selling price")}</option>
+          </div>
+          <div id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
+            <label><span id="inventory-make-label">{t("Filter by make")}</span>
+              <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
+                <option value="">{t("All makes")}</option>
+                {makes.map(([key,option]) => <option key={key} value={key}>{option}</option>)}
               </select>
             </label>
-            <button className="button button--plain inventory-sort-direction" type="button"
-              aria-label={t("Ascending order")} aria-pressed={ascending}
-              title={t(ascending ? "Ascending order" : "Descending order")}
-              onClick={() => setAscending(value => !value)}>
-              {ascending ? <ArrowUp size={18} aria-hidden="true" /> : <ArrowDown size={18} aria-hidden="true" />}
-            </button>
+            <label><span id="inventory-year-label">{t("Manufactured year")}</span>
+              <select aria-labelledby="inventory-year-label" value={year} onChange={event => setYear(event.target.value)}>
+                <option value="">{t("All years")}</option>
+                {years.map(option => <option key={option}>{option}</option>)}
+              </select>
+            </label>
+            <label><span id="inventory-body-label">{t('车身类型')}</span>
+              <select aria-labelledby="inventory-body-label" value={bodyType} onChange={event => setBodyType(event.target.value)}>
+                <option value="">{t('All body types')}</option>
+                {bodyTypes.map(option => <option key={option} value={option}>{t(option)}</option>)}
+              </select>
+            </label>
+            <label>{t("Min. price (RM)")}
+              <input type="number" min="0" step="1" inputMode="numeric" value={minPrice} onChange={event => setMinPrice(event.target.value)} aria-invalid={invalidRange} />
+            </label>
+            <label>{t("Max. price (RM)")}
+              <input type="number" min="0" step="1" inputMode="numeric" value={maxPrice} onChange={event => setMaxPrice(event.target.value)} aria-invalid={invalidRange} />
+            </label>
           </div>
           {invalidRange && <p className="inventory-range-error" role="alert">{t("Maximum price must be at least the minimum price.")}</p>}
           {(search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
