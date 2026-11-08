@@ -442,7 +442,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .search-field { min-height: 48px; padding: 0 13px; display: flex; align-items: center; gap: 9px; color: var(--muted); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .search-field input { width: 100%; min-width: 0; padding: 10px 0; color: var(--ink); background: transparent; border: 0; outline: none; font-size: 14px; }
 .search-field input::placeholder { color: var(--muted); opacity: 1; }
-.inventory-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 236px) max-content; align-items: center; gap: 12px; }
+.inventory-actions { grid-column: 1 / -1; display: grid; grid-template-columns: max-content minmax(0, 236px); align-items: center; gap: 12px; }
 .inventory-advanced-toggle.button { min-height: 44px; max-width: 100%; justify-self: start; padding-inline: 8px; gap: 8px; border: 0; font-size: 14px; font-weight: 400; }
 .inventory-advanced-toggle.button:hover { background: var(--paper); }
 .inventory-advanced-toggle > svg { flex: none; }
@@ -454,7 +454,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-refine select, .inventory-refine input, .inventory-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); font: inherit; font-size: 14px; }
 .inventory-sort { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; align-items: end; }
 .inventory-sort label { grid-template-columns: fit-content(5em) minmax(0, 1fr); align-items: center; }
-.inventory-sort select { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+.inventory-sort select { background: transparent; border: 0; border-radius: 0; }
 .inventory-sort-direction.button { min-height: 44px; padding: 0; border: 0; }
 .inventory-sort-direction.button:hover { background: var(--paper); }
 .inventory-range-error { grid-column: 1 / -1; margin: 0; color: var(--ink); font-size: 13px; }
@@ -805,7 +805,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .page-intro > p:last-child { font-size: 14px; }
   .inventory-tools { gap: 12px; }
   .inventory-refine { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .inventory-actions { grid-template-columns: minmax(0, min(66%, 236px)) minmax(0, 1fr); gap: 8px; }
+  .inventory-actions { grid-template-columns: minmax(0, 1fr) minmax(0, min(66%, 236px)); gap: 8px; }
   .inventory-advanced-toggle.button { padding: 6px 8px; gap: 5px; }
   .inventory-grid { grid-template-columns: 1fr; gap: 13px; }
   .content-page--spec-ledger .vehicle-card-link { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
@@ -978,7 +978,7 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
     font-size: clamp(11px, 2.8vw, 13px); overflow-wrap: anywhere;
   }
   .is-official-site .inventory-grid .vehicle-title h3 {
-    margin: 0 0 8px; font-size: clamp(14px, 4vw, 23px); line-height: 1.18; overflow-wrap: anywhere;
+    margin: 0 0 8px; font-size: clamp(13px, 3.6vw, 21px); line-height: 1.18; overflow-wrap: anywhere;
   }
   .is-official-site .inventory-grid .vehicle-card-link .vehicle-specs { display: grid; gap: 4px; font-size: clamp(9px, 2.4vw, 12px); line-height: 1.25; }
   .is-official-site .inventory-grid .vehicle-card-link .vehicle-spec-pair { display: flex; gap: 5px; min-width: 0; }

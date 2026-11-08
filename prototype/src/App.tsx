@@ -918,6 +918,12 @@ function InventoryPage({ variant }: { variant: Direction }) {
         <div className="inventory-tools">
           <label className="search-field"><Search size={18} aria-hidden="true" /><span className="sr-only">{t("Search featured vehicles")}</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search make or model…")} type="search" /></label>
           <div className="inventory-actions">
+            <button type="button" className="button button--plain inventory-advanced-toggle"
+              aria-expanded={advancedOpen} aria-controls="inventory-refine" onClick={() => setAdvancedOpen(open => !open)}>
+              <span>{t('Advanced search')}</span>
+              {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
+              <ChevronDown size={16} aria-hidden="true" />
+            </button>
             <div className="inventory-sort">
               <label><span id="inventory-sort-label">{t("Sort by")}</span>
                 <select aria-labelledby="inventory-sort-label" value={sort} onChange={event => {
@@ -933,7 +939,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
                 aria-label={t("Ascending order")} aria-pressed={ascending}
                 title={t(ascending ? "Ascending order" : "Descending order")}
                 onClick={() => setAscending(value => !value)}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d={ascending
                     ? 'M3 6h4m-4 4h7m-7 4h10m-10 4h13m4 0V6m-3 3 3-3 3 3'
@@ -941,12 +947,6 @@ function InventoryPage({ variant }: { variant: Direction }) {
                 </svg>
               </button>
             </div>
-            <button type="button" className="button button--plain inventory-advanced-toggle"
-              aria-expanded={advancedOpen} aria-controls="inventory-refine" onClick={() => setAdvancedOpen(open => !open)}>
-              <span>{t('Advanced search')}</span>
-              {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
-              <ChevronDown size={16} aria-hidden="true" />
-            </button>
           </div>
           <div id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
             <label><span id="inventory-make-label">{t("Filter by make")}</span>
