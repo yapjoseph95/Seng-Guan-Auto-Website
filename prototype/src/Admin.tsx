@@ -191,10 +191,12 @@ function VehicleAmountInput({ value, onChange, ...props }: {
 }
 
 type PriceChanges = Partial<Pick<ManagedVehicle,'price'|'discount_price'>>
-function MobileCompactPlate({value}: {value:string}) {
+function MobileCompactPlate({vehicle,disabled,onEdit}: {vehicle:ManagedVehicle;disabled:boolean;onEdit:()=>void}) {
+ const {t}=useLocale()
+ const button=useRef<HTMLButtonElement>(null)
  const plate=useRef<HTMLSpanElement>(null)
  useLayoutEffect(()=>{
-  const label=plate.current, container=label?.parentElement
+  const label=plate.current, container=button.current
   if (!container || !label) return
   let active=true
   const fit=()=>{
@@ -208,8 +210,10 @@ function MobileCompactPlate({value}: {value:string}) {
   fit()
   void document.fonts.ready.then(fit)
   return ()=>{active=false;observer.disconnect()}
- },[value])
- return <span ref={plate} className="admin-mobile-plate-text">{value}</span>
+ },[vehicle.plate_number])
+ if (!vehicle.plate_number) return null
+ return <button ref={button} type="button" className="admin-mobile-plate" disabled={disabled}
+  aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={onEdit}><span ref={plate}>{vehicle.plate_number}</span></button>
 }
 function AdminVehiclePrices({vehicle,onSave,disabled,compact=false}: {
  vehicle:ManagedVehicle
@@ -572,6 +576,7 @@ export default function Admin() {
      {visible.map(vehicle=><article className="admin-compact-row" key={vehicle.id}>
       <input type="checkbox" aria-label={t('Select {name}',{name:vehicle.name})} checked={selected.includes(vehicle.id)} disabled={batchBusy}
        onChange={event=>setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))} />
+      <MobileCompactPlate vehicle={vehicle} disabled={batchBusy || !!updatingStatus} onEdit={()=>void openEditor(vehicle)} />
       <button type="button" className="admin-mobile-model" disabled={batchBusy || !!updatingStatus}
        aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>{vehicle.name}</button>
       <button type="button" className="admin-compact-photo" disabled={batchBusy || !!updatingStatus} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
@@ -579,7 +584,6 @@ export default function Admin() {
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
        {vehicle.plate_number && <span className="admin-plate">{vehicle.plate_number}</span>}
-       {vehicle.plate_number && <MobileCompactPlate value={vehicle.plate_number} />}
        <strong>{vehicle.name}</strong><span className="admin-compact-meta">{vehicle.make} · {vehicle.year}</span>
       </button>
       <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
@@ -688,8 +692,8 @@ export default function Admin() {
       </datalist>
      </label>
      <label>{t("年份")}<input required type="number" min="1950" max={new Date().getFullYear()+1} value={edit.year} onChange={e=>update({year:Number(e.target.value)})}/></label>
-     <label>{t('Original Price (RM)')}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
-     <label>{t('Discounted Price (RM)')}<VehicleAmountInput value={edit.discount_price} onChange={discount_price => update({ discount_price })} /></label>
+     <label className="admin-price-field">{t('Original Price (RM)')}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
+     <label className="admin-price-field">{t('Discounted Price (RM)')}<VehicleAmountInput value={edit.discount_price} onChange={discount_price => update({ discount_price })} /></label>
      <label>{t("里程 (km)")}
       <VehicleAmountInput value={edit.mileage} onChange={mileage => update({ mileage, mileage_band:null })} />
      </label>
