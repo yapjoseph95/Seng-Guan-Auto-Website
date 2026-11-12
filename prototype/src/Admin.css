@@ -518,10 +518,11 @@
  .inventory-admin .admin-mobile-plate { grid-column:2 / 4; grid-row:1; }
  .inventory-admin .admin-mobile-model { grid-column:2 / 4; grid-row:2; }
  .admin-compact-row > input[type=checkbox] { grid-row:3; }
- .inventory-admin .admin-compact-photo { grid-column:2 / 4; grid-row:3; width:min(100%,clamp(120px,40vw,160px)); height:auto; }
+ .inventory-admin .admin-compact-photo { grid-column:2 / 4; grid-row:3; width:min(100%,clamp(84px,28vw,112px)); height:auto; }
  .inventory-admin .admin-compact-details { display:none; }
  .admin-inline-prices--compact { grid-row:2 / 5; }
  .admin-compact-featured { grid-column:2 / 4; grid-row:4; }
  .admin-compact-row .admin-inline-prices input, .admin-compact-row select.admin-compact-status[data-status] { font-size:clamp(12px,3.4vw,16px); }
- .admin-compact-row select.admin-compact-status[data-status] { text-align:center; text-align-last:center; padding-inline:8px; }
+ .admin-compact-row select.admin-compact-status[data-status] { text-align:left; text-align-last:left; padding-inline:8px 12px; }
+ .admin-compact-row select.admin-compact-status[data-status], .inventory-admin .admin-compact-row > .admin-compact-delete { height:27.2px; min-height:27.2px; align-self:start; }
 }
