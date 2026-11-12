@@ -239,19 +239,26 @@ function MobileCompactPlate({vehicle,disabled,onEdit}: {vehicle:ManagedVehicle;d
 }
 function AdminVehiclePrices({vehicle,onSave,disabled,compact=false}: {
  vehicle:ManagedVehicle
- onSave:(vehicle:ManagedVehicle,changes:PriceChanges)=>void
+ onSave:(vehicle:ManagedVehicle,changes:PriceChanges)=>Promise<boolean>
  disabled:boolean
  compact?:boolean
 }) {
  const {t}=useLocale()
  const [price,setPrice]=useState(vehicle.price)
  const [discountPrice,setDiscountPrice]=useState(vehicle.discount_price)
- useEffect(()=>{setPrice(vehicle.price);setDiscountPrice(vehicle.discount_price)},[vehicle.price,vehicle.discount_price])
+ const previousPrice=useRef(vehicle.price)
+ const previousDiscount=useRef(vehicle.discount_price)
+ const submittedPrice=useRef(vehicle.price)
+ const submittedDiscount=useRef(vehicle.discount_price)
+ const pendingPrice=useRef(0)
+ const pendingDiscount=useRef(0)
+ useEffect(()=>{const previous=previousPrice.current; previousPrice.current=vehicle.price; if(!pendingPrice.current && submittedPrice.current===previous)submittedPrice.current=vehicle.price; setPrice(current=>!pendingPrice.current && current===previous && submittedPrice.current===vehicle.price ? vehicle.price : current)},[vehicle.price])
+ useEffect(()=>{const previous=previousDiscount.current; previousDiscount.current=vehicle.discount_price; if(!pendingDiscount.current && submittedDiscount.current===previous)submittedDiscount.current=vehicle.discount_price; setDiscountPrice(current=>!pendingDiscount.current && current===previous && submittedDiscount.current===vehicle.discount_price ? vehicle.discount_price : current)},[vehicle.discount_price])
  return <div className={compact?'admin-inline-prices admin-inline-prices--compact':'admin-inline-prices'}>
   <label>{t('Original Price (RM)')}<VehicleAmountInput aria-label={t('Original Price (RM)')} value={price} disabled={disabled}
-   onChange={setPrice} onBlur={()=>{if(price!==vehicle.price)onSave(vehicle,{price})}} /></label>
+   onChange={setPrice} onBlur={()=>{if(price!==submittedPrice.current){const previous=submittedPrice.current; submittedPrice.current=price; pendingPrice.current++; void onSave(vehicle,{price}).then(ok=>{pendingPrice.current--;if(!ok && submittedPrice.current===price)submittedPrice.current=previous})}}} /></label>
   <label>{t('Discounted Price (RM)')}<VehicleAmountInput aria-label={t('Discounted Price (RM)')} value={discountPrice} disabled={disabled}
-   onChange={setDiscountPrice} onBlur={()=>{if(discountPrice!==vehicle.discount_price)onSave(vehicle,{discount_price:discountPrice})}} /></label>
+   onChange={setDiscountPrice} onBlur={()=>{if(discountPrice!==submittedDiscount.current){const previous=submittedDiscount.current; submittedDiscount.current=discountPrice; pendingDiscount.current++; void onSave(vehicle,{discount_price:discountPrice}).then(ok=>{pendingDiscount.current--;if(!ok && submittedDiscount.current===discountPrice)submittedDiscount.current=previous})}}} /></label>
  </div>
 }
 export default function Admin() {
@@ -273,8 +280,7 @@ export default function Admin() {
  const [bulkStatus,setBulkStatus]=useState<VehicleStatus>('available')
  const [batchBusy,setBatchBusy]=useState(false)
  const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
- const [updatingPrice,setUpdatingPrice]=useState<Set<string>>(()=>new Set())
- const updatingPriceRef=useRef(new Set<string>())
+ const priceSaveQueue=useRef(new Map<string,Promise<void>>())
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
  const [settings,setSettings]=useState<'watermark'|'template'|null>(null)
@@ -499,20 +505,21 @@ export default function Admin() {
    setUpdatingStatus(null)
   }
  }
- const savePrices = async (vehicle:ManagedVehicle,changes:PriceChanges) => {
-  if (!vehicle.id || updatingPriceRef.current.has(vehicle.id)) return
-  updatingPriceRef.current.add(vehicle.id)
-  setUpdatingPrice(new Set(updatingPriceRef.current))
-  setError('')
-  try {
-   const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`,{method:'PATCH',body:JSON.stringify(changes)})
-   setVehicles(current=>current.map(item=>item.id===saved.id?saved:item))
-   setNotice('Vehicle price updated.')
-  } catch (error) { setError((error as Error).message) }
-  finally {
-   updatingPriceRef.current.delete(vehicle.id)
-   setUpdatingPrice(new Set(updatingPriceRef.current))
-  }
+ const savePrices = (vehicle:ManagedVehicle,changes:PriceChanges) => {
+  if (!vehicle.id) return Promise.resolve(false)
+  const previous=priceSaveQueue.current.get(vehicle.id) ?? Promise.resolve()
+  const next=previous.then(async()=>{
+   setError('')
+   try {
+    const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`,{method:'PATCH',body:JSON.stringify(changes)})
+    setVehicles(current=>current.map(item=>item.id===saved.id?saved:item))
+    setNotice('Vehicle price updated.')
+    return true
+   } catch (error) { setError((error as Error).message); return false }
+  })
+  const queued=next.then(()=>{}).finally(()=>{if(priceSaveQueue.current.get(vehicle.id)===queued)priceSaveQueue.current.delete(vehicle.id)})
+  priceSaveQueue.current.set(vehicle.id,queued)
+  return next
  }
  const updateCompact = (value:boolean) => {
   setCompact(value)
@@ -625,7 +632,7 @@ export default function Admin() {
        <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
        <strong>{vehicle.name}</strong><CompactVehicleMeta make={vehicle.make} year={vehicle.year} />
       </button>
-      <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
+      <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus} />
       <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
        onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
       <select className="admin-compact-status" data-status={vehicle.status} aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||!!updatingStatus}
@@ -659,7 +666,7 @@ export default function Admin() {
         <p>{vehicle.year} · {vehicle.make}</p>
         <h2>{vehicle.name}</h2>
         <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
-        <AdminVehiclePrices vehicle={vehicle} onSave={savePrices} disabled={updatingPrice.has(vehicle.id)} />
+        <AdminVehiclePrices vehicle={vehicle} onSave={savePrices} disabled={false} />
         <label className="admin-card-featured"><input type="checkbox" checked={vehicle.featured} disabled={!!updatingStatus}
          onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
         <fieldset className="admin-status-control"
