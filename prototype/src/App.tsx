@@ -799,8 +799,8 @@ function VehicleCard({ car }: { car: Vehicle }) {
           {car.price != null && (() => {
             const discount = getVehicleDiscount(car.price,car.discount_price)
             return discount ? <div className="vehicle-pricing">
-              <p className="vehicle-price">RM {car.discount_price!.toLocaleString(locale)}</p>
               <del className="vehicle-price-original">RM {car.price!.toLocaleString(locale)}</del>
+              <p className="vehicle-price">RM {car.discount_price!.toLocaleString(locale)}</p>
               <span className="vehicle-price-drop">-{discount.percent}% {t('Price drop!')}</span>
             </div> : <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>
           })()}
