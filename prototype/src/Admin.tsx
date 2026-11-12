@@ -571,6 +571,8 @@ export default function Admin() {
      {visible.map(vehicle=><article className="admin-compact-row" key={vehicle.id}>
       <input type="checkbox" aria-label={t('Select {name}',{name:vehicle.name})} checked={selected.includes(vehicle.id)} disabled={batchBusy}
        onChange={event=>setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))} />
+      {vehicle.plate_number && <button type="button" className="admin-compact-mobile-plate" disabled={batchBusy || !!updatingStatus}
+       aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}><CompactPlate plate={vehicle.plate_number} /></button>}
       <button type="button" className="admin-compact-photo" disabled={batchBusy || !!updatingStatus} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
        {vehicle.plate_number && <CompactPlate plate={vehicle.plate_number} />}
        <span className="admin-compact-photo-frame">{vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}</span>
