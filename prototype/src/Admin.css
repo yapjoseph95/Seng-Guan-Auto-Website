@@ -515,12 +515,15 @@
 .inventory-admin .admin-compact-delete { border-color:transparent; }
 .admin-car-copy > .admin-plate, .admin-compact-details .admin-plate, .admin-mobile-plate > span { min-width:min(100%,calc(7ch + 16px)); text-align:center; }
 @media(max-width:760px) {
- .admin-compact-row, .admin-compact-row:not(:has(.admin-mobile-plate)) { grid-template-rows:auto auto auto 1fr; }
- .inventory-admin .admin-mobile-plate { grid-column:2 / 4; grid-row:1; }
- .inventory-admin .admin-mobile-model { grid-column:2 / 4; grid-row:2; }
- .admin-compact-row > input[type=checkbox] { grid-row:3; }
- .inventory-admin .admin-compact-photo { grid-column:2 / 4; grid-row:3; width:min(100%,clamp(84px,28vw,112px)); height:auto; }
- .inventory-admin .admin-compact-details { display:none; }
+ .admin-compact-row, .admin-compact-row:not(:has(.admin-mobile-plate)) {
+  --compact-photo-width:clamp(84px,28vw,112px);
+  grid-template-rows:auto auto auto 1fr;
+ }
+ .inventory-admin .admin-mobile-plate { grid-column:3; grid-row:3; align-self:start; }
+ .inventory-admin .admin-mobile-model { grid-column:2 / 4; grid-row:1; }
+ .admin-compact-row > input[type=checkbox] { grid-row:2 / 4; }
+ .inventory-admin .admin-compact-photo { grid-column:2; grid-row:2 / 4; width:100%; height:auto; }
+ .inventory-admin .admin-compact-details { display:flex; grid-column:3; grid-row:2; }
  .admin-inline-prices--compact { grid-row:2 / 5; }
  .admin-compact-featured { grid-column:2 / 4; grid-row:4; }
  .admin-compact-row .admin-inline-prices input, .admin-compact-row select.admin-compact-status[data-status] { font-size:clamp(12px,3.4vw,16px); }
