@@ -572,7 +572,7 @@ export default function Admin() {
   if (Number.isNaN(second)) return -1
   return ascending ? first-second : second-first
  })
- return <div className="inventory-admin">
+ return <div className="inventory-admin" data-quick-update={!!updatingStatus && !batchBusy}>
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
    <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><div className="admin-title-actions"><DropdownMenu.Root>
@@ -673,6 +673,7 @@ export default function Admin() {
          aria-label={t('车辆状态：{name}', { name: vehicle.name })}
          aria-busy={updatingStatus === vehicle.id}
          data-status={vehicle.status}
+         data-has-photos={vehicle.photos.length > 0}
          disabled={!vehicle.photos.length || !!updatingStatus}>
          {publishedStatuses.map(status => (
           <label key={status}>
