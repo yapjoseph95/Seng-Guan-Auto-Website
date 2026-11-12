@@ -2,7 +2,7 @@ import { canonicalVehicleMake, vehicleMakeKey, vehicleMakeOptions } from '../sha
 import { formatPublicationDate } from './vehicle-date'
 import type { MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
-import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { CarFront, Check, ChevronDown, FileText, Settings, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Stamp, Trash2, X } from 'lucide-react'
 import type { VehicleStatus } from './data'
@@ -191,25 +191,6 @@ function VehicleAmountInput({ value, onChange, ...props }: {
 }
 
 type PriceChanges = Partial<Pick<ManagedVehicle,'price'|'discount_price'>>
-function CompactPlate({plate}: {plate:string}) {
- const box=useRef<HTMLSpanElement>(null)
- const text=useRef<HTMLSpanElement>(null)
- useLayoutEffect(()=>{
-  const container=box.current, label=text.current
-  if (!container || !label) return
-  const fit=()=>{
-   label.style.fontSize='16px'
-   const width=label.getBoundingClientRect().width
-   if (width) label.style.fontSize=`${Math.min(16,16 * Math.max(0,container.clientWidth - 8) / width)}px`
-  }
-  fit()
-  const observer=new ResizeObserver(fit)
-  observer.observe(container)
-  document.fonts.ready.then(fit)
-  return ()=>observer.disconnect()
- },[plate])
- return <span className="admin-photo-plate" ref={box}><span ref={text}>{plate}</span></span>
-}
 function AdminVehiclePrices({vehicle,onSave,disabled,compact=false}: {
  vehicle:ManagedVehicle
  onSave:(vehicle:ManagedVehicle,changes:PriceChanges)=>void
@@ -572,10 +553,10 @@ export default function Admin() {
       <input type="checkbox" aria-label={t('Select {name}',{name:vehicle.name})} checked={selected.includes(vehicle.id)} disabled={batchBusy}
        onChange={event=>setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))} />
       <button type="button" className="admin-compact-photo" disabled={batchBusy || !!updatingStatus} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
-       {vehicle.plate_number && <CompactPlate plate={vehicle.plate_number} />}
-       <span className="admin-compact-photo-frame">{vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}</span>
+       {vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
+       {vehicle.plate_number && <span className="admin-plate">{vehicle.plate_number}</span>}
        <strong>{vehicle.name}</strong><span>{vehicle.make} · {vehicle.year}</span>
       </button>
       <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />

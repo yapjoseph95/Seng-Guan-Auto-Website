@@ -436,9 +436,3 @@
  .inventory-admin .admin-compact-action { width:36px; min-width:36px; }
  .admin-compact-featured { font-size:11px; }
 }
-
-.inventory-admin .admin-compact-photo { display:flex; flex-direction:column; gap:4px; height:auto; overflow:visible; border:0; background:transparent; }
-.admin-photo-plate { display:block; width:100%; padding:3px 4px; overflow:hidden; border-radius:4px; background:var(--admin-primary); color:#fff; text-align:center; white-space:nowrap; line-height:1.2; font-weight:800; }
-.admin-photo-plate > span { display:inline-block; white-space:nowrap; }
-.admin-compact-photo-frame { display:grid; place-items:center; width:100%; aspect-ratio:var(--vehicle-photo-ratio); overflow:hidden; border:1px solid #3a3e43; border-radius:5px; background:#1b1f24; }
-.admin-compact-photo-frame img { display:block; width:100%; height:100%; object-fit:cover; }
