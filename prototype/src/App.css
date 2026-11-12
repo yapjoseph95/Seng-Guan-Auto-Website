@@ -391,6 +391,14 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .vehicle-status { position: absolute; top: 10px; left: 10px; padding: 6px 9px; color: #fff; background: var(--brand); border-radius: 2px; font-size: 11px; font-weight: 800; }
 .vehicle-status-bar, .vehicle-share, .vehicle-share-status { display: none; }
 .vehicle-info { display: flex; flex-direction: column; flex: 1; min-width: 0; padding: 17px 17px 15px; }
+.vehicle-info-status { display:none; }
+@media (min-width:761px) {
+ .is-official-site .vehicle-info { position:relative; }
+ .is-official-site .vehicle-info-status { display:inline-block; position:absolute; top:12px; right:12px; padding:4px 7px; border-radius:4px; background:#7a302c; color:#fff; font-size:10px; font-weight:800; line-height:1.3; }
+ .is-official-site .vehicle-info-status--available { background:#38791d; }
+ .is-official-site .vehicle-info-status--reserved { background:#ac4707; }
+ .is-official-site .vehicle-info:has(.vehicle-info-status) .vehicle-title { padding-right:90px; }
+}
 .vehicle-info .vehicle-price { margin: auto 0 0; padding-top: 14px; text-align: end; }
 .vehicle-title > span { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .vehicle-title h3 { margin: 4px 0 11px; font-family: var(--display); font-size: 22px; line-height: 1.05; }

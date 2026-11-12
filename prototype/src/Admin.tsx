@@ -556,13 +556,13 @@ export default function Admin() {
        {vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
-       <span className="admin-compact-plate">{vehicle.plate_number || '—'}</span>
-       <strong>{vehicle.name}</strong><span><span className="admin-compact-plate-inline">{vehicle.plate_number || '—'} · </span>{vehicle.make} · {vehicle.year}</span>
+       {vehicle.plate_number && <span className="admin-plate">{vehicle.plate_number}</span>}
+       <strong>{vehicle.name}</strong><span>{vehicle.make} · {vehicle.year}</span>
       </button>
       <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
       <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
        onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
-      <select aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||!!updatingStatus}
+      <select className="admin-compact-status" data-status={vehicle.status} aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||!!updatingStatus}
        onChange={event=>void changeStatus(vehicle,event.target.value as typeof publishedStatuses[number])}>
        {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
       </select>
@@ -577,6 +577,7 @@ export default function Admin() {
        <div className="admin-car-photo">
         {vehicle.photo ? <img src={vehicle.photo} alt={vehicle.name} /> : <CarFront aria-hidden="true" />}
         <span className={`admin-status admin-status--${vehicle.status}`}>{t(statuses[vehicle.status])}</span>
+        <span className="admin-photo-count" aria-label={t('{count} 张照片',{count:vehicle.photos.length})}><Image size={15} aria-hidden="true" />{vehicle.photos.length}</span>
        </div>
        <button type="button" className="admin-card-edit" disabled={!!updatingStatus}
         aria-label={t('编辑 {name}', { name: vehicle.name })} title={t('编辑资料')}
@@ -589,13 +590,12 @@ export default function Admin() {
         <Trash2 size={17} aria-hidden="true" />
        </button>
        <div className="admin-car-copy">
-        <p>{vehicle.year} · {vehicle.make}{vehicle.featured && vehicle.status === 'available' ? ' · ' + t('首页推荐') : ''}</p>
+        <p>{vehicle.year} · {vehicle.make}</p>
         <h2>{vehicle.name}</h2>
-        {vehicle.plate_number&&<p>{vehicle.plate_number}</p>}
+        {vehicle.plate_number&&<span className="admin-plate">{vehicle.plate_number}</span>}
         <AdminVehiclePrices vehicle={vehicle} onSave={savePrices} disabled={updatingPrice.has(vehicle.id)} />
-        <span>{t(
-         vehicle.photos.length === 1 ? '{count} 张照片（单张）' : '{count} 张照片', { count: vehicle.photos.length },
-        )}</span>
+        <label className="admin-card-featured"><input type="checkbox" checked={vehicle.featured} disabled={!!updatingStatus}
+         onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
         <fieldset className="admin-status-control"
          aria-label={t('车辆状态：{name}', { name: vehicle.name })}
          aria-busy={updatingStatus === vehicle.id}

@@ -791,6 +791,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
           </span>}
         </div>
         <div className="vehicle-info">
+          {isOfficialSite && car.status && car.status !== 'draft' && <span className={`vehicle-info-status vehicle-info-status--${car.status}`}>
+            {t(car.status === 'available' ? 'AVAILABLE' : car.status === 'reserved' ? 'RESERVED' : 'SOLD')}
+          </span>}
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
           <VehicleSpecs car={car} />
           {car.price != null && (() => {
