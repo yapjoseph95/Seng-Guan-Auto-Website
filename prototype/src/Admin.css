@@ -73,15 +73,6 @@
 .admin-status-control--editor { --status-options: 4; margin: 0; }
 .admin-status-control--editor[data-status="draft"]::before { opacity: 1; transform: translateX(300%); background: #383d44; }
 .admin-status-control:disabled { opacity: .65; }
-.inventory-admin[data-quick-update="true"] .admin-card-edit:disabled,
-.inventory-admin[data-quick-update="true"] .admin-card-delete:disabled,
-.inventory-admin[data-quick-update="true"] .admin-compact-row button:disabled,
-.inventory-admin[data-quick-update="true"] .admin-compact-row input:disabled,
-.inventory-admin[data-quick-update="true"] .admin-compact-row select:disabled,
-.inventory-admin[data-quick-update="true"] .admin-card-featured input:disabled,
-.inventory-admin[data-quick-update="true"] .admin-status-control[data-has-photos="true"]:disabled { opacity: 1; }
-.inventory-admin[data-quick-update="true"] .admin-compact-row input:not([type="checkbox"]):disabled,
-.inventory-admin[data-quick-update="true"] .admin-compact-row select:disabled { -webkit-text-fill-color: #fff; }
 .admin-status-control label { position: relative; display: grid; place-items: center; min-height: 44px; cursor: pointer; }
 .admin-status-control:disabled label { cursor: default; }
 .admin-status-control input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: inherit; }
@@ -439,6 +430,8 @@
  .admin-compact-row > .admin-compact-action:last-child { grid-column:6; grid-row:2; }
 }
 @media(min-width:761px) and (max-width:1100px) {
+ .admin-compact-row { grid-template-columns:30px 128px minmax(0,1fr) minmax(150px,1.3fr) 44px 44px; }
+ .inventory-admin .admin-compact-photo { width:128px; height:104px; }
  .admin-compact-row > select { justify-self:end; width:max(110px, calc(50% - 58px)); }
 }
 @media(max-width:760px) {

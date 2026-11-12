@@ -279,7 +279,8 @@ export default function Admin() {
  const [selected,setSelected]=useState<string[]>([])
  const [bulkStatus,setBulkStatus]=useState<VehicleStatus>('available')
  const [batchBusy,setBatchBusy]=useState(false)
- const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
+ const [updatingStatus,setUpdatingStatus]=useState<Set<string>>(()=>new Set())
+ const updatingStatusRef=useRef(new Set<string>())
  const priceSaveQueue=useRef(new Map<string,Promise<void>>())
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
@@ -492,28 +493,14 @@ export default function Admin() {
    setBusy('')
   }
  }
- const changeStatus = async (vehicle: ManagedVehicle, status: typeof publishedStatuses[number]) => {
-  setUpdatingStatus(vehicle.id)
-  setError('')
-  setNotice('')
-  try {
-   const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`, { method: 'PATCH', body: JSON.stringify({ status }) })
-   setVehicles(current => current.map(item => item.id === saved.id ? saved : item))
-  } catch (error) {
-   setError((error as Error).message)
-  } finally {
-   setUpdatingStatus(null)
-  }
- }
- const savePrices = (vehicle:ManagedVehicle,changes:PriceChanges) => {
+ const saveQuickChanges = (vehicle:ManagedVehicle,changes:PriceChanges | {status:VehicleStatus} | {featured:boolean}) => {
   if (!vehicle.id) return Promise.resolve(false)
   const previous=priceSaveQueue.current.get(vehicle.id) ?? Promise.resolve()
   const next=previous.then(async()=>{
    setError('')
    try {
     const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`,{method:'PATCH',body:JSON.stringify(changes)})
-    setVehicles(current=>current.map(item=>item.id===saved.id?saved:item))
-    setNotice('Vehicle price updated.')
+    setVehicles(current=>current.map(item=>item.id===saved.id ? {...item,...Object.fromEntries(Object.keys(changes).filter(key=>key!=='featured').map(key=>[key,saved[key as keyof ManagedVehicle]])),updated_at:saved.updated_at,listing_updated_at:saved.listing_updated_at} : item))
     return true
    } catch (error) { setError((error as Error).message); return false }
   })
@@ -521,6 +508,15 @@ export default function Admin() {
   priceSaveQueue.current.set(vehicle.id,queued)
   return next
  }
+ const changeStatus = async (vehicle: ManagedVehicle, status: typeof publishedStatuses[number]) => {
+  if(updatingStatusRef.current.has(vehicle.id))return
+  updatingStatusRef.current.add(vehicle.id)
+  setUpdatingStatus(new Set(updatingStatusRef.current))
+  setNotice('')
+  try { await saveQuickChanges(vehicle,{status}) }
+  finally { updatingStatusRef.current.delete(vehicle.id); setUpdatingStatus(new Set(updatingStatusRef.current)) }
+ }
+ const savePrices = (vehicle:ManagedVehicle,changes:PriceChanges) => saveQuickChanges(vehicle,changes)
  const updateCompact = (value:boolean) => {
   setCompact(value)
   try { localStorage.setItem('sga-admin-layout',value ? 'compact' : 'cards') } catch { /* Layout still works for this session. */ }
@@ -550,13 +546,8 @@ export default function Admin() {
   setBatchBusy(false)
  }
  const setFeatured = async (vehicle:ManagedVehicle, featured:boolean) => {
-  setUpdatingStatus(vehicle.id)
-  setError('')
-  try {
-   const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`,{method:'PATCH',body:JSON.stringify({featured})})
-   setVehicles(current => current.map(item => item.id === saved.id ? saved : item))
-  } catch (error) { setError((error as Error).message) }
-  finally { setUpdatingStatus(null) }
+  setVehicles(current=>current.map(item=>item.id===vehicle.id ? {...item,featured} : item))
+  if(!await saveQuickChanges(vehicle,{featured})) setVehicles(current=>current.map(item=>item.id===vehicle.id && item.featured===featured ? {...item,featured:!featured} : item))
  }
  const makes = vehicleMakeOptions(vehicles.map(vehicle => vehicle.make),true)
  const search = query.trim().toLowerCase()
@@ -572,7 +563,7 @@ export default function Admin() {
   if (Number.isNaN(second)) return -1
   return ascending ? first-second : second-first
  })
- return <div className="inventory-admin" data-quick-update={!!updatingStatus && !batchBusy}>
+ return <div className="inventory-admin">
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
    <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><div className="admin-title-actions"><DropdownMenu.Root>
@@ -581,7 +572,7 @@ export default function Admin() {
      <DropdownMenu.Item onSelect={() => setSettings('watermark')}><Stamp size={17} aria-hidden="true"/>{t('Watermark')}</DropdownMenu.Item>
      <DropdownMenu.Item onSelect={() => setSettings('template')}><FileText size={17} aria-hidden="true"/>{t('Vehicle Template')}</DropdownMenu.Item>
     </DropdownMenu.Content>
-   </DropdownMenu.Root><button className="admin-primary" disabled={!!busy||loading||!email||!!updatingStatus} onClick={() => void openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div></div>
+   </DropdownMenu.Root><button className="admin-primary" disabled={!!busy||loading||!email} onClick={() => void openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div></div>
    <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}</div>
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
@@ -622,26 +613,26 @@ export default function Admin() {
      {visible.map(vehicle=><article className="admin-compact-row" key={vehicle.id}>
       <input type="checkbox" aria-label={t('Select {name}',{name:vehicle.name})} checked={selected.includes(vehicle.id)} disabled={batchBusy}
        onChange={event=>setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))} />
-      <MobileCompactPlate vehicle={vehicle} disabled={batchBusy || !!updatingStatus} onEdit={()=>void openEditor(vehicle)} />
-      <button type="button" className="admin-mobile-model" disabled={batchBusy || !!updatingStatus}
+      <MobileCompactPlate vehicle={vehicle} disabled={batchBusy} onEdit={()=>void openEditor(vehicle)} />
+      <button type="button" className="admin-mobile-model" disabled={batchBusy}
        aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>{vehicle.name}</button>
-      <button type="button" className="admin-compact-photo" disabled={batchBusy || !!updatingStatus} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
+      <button type="button" className="admin-compact-photo" disabled={batchBusy} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
        {vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}
       </button>
-      <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
+      <button type="button" className="admin-compact-details" disabled={batchBusy} onClick={()=>void openEditor(vehicle)}>
        <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
        <strong>{vehicle.name}</strong><CompactVehicleMeta make={vehicle.make} year={vehicle.year} />
       </button>
-      <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus} />
-      <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
+      <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy} />
+      <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy}
        onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
-      <select className="admin-compact-status" data-status={vehicle.status} aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||!!updatingStatus}
+      <select className="admin-compact-status" data-status={vehicle.status} aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||updatingStatus.has(vehicle.id)}
        onChange={event=>void changeStatus(vehicle,event.target.value as typeof publishedStatuses[number])}>
        {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
       </select>
-      <button type="button" className="admin-compact-action" disabled={batchBusy||!!updatingStatus} aria-label={t('编辑 {name}',{name:vehicle.name})} title={t('编辑资料')}
+      <button type="button" className="admin-compact-action" disabled={batchBusy} aria-label={t('编辑 {name}',{name:vehicle.name})} title={t('编辑资料')}
        onClick={()=>void openEditor(vehicle)}><Pencil size={18} aria-hidden="true" /></button>
-      <button type="button" className="admin-compact-action admin-compact-delete" disabled={batchBusy||!!updatingStatus} aria-label={t('删除 {name}',{name:vehicle.name})}
+      <button type="button" className="admin-compact-action admin-compact-delete" disabled={batchBusy} aria-label={t('删除 {name}',{name:vehicle.name})}
        onClick={()=>setConfirmDelete(vehicle)}><Trash2 size={18} aria-hidden="true" /></button>
      </article>)}
     </div> : <div className="admin-list">
@@ -652,12 +643,12 @@ export default function Admin() {
         <span className={`admin-status admin-status--${vehicle.status}`}>{t(statuses[vehicle.status])}</span>
         <span className="admin-photo-count" aria-label={t('{count} 张照片',{count:vehicle.photos.length})}><Image size={15} aria-hidden="true" />{vehicle.photos.length}</span>
        </div>
-       <button type="button" className="admin-card-edit" disabled={!!updatingStatus}
+       <button type="button" className="admin-card-edit"
         aria-label={t('编辑 {name}', { name: vehicle.name })} title={t('编辑资料')}
         onClick={() => void openEditor(vehicle)}>
         <span className="admin-card-icon"><Pencil size={17} aria-hidden="true" /></span>
        </button>
-       <button type="button" className="admin-card-icon admin-card-delete" disabled={!!updatingStatus}
+       <button type="button" className="admin-card-icon admin-card-delete"
         aria-label={t('删除 {name}', { name: vehicle.name })} title={t('删除 {name}', { name: vehicle.name })}
         onClick={() => setConfirmDelete(vehicle)}>
         <Trash2 size={17} aria-hidden="true" />
@@ -667,14 +658,14 @@ export default function Admin() {
         <h2>{vehicle.name}</h2>
         <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
         <AdminVehiclePrices vehicle={vehicle} onSave={savePrices} disabled={false} />
-        <label className="admin-card-featured"><input type="checkbox" checked={vehicle.featured} disabled={!!updatingStatus}
+        <label className="admin-card-featured"><input type="checkbox" checked={vehicle.featured}
          onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
         <fieldset className="admin-status-control"
          aria-label={t('车辆状态：{name}', { name: vehicle.name })}
-         aria-busy={updatingStatus === vehicle.id}
+         aria-busy={updatingStatus.has(vehicle.id)}
          data-status={vehicle.status}
          data-has-photos={vehicle.photos.length > 0}
-         disabled={!vehicle.photos.length || !!updatingStatus}>
+         disabled={!vehicle.photos.length || updatingStatus.has(vehicle.id)}>
          {publishedStatuses.map(status => (
           <label key={status}>
            <input type="radio" name={`vehicle-status-${vehicle.id}`} value={status}
