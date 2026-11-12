@@ -556,7 +556,8 @@ export default function Admin() {
        {vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
-       <strong>{vehicle.name}</strong><span>{vehicle.plate_number || '—'} · {vehicle.make} · {vehicle.year}</span>
+       <span className="admin-compact-plate">{vehicle.plate_number || '—'}</span>
+       <strong>{vehicle.name}</strong><span><span className="admin-compact-plate-inline">{vehicle.plate_number || '—'} · </span>{vehicle.make} · {vehicle.year}</span>
       </button>
       <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
       <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
