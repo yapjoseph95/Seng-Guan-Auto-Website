@@ -396,7 +396,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
  .is-official-site .vehicle-info { position:relative; }
  .is-official-site .vehicle-info-status { display:inline-block; position:absolute; top:12px; right:12px; padding:4px 7px; border-radius:4px; background:#66686a; color:#fff; font-size:10px; font-weight:800; line-height:1.3; }
  .is-official-site .vehicle-info-status--available { background:#38791d; }
- .is-official-site .vehicle-info:has(.vehicle-info-status) .vehicle-title > span { display:block; min-height:22px; padding-right:105px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+ .is-official-site .vehicle-info:has(.vehicle-info-status) .vehicle-title > span { display:block; min-height:22px; padding-right:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
  .is-official-site .vehicle-photo .vehicle-status { top:50%; left:50%; transform:translate(-50%,-50%) rotate(-10deg); min-width:58%; padding:5px 8px; border-radius:0; text-align:center; font-size:clamp(13px,2vw,28px); line-height:1.15; white-space:nowrap; background:#d32118; box-shadow:0 5px 12px rgb(0 0 0 / 55%); }
  .is-official-site .vehicle-photo .vehicle-status--reserved { background:#ac4707; }
 }
@@ -1005,6 +1005,9 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 @media (width > 760px) {
   .is-official-site .inventory-grid:not(.inventory-grid--photo) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-title h3 { overflow-wrap: anywhere; }
+}
+@media (min-width:761px) and (max-width:886px) {
+  .is-official-site .inventory-grid:not(.inventory-grid--photo) { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 760px) {
