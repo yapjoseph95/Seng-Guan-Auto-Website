@@ -202,8 +202,9 @@ function CompactVehicleMeta({make,year}: {make:string;year:number}) {
    if (!active) return
    label.style.removeProperty('font-size')
    if (!mobile.matches || !label.clientWidth) return
-   const available=label.clientWidth, textWidth=label.scrollWidth
-   if (textWidth>available) label.style.fontSize=`${Math.max(9,16 * available / textWidth)}px`
+   for (let size=16;size>9 && label.scrollWidth>label.clientWidth;size--) {
+    label.style.fontSize=`${size-1}px`
+   }
   }
   const observer=new ResizeObserver(fit)
   observer.observe(label)
