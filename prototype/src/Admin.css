@@ -527,7 +527,7 @@
  .inventory-admin .admin-compact-details .admin-compact-meta { display:flex; align-items:center; width:100%; min-height:27.2px; font-size:16px; line-height:1.2; overflow:hidden; }
  .admin-mobile-plate > span { width:min(100%,calc(7ch + 8px)); min-width:0; padding-inline:4px; overflow:hidden; text-overflow:ellipsis; }
  .admin-inline-prices--compact { grid-row:2 / 5; }
- .admin-compact-featured { grid-column:2 / 4; grid-row:4; }
+ .admin-compact-featured { grid-column:2 / 4; grid-row:4; align-self:start; }
  .admin-compact-row .admin-inline-prices input, .admin-compact-row select.admin-compact-status[data-status] { font-size:clamp(12px,3.4vw,16px); }
  .admin-compact-row select.admin-compact-status[data-status] { text-align:left; text-align-last:left; padding:0 12px 0 8px; line-height:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
  .admin-compact-row select.admin-compact-status[data-status], .inventory-admin .admin-compact-row > .admin-compact-delete { height:27.2px; min-height:27.2px; align-self:start; }
