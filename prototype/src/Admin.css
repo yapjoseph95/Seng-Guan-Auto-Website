@@ -442,14 +442,3 @@
 .admin-photo-plate > span { display:inline-block; white-space:nowrap; }
 .admin-compact-photo-frame { display:grid; place-items:center; width:100%; aspect-ratio:var(--vehicle-photo-ratio); overflow:hidden; border:1px solid #3a3e43; border-radius:5px; background:#1b1f24; }
 .admin-compact-photo-frame img { display:block; width:100%; height:100%; object-fit:cover; }
-.inventory-admin .admin-compact-mobile-plate { display:none; }
-@media(max-width:760px) {
- .inventory-admin .admin-compact-mobile-plate { display:block; grid-column:2 / 4; grid-row:1; width:100%; min-width:0; min-height:0; padding:0; border:0; background:transparent; }
- .admin-compact-photo > .admin-photo-plate { display:none; }
- .admin-compact-row > input[type=checkbox] { grid-row:1 / 3; }
- .admin-compact-photo, .admin-compact-details { grid-row:2; }
- .admin-inline-prices--compact { grid-row:1 / 3; }
- .admin-compact-featured, .admin-compact-row > select,
- .admin-compact-row > .admin-compact-action:nth-last-child(2),
- .admin-compact-row > .admin-compact-action:last-child { grid-row:3; }
-}
