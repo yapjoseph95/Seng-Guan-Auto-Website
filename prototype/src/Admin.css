@@ -425,6 +425,9 @@
  .admin-compact-row > .admin-compact-action:nth-last-child(2) { grid-column:5; grid-row:2; }
  .admin-compact-row > .admin-compact-action:last-child { grid-column:6; grid-row:2; }
 }
+@media(min-width:761px) and (max-width:1100px) {
+ .admin-compact-row > select { justify-self:end; width:max(110px, calc(50% - 58px)); }
+}
 @media(max-width:760px) {
  .admin-compact-row { grid-template-columns:18px 56px minmax(0,1fr) minmax(100px,1fr) 40px 40px; gap:6px; }
  .admin-inline-prices--compact label { grid-template-columns:minmax(0,1fr); text-align:left; }
@@ -439,12 +442,14 @@
 
 .inventory-admin .admin-mobile-plate { display:none; }
 @media(max-width:760px) {
+ .admin-compact-row { grid-template-rows:min-content auto auto; }
  .inventory-admin .admin-mobile-plate { display:flex; justify-content:flex-start; grid-column:2 / 4; grid-row:1; width:100%; min-width:0; min-height:0; padding:0; border:0; background:transparent; }
  .inventory-admin .admin-mobile-plate:hover { background:transparent; }
  .admin-mobile-plate > span { display:inline-block; max-width:100%; padding:4px 8px; border-radius:4px; background:var(--admin-primary); color:#fff; font-size:16px; font-weight:800; line-height:1.2; white-space:nowrap; }
  .admin-compact-details > .admin-plate { display:none; }
  .admin-compact-row > input[type=checkbox] { grid-row:1 / 3; }
- .admin-compact-photo, .admin-compact-details { grid-row:2; }
+ .admin-compact-photo, .admin-compact-details { grid-row:2; align-self:start; }
+ .admin-compact-details strong { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
  .admin-inline-prices--compact { grid-row:1 / 3; }
  .admin-compact-featured, .admin-compact-row > select,
  .admin-compact-row > .admin-compact-action:nth-last-child(2),
