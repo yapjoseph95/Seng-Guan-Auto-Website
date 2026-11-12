@@ -2,7 +2,7 @@ import { canonicalVehicleMake, vehicleMakeKey, vehicleMakeOptions } from '../sha
 import { formatPublicationDate } from './vehicle-date'
 import type { MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
-import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { CarFront, Check, ChevronDown, FileText, Settings, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Stamp, Trash2, X } from 'lucide-react'
 import type { VehicleStatus } from './data'
@@ -193,26 +193,8 @@ function VehicleAmountInput({ value, onChange, ...props }: {
 type PriceChanges = Partial<Pick<ManagedVehicle,'price'|'discount_price'>>
 function MobileCompactPlate({vehicle,disabled,onEdit}: {vehicle:ManagedVehicle;disabled:boolean;onEdit:()=>void}) {
  const {t}=useLocale()
- const button=useRef<HTMLButtonElement>(null)
- const plate=useRef<HTMLSpanElement>(null)
- useLayoutEffect(()=>{
-  const label=plate.current, container=button.current
-  if (!container || !label) return
-  let active=true
-  const fit=()=>{
-   if (!active || !container.clientWidth) return
-   label.style.fontSize='16px'
-   const textWidth=label.scrollWidth-16
-   if (textWidth>0) label.style.fontSize=`${Math.min(16,16 * Math.max(0,container.clientWidth-16) / textWidth)}px`
-  }
-  const observer=new ResizeObserver(fit)
-  observer.observe(container)
-  fit()
-  void document.fonts.ready.then(fit)
-  return ()=>{active=false;observer.disconnect()}
- },[vehicle.plate_number])
- return <button ref={button} type="button" className="admin-mobile-plate" disabled={disabled}
-  aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={onEdit}><span ref={plate}>{vehicle.plate_number?.trim() || '-'}</span></button>
+ return <button type="button" className="admin-mobile-plate" disabled={disabled}
+  aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={onEdit}><span title={vehicle.plate_number || undefined}>{vehicle.plate_number?.trim() || '-'}</span></button>
 }
 function AdminVehiclePrices({vehicle,onSave,disabled,compact=false}: {
  vehicle:ManagedVehicle
