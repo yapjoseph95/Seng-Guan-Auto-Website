@@ -388,7 +388,7 @@
 .admin-card-featured { position:relative; z-index:2; display:flex; align-items:center; gap:7px; min-height:44px; color:#c4cbd2; font-size:13px; cursor:pointer; }
 .admin-card-featured input { width:18px; height:18px; accent-color:var(--admin-primary); }
 .admin-car-copy .admin-inline-prices { position:relative; z-index:2; }
-.admin-compact-row select.admin-compact-status { color:#fff; font-weight:700; }
+.admin-compact-row select.admin-compact-status { color:#fff; font-weight:400; }
 .admin-compact-row select.admin-compact-status[data-status="available"] { background:#214e37; border-color:#39734c; }
 .admin-compact-row select.admin-compact-status[data-status="reserved"] { background:#805212; border-color:#a87831; }
 .admin-compact-row select.admin-compact-status[data-status="sold"] { background:#7a302c; border-color:#a04a43; }
@@ -513,6 +513,7 @@
 .admin-compact-row .admin-inline-prices input, .admin-car-copy .admin-inline-prices input,
 .admin-fields .admin-price-field input { font-size:16px; }
 .inventory-admin .admin-compact-delete { border-color:transparent; }
+.admin-car-copy > .admin-plate, .admin-compact-details .admin-plate, .admin-mobile-plate > span { min-width:min(100%,calc(7ch + 16px)); text-align:center; }
 @media(max-width:760px) {
  .admin-compact-row, .admin-compact-row:not(:has(.admin-mobile-plate)) { grid-template-rows:auto auto auto 1fr; }
  .inventory-admin .admin-mobile-plate { grid-column:2 / 4; grid-row:1; }

@@ -211,9 +211,8 @@ function MobileCompactPlate({vehicle,disabled,onEdit}: {vehicle:ManagedVehicle;d
   void document.fonts.ready.then(fit)
   return ()=>{active=false;observer.disconnect()}
  },[vehicle.plate_number])
- if (!vehicle.plate_number) return null
  return <button ref={button} type="button" className="admin-mobile-plate" disabled={disabled}
-  aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={onEdit}><span ref={plate}>{vehicle.plate_number}</span></button>
+  aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={onEdit}><span ref={plate}>{vehicle.plate_number?.trim() || '-'}</span></button>
 }
 function AdminVehiclePrices({vehicle,onSave,disabled,compact=false}: {
  vehicle:ManagedVehicle
@@ -583,7 +582,7 @@ export default function Admin() {
        {vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
-       {vehicle.plate_number && <span className="admin-plate">{vehicle.plate_number}</span>}
+       <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
        <strong>{vehicle.name}</strong><span className="admin-compact-meta">{vehicle.make} · {vehicle.year}</span>
       </button>
       <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
@@ -619,7 +618,7 @@ export default function Admin() {
        <div className="admin-car-copy">
         <p>{vehicle.year} · {vehicle.make}</p>
         <h2>{vehicle.name}</h2>
-        {vehicle.plate_number&&<span className="admin-plate">{vehicle.plate_number}</span>}
+        <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
         <AdminVehiclePrices vehicle={vehicle} onSave={savePrices} disabled={updatingPrice.has(vehicle.id)} />
         <label className="admin-card-featured"><input type="checkbox" checked={vehicle.featured} disabled={!!updatingStatus}
          onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
