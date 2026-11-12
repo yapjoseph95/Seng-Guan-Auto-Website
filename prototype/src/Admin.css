@@ -360,11 +360,15 @@
 .admin-editor-template p { margin: 0; color: #aab3bd; font-size: 12px; line-height: 1.6; }
 .admin-fields > label { justify-content: flex-end; }
 .admin-layout-controls { display:flex; justify-content:flex-end; margin:16px 0; }
-.admin-layout-controls > div { display:flex; gap:4px; }
-.admin-layout-controls button[aria-pressed=true] { background:var(--admin-primary); border-color:var(--admin-primary); }
+ .admin-layout-switch { position:relative; isolation:isolate; display:grid; grid-template-columns:repeat(2,40px); padding:3px; border:1px solid #3a4047; border-radius:7px; background:#14171a; }
+.admin-layout-switch::before { content:""; position:absolute; z-index:-1; inset:3px auto 3px 3px; width:40px; border-radius:4px; background:var(--admin-primary); transition:transform .16s ease; }
+.admin-layout-switch[data-compact=true]::before { transform:translateX(40px); }
+.inventory-admin .admin-layout-switch button { min-width:40px; min-height:38px; padding:0; border:0; background:transparent; }
+@media(prefers-reduced-motion:reduce) { .admin-layout-switch::before { transition:none; } }
 .admin-bulk-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
 .admin-bulk-controls label,.admin-compact-featured { display:flex; align-items:center; gap:7px; color:#c4cbd2; font-size:13px; }
 .admin-bulk-controls input,.admin-compact-row input { width:18px; height:18px; accent-color:var(--admin-primary); }
+.inventory-admin .admin-bulk-delete { width:44px; padding:0; color:#ff8d85; }
 .admin-bulk-controls select,.admin-compact-row select { min-height:44px; max-width:100%; padding:8px; border:1px solid #3a4047; border-radius:5px; background:#1b1f24; color:white; }
 .admin-compact-list { display:grid; gap:8px; }
 .admin-compact-row { display:grid; grid-template-columns:22px 64px minmax(0,1fr) auto 135px; gap:12px; align-items:center; padding:10px; border:1px solid #303438; border-radius:7px; background:#16191d; }
@@ -377,5 +381,5 @@
  .admin-compact-row { grid-template-columns:22px 56px minmax(0,1fr); gap:8px; }
  .inventory-admin .admin-compact-photo { width:56px; height:46px; }
  .admin-compact-featured { grid-column:2 / 4; }
- .admin-compact-row select { grid-column:2 / 4; width:100%; }
+ .admin-compact-row select { grid-column:2 / 4; width:auto; max-width:min(100%,150px); justify-self:start; }
 }

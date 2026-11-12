@@ -489,20 +489,26 @@ export default function Admin() {
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
    <div className="admin-layout-controls">
-    <div role="group" aria-label={t('Vehicle layout')}>
-     <button type="button" aria-pressed={!compact} disabled={batchBusy} onClick={()=>updateCompact(false)}>{t('Cards')}</button>
-     <button type="button" aria-pressed={compact} disabled={batchBusy} onClick={()=>updateCompact(true)}>{t('Compact list')}</button>
+    <div className="admin-layout-switch" role="group" aria-label={t('Vehicle layout')} data-compact={compact}>
+     <button type="button" aria-label={t('Cards')} title={t('Cards')} aria-pressed={!compact} disabled={batchBusy} onClick={()=>updateCompact(false)}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+     </button>
+     <button type="button" aria-label={t('Compact list')} title={t('Compact list')} aria-pressed={compact} disabled={batchBusy} onClick={()=>updateCompact(true)}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12"/><rect x="3" y="4" width="3" height="4" rx=".5"/><rect x="3" y="10" width="3" height="4" rx=".5"/><rect x="3" y="16" width="3" height="4" rx=".5"/></svg>
+     </button>
     </div>
    </div>
    {compact && <div className="admin-bulk-controls">
     <label><input type="checkbox" disabled={batchBusy} checked={visible.length > 0 && visible.every(vehicle=>selected.includes(vehicle.id))}
      onChange={event=>setSelected(current=>event.target.checked ? [...new Set([...current,...visible.map(vehicle=>vehicle.id)])] : current.filter(id=>!visible.some(vehicle=>vehicle.id===id)))} />
-     {t('Select visible')} ({selected.length})</label>
-    <select aria-label={t('Bulk status')} disabled={batchBusy} value={bulkStatus} onChange={event=>setBulkStatus(event.target.value as VehicleStatus)}>
-     {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
-    </select>
-    <button type="button" disabled={!selected.length||batchBusy} onClick={()=>void batchAction('status')}>{t('Apply status')}</button>
-    <button type="button" disabled={!selected.length||batchBusy} onClick={()=>void batchAction('delete')}>{t('Delete selected')}</button>
+     {t('Select')} ({selected.length})</label>
+    <label className="admin-bulk-status">{t('Change to')}
+     <select aria-label={t('Bulk status')} disabled={batchBusy} value={bulkStatus} onChange={event=>setBulkStatus(event.target.value as VehicleStatus)}>
+      {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
+     </select>
+    </label>
+    <button type="button" className={selected.length&&!batchBusy ? 'admin-primary' : ''} disabled={!selected.length||batchBusy} onClick={()=>void batchAction('status')}>{t('Apply')}</button>
+    <button type="button" className="admin-bulk-delete" aria-label={t('Delete selected')} title={t('Delete selected')} disabled={!selected.length||batchBusy} onClick={()=>void batchAction('delete')}><Trash2 size={18} aria-hidden="true" /></button>
    </div>}
    {loading ? <p className="admin-empty"><LoaderCircle className="admin-spin" />{t('正在载入车辆…')}</p> : (
     compact ? <div className="admin-compact-list">
