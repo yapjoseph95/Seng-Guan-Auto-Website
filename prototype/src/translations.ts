@@ -495,6 +495,8 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Standard layout": ["Standard layout", "Paparan biasa", "标准展示"],
   "Large photo layout": ["Large photo layout", "Paparan foto besar", "大图展示"],
   "Sort by": ["Sort by", "Susun mengikut", "排序依据"],
+  "Upload Date": ["Upload Date", "Tarikh muat naik", "上传日期"],
+  "Update Date": ["Update Date", "Tarikh kemas kini", "更新日期"],
   "Selling price": ["Selling price", "Harga jualan", "售价"],
   "Ascending order": ["Ascending order", "Susunan menaik", "升序"],
   "Descending order": ["Descending order", "Susunan menurun", "降序"],

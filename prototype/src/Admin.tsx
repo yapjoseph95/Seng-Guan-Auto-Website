@@ -14,7 +14,7 @@ import type { WatermarkPlacement } from '../shared/watermarks'
 import AdminVehicleTemplate from './AdminVehicleTemplate'
 import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength, type VehicleTemplate, type VehicleTemplateLanguage } from '../shared/vehicle-template'
 import './Admin.css'
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;discount_price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;updated_at:string;published_at?:string|null;listing_updated_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;discount_price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;created_at?:string|null;updated_at:string;published_at?:string|null;listing_updated_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
 const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,discount_price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
@@ -266,6 +266,8 @@ export default function Admin() {
  const [notice,setNotice]=useState('')
  const [query,setQuery]=useState('')
  const [filter,setFilter]=useState('all')
+ const [sortDate,setSortDate]=useState<'created_at'|'updated_at'>('created_at')
+ const [ascending,setAscending]=useState(false)
  const [compact,setCompact]=useState(() => { try { return localStorage.getItem('sga-admin-layout') === 'compact' } catch { return false } })
  const [selected,setSelected]=useState<string[]>([])
  const [bulkStatus,setBulkStatus]=useState<VehicleStatus>('available')
@@ -557,6 +559,11 @@ export default function Admin() {
   const details = `${vehicle.make} ${vehicle.name} ${vehicle.year}`.toLowerCase()
   const plate = vehicle.plate_number?.toLowerCase().replace(/[\s-]+/g,'')
   return details.includes(search) || (plateQuery && plate?.includes(plateQuery))
+ }).sort((a,b)=>{
+  const first=Date.parse(a[sortDate] ?? ''), second=Date.parse(b[sortDate] ?? '')
+  if (Number.isNaN(first)) return Number.isNaN(second) ? 0 : 1
+  if (Number.isNaN(second)) return -1
+  return ascending ? first-second : second-first
  })
  return <div className="inventory-admin">
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
@@ -572,6 +579,16 @@ export default function Admin() {
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
    <div className="admin-layout-controls">
+    <div className="admin-sort">
+     <label><span>{t('Sort by')}</span><select value={sortDate} onChange={event=>setSortDate(event.target.value as 'created_at'|'updated_at')}>
+      <option value="created_at">{t('Upload Date')}</option><option value="updated_at">{t('Update Date')}</option>
+     </select></label>
+     <button type="button" className="admin-sort-direction" aria-label={t(ascending ? 'Ascending order' : 'Descending order')} title={t(ascending ? 'Ascending order' : 'Descending order')} onClick={()=>setAscending(value=>!value)}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+       <path d={ascending ? 'M3 6h4m-4 4h7m-7 4h10m-10 4h13m4 0V6m-3 3 3-3 3 3' : 'M3 6h13m-13 4h10m-10 4h7m-7 4h4m13-12v12m-3-3 3 3 3-3'} />
+      </svg>
+     </button>
+    </div>
     <div className="admin-layout-switch" role="group" aria-label={t('Vehicle layout')} data-compact={compact}>
      <button type="button" aria-label={t('Cards')} title={t('Cards')} aria-pressed={!compact} disabled={batchBusy} onClick={()=>updateCompact(false)}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
