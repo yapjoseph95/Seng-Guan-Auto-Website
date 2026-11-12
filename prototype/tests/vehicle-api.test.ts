@@ -121,6 +121,14 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.equal((await call(adminPath,'PATCH',{status:'reserved'},false)).status,401)
  assert.equal((await call(adminPath,'PATCH',{status:'reserved'},true,'https://attacker.test')).status,403)
  assert.equal((await call(adminPath,'PATCH',{status:'invalid'})).status,400)
+ assert.equal((await call(adminPath,'PATCH',{featured:false},false)).status,401)
+ assert.equal((await call(adminPath,'PATCH',{featured:false},true,'https://attacker.test')).status,403)
+ assert.equal((await call(adminPath,'PATCH',{featured:'false'})).status,400)
+ assert.equal((await (await call(adminPath,'PATCH',{featured:false})).json() as any).featured,false)
+ assert.equal((await (await call('/api/vehicles/'+draft.id,'GET',undefined,false)).json() as any).featured,false)
+ assert.equal((await (await call(adminPath,'PATCH',{featured:true})).json() as any).featured,true)
+ assert.equal((await (await call(adminPath,'PATCH',{status:'draft'})).json() as any).status,'draft')
+
  for (const status of ['reserved','sold','available']) {
   const response=await call(adminPath,'PATCH',{status,name:'Ignored'})
   assert.equal(response.status,200)

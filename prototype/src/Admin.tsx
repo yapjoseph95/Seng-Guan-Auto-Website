@@ -200,6 +200,10 @@ export default function Admin() {
  const [notice,setNotice]=useState('')
  const [query,setQuery]=useState('')
  const [filter,setFilter]=useState('all')
+ const [compact,setCompact]=useState(() => { try { return localStorage.getItem('sga-admin-layout') === 'compact' } catch { return false } })
+ const [selected,setSelected]=useState<string[]>([])
+ const [bulkStatus,setBulkStatus]=useState<VehicleStatus>('available')
+ const [batchBusy,setBatchBusy]=useState(false)
  const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
@@ -425,6 +429,43 @@ export default function Admin() {
    setUpdatingStatus(null)
   }
  }
+ const updateCompact = (value:boolean) => {
+  setCompact(value)
+  try { localStorage.setItem('sga-admin-layout',value ? 'compact' : 'cards') } catch { /* Layout still works for this session. */ }
+ }
+ const batchAction = async (action:'delete'|'status') => {
+  if (!selected.length || batchBusy) return
+  if (action === 'delete' && !window.confirm(t('Delete {count} selected vehicles?',{count:selected.length}))) return
+  setBatchBusy(true)
+  setError('')
+  const failed:string[] = []
+  for (const id of selected) {
+   try {
+    if (action === 'delete') {
+     await api(`vehicles/${id}`,{method:'DELETE'})
+     setVehicles(current => current.filter(vehicle => vehicle.id !== id))
+    } else {
+     const saved = await api<ManagedVehicle>(`vehicles/${id}`,{method:'PATCH',body:JSON.stringify({status:bulkStatus})})
+     setVehicles(current => current.map(vehicle => vehicle.id === id ? saved : vehicle))
+    }
+   } catch {
+    failed.push(id)
+   }
+  }
+  setSelected(failed)
+  if (failed.length) setError(t('{count} vehicles could not be updated. They remain selected.',{count:failed.length}))
+  else setNotice(action === 'delete' ? 'Selected vehicles deleted.' : 'Selected vehicles updated.')
+  setBatchBusy(false)
+ }
+ const setFeatured = async (vehicle:ManagedVehicle, featured:boolean) => {
+  setUpdatingStatus(vehicle.id)
+  setError('')
+  try {
+   const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`,{method:'PATCH',body:JSON.stringify({featured})})
+   setVehicles(current => current.map(item => item.id === saved.id ? saved : item))
+  } catch (error) { setError((error as Error).message) }
+  finally { setUpdatingStatus(null) }
+ }
  const makes = vehicleMakeOptions(vehicles.map(vehicle => vehicle.make),true)
  const search = query.trim().toLowerCase()
  const plateQuery = search.replace(/[\s-]+/g,'')
@@ -447,8 +488,42 @@ export default function Admin() {
    <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}</div>
    <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
+   <div className="admin-layout-controls">
+    <div role="group" aria-label={t('Vehicle layout')}>
+     <button type="button" aria-pressed={!compact} disabled={batchBusy} onClick={()=>updateCompact(false)}>{t('Cards')}</button>
+     <button type="button" aria-pressed={compact} disabled={batchBusy} onClick={()=>updateCompact(true)}>{t('Compact list')}</button>
+    </div>
+   </div>
+   {compact && <div className="admin-bulk-controls">
+    <label><input type="checkbox" disabled={batchBusy} checked={visible.length > 0 && visible.every(vehicle=>selected.includes(vehicle.id))}
+     onChange={event=>setSelected(current=>event.target.checked ? [...new Set([...current,...visible.map(vehicle=>vehicle.id)])] : current.filter(id=>!visible.some(vehicle=>vehicle.id===id)))} />
+     {t('Select visible')} ({selected.length})</label>
+    <select aria-label={t('Bulk status')} disabled={batchBusy} value={bulkStatus} onChange={event=>setBulkStatus(event.target.value as VehicleStatus)}>
+     {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
+    </select>
+    <button type="button" disabled={!selected.length||batchBusy} onClick={()=>void batchAction('status')}>{t('Apply status')}</button>
+    <button type="button" disabled={!selected.length||batchBusy} onClick={()=>void batchAction('delete')}>{t('Delete selected')}</button>
+   </div>}
    {loading ? <p className="admin-empty"><LoaderCircle className="admin-spin" />{t('正在载入车辆…')}</p> : (
-    <div className="admin-list">
+    compact ? <div className="admin-compact-list">
+     {visible.map(vehicle=><article className="admin-compact-row" key={vehicle.id}>
+      <input type="checkbox" aria-label={t('Select {name}',{name:vehicle.name})} checked={selected.includes(vehicle.id)} disabled={batchBusy}
+       onChange={event=>setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))} />
+      <button type="button" className="admin-compact-photo" disabled={batchBusy || !!updatingStatus} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
+       {vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}
+      </button>
+      <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
+       <strong>{vehicle.name}</strong><span>{vehicle.plate_number || '—'} · {vehicle.make} · {vehicle.year}</span>
+       <span>{vehicle.price === null ? t('售价未填写') : 'RM '+vehicle.price.toLocaleString(locale)}</span>
+      </button>
+      <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
+       onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
+      <select aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||!!updatingStatus}
+       onChange={event=>void changeStatus(vehicle,event.target.value as typeof publishedStatuses[number])}>
+       {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
+      </select>
+     </article>)}
+    </div> : <div className="admin-list">
      {visible.map(vehicle => (
       <article key={vehicle.id} className="admin-car">
        <div className="admin-car-photo">

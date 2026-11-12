@@ -464,13 +464,20 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   }
   if (!id) throw new HttpError(404,'Vehicle not found.')
   if (parts.length === 2 && request.method === 'PATCH') {
-   const { status } = await body(request)
-   if (status !== 'available' && status !== 'reserved' && status !== 'sold') {
+   const data = await body(request)
+   if (typeof data.featured === 'boolean' && !Object.hasOwn(data, 'status')) {
+    const result = await env.DB.prepare(`UPDATE vehicles SET featured=?,updated_at=${nextUpdatedAt} WHERE id=?`)
+     .bind(data.featured ? 1 : 0,id).run()
+    if (!result.meta.changes) throw new HttpError(404,'Vehicle not found.')
+    return json(await vehicle(env,id,true))
+   }
+   const { status } = data
+   if (status !== 'available' && status !== 'reserved' && status !== 'sold' && status !== 'draft') {
     throw new HttpError(400,'Invalid publication status.')
    }
    const result = await env.DB.prepare(
-    `UPDATE vehicles SET status=?,updated_at=${nextUpdatedAt} WHERE id=? AND EXISTS (SELECT 1 FROM photos WHERE vehicle_id=?)`
-   ).bind(status,id,id).run()
+    `UPDATE vehicles SET status=?,updated_at=${nextUpdatedAt} WHERE id=? AND (?='draft' OR EXISTS (SELECT 1 FROM photos WHERE vehicle_id=?))`
+   ).bind(status,id,status,id).run()
    if (!result.meta.changes) {
     await vehicle(env,id,true)
     throw new HttpError(400,'Upload at least one photo before publishing.')
