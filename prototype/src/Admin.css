@@ -520,7 +520,7 @@
   grid-template-rows:auto auto auto 1fr;
  }
  .inventory-admin .admin-mobile-plate { grid-column:3; grid-row:3; align-self:start; width:min(100%,101px); }
- .inventory-admin .admin-mobile-model { display:block; grid-column:2 / 4; grid-row:1; margin-top:12px; white-space:nowrap; text-overflow:ellipsis; }
+ .inventory-admin .admin-mobile-model { display:block; grid-column:2 / 4; grid-row:1; margin:20px 0 8px; white-space:nowrap; text-overflow:ellipsis; }
  .admin-compact-row > input[type=checkbox] { grid-row:2 / 4; }
  .inventory-admin .admin-compact-photo { grid-column:2; grid-row:2 / 4; width:100%; height:auto; }
  .inventory-admin .admin-compact-details { display:flex; grid-column:3; grid-row:2; align-self:end; width:min(100%,101px); }
