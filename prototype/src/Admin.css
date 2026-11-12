@@ -406,7 +406,7 @@
 .admin-inline-prices input { width:100%; min-width:0; min-height:42px; padding:8px 9px; border:1px solid #3a4047; border-radius:5px; background:#1b1f24; color:#fff; font-variant-numeric:tabular-nums; }
 .admin-inline-prices input:focus { border-color:#f25a54; }
 .admin-inline-prices--compact { grid-template-columns:repeat(2,minmax(116px,1fr)); gap:8px; margin:0; }
-.admin-compact-row { grid-template-columns:22px 64px minmax(180px,1.1fr) minmax(250px,1.5fr) minmax(160px,auto) 140px 44px 44px; gap:10px; }
+.admin-compact-row { grid-template-columns:30px 64px minmax(180px,1.1fr) minmax(250px,1.5fr) minmax(160px,auto) 140px 44px 44px; gap:10px; }
 .admin-compact-details { min-height:64px; justify-content:center; }
 .admin-compact-row > select { width:140px; }
 .inventory-admin .admin-compact-action { width:44px; min-width:44px; min-height:48px; padding:0; }
@@ -414,7 +414,7 @@
 .admin-car-copy .admin-inline-prices { margin:12px 0 8px; }
 .admin-car-copy .admin-inline-prices input { min-height:40px; font-size:13px; }
 @media(max-width:1100px) {
- .admin-compact-row { grid-template-columns:22px 64px minmax(0,1fr) minmax(150px,1.3fr) 44px 44px; gap:10px; }
+ .admin-compact-row { grid-template-columns:30px 64px minmax(0,1fr) minmax(150px,1.3fr) 44px 44px; gap:10px; }
  .admin-compact-details { grid-column:3; grid-row:1; }
  .admin-compact-photo { grid-column:2; grid-row:1; }
  .admin-compact-row > input[type=checkbox] { grid-column:1; grid-row:1; }
@@ -502,7 +502,7 @@
 @media(max-width:760px) {
  .admin-compact-row, .admin-compact-row:not(:has(.admin-mobile-plate)) {
   --compact-photo-width:clamp(48px,16vw,64px);
-  grid-template-columns:18px var(--compact-photo-width) minmax(0,calc(66.6667% - 28.6667px - var(--compact-photo-width))) minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);
+  grid-template-columns:26px var(--compact-photo-width) minmax(0,calc(66.6667% - 36.6667px - var(--compact-photo-width))) minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);
   gap:4px;
  }
  .inventory-admin .admin-compact-photo { width:var(--compact-photo-width); height:auto; aspect-ratio:var(--vehicle-photo-ratio); }
@@ -516,7 +516,7 @@
 .admin-car-copy > .admin-plate, .admin-compact-details .admin-plate, .admin-mobile-plate > span { min-width:min(100%,calc(7ch + 16px)); text-align:center; }
 @media(max-width:760px) {
  .admin-compact-row, .admin-compact-row:not(:has(.admin-mobile-plate)) {
-  --compact-photo-width:clamp(84px,28vw,112px);
+  --compact-photo-width:clamp(75.6px,25.2vw,100.8px);
   grid-template-rows:auto auto auto 1fr;
  }
  .inventory-admin .admin-mobile-plate { grid-column:3; grid-row:3; align-self:start; }
@@ -524,6 +524,8 @@
  .admin-compact-row > input[type=checkbox] { grid-row:2 / 4; }
  .inventory-admin .admin-compact-photo { grid-column:2; grid-row:2 / 4; width:100%; height:auto; }
  .inventory-admin .admin-compact-details { display:flex; grid-column:3; grid-row:2; }
+ .inventory-admin .admin-compact-details .admin-compact-meta { display:flex; align-items:center; width:100%; min-height:27.2px; font-size:16px; line-height:1.2; overflow:hidden; }
+ .admin-mobile-plate > span { width:100%; }
  .admin-inline-prices--compact { grid-row:2 / 5; }
  .admin-compact-featured { grid-column:2 / 4; grid-row:4; }
  .admin-compact-row .admin-inline-prices input, .admin-compact-row select.admin-compact-status[data-status] { font-size:clamp(12px,3.4vw,16px); }
