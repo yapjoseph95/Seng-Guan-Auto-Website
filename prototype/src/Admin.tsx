@@ -191,6 +191,29 @@ function VehicleAmountInput({ value, onChange, ...props }: {
 }
 
 type PriceChanges = Partial<Pick<ManagedVehicle,'price'|'discount_price'>>
+function CompactVehicleMeta({make,year}: {make:string;year:number}) {
+ const meta=useRef<HTMLSpanElement>(null)
+ useLayoutEffect(()=>{
+  const label=meta.current
+  if (!label) return
+  const mobile=window.matchMedia('(max-width: 760px)')
+  let active=true
+  const fit=()=>{
+   if (!active) return
+   label.style.removeProperty('font-size')
+   if (!mobile.matches || !label.clientWidth) return
+   const available=label.clientWidth, textWidth=label.scrollWidth
+   if (textWidth>available) label.style.fontSize=`${Math.max(9,16 * available / textWidth)}px`
+  }
+  const observer=new ResizeObserver(fit)
+  observer.observe(label)
+  mobile.addEventListener('change',fit)
+  fit()
+  void document.fonts.ready.then(fit)
+  return ()=>{active=false;observer.disconnect();mobile.removeEventListener('change',fit)}
+ },[make,year])
+ return <span ref={meta} className="admin-compact-meta">{make} · {year}</span>
+}
 function MobileCompactPlate({vehicle,disabled,onEdit}: {vehicle:ManagedVehicle;disabled:boolean;onEdit:()=>void}) {
  const {t}=useLocale()
  const plate=useRef<HTMLSpanElement>(null)
@@ -582,7 +605,7 @@ export default function Admin() {
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
        <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
-       <strong>{vehicle.name}</strong><span className="admin-compact-meta">{vehicle.make} · {vehicle.year}</span>
+       <strong>{vehicle.name}</strong><CompactVehicleMeta make={vehicle.make} year={vehicle.year} />
       </button>
       <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
       <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
