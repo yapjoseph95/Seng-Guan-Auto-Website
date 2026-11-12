@@ -430,7 +430,7 @@
  .admin-compact-row > .admin-compact-action:last-child { grid-column:6; grid-row:2; }
 }
 @media(min-width:761px) and (max-width:1100px) {
- .admin-compact-row { grid-template-columns:30px 128px minmax(0,1fr) minmax(150px,1.3fr) 44px 44px; }
+ .admin-compact-row { grid-template-columns:30px 128px minmax(0,1fr) minmax(150px,1.3fr) 44px 44px; padding-top:18px; }
  .inventory-admin .admin-compact-photo { width:128px; height:104px; }
  .admin-compact-row > select { justify-self:end; width:max(110px, calc(50% - 58px)); }
 }
