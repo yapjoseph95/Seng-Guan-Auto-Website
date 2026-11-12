@@ -493,6 +493,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .inventory-refine > .inventory-reset.button { justify-self: end; min-height: 44px; }
 .inventory-reset { grid-column: 1 / -1; justify-self: start; }
 .vehicle-published-date { display: block; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+.is-official-site .inventory-grid .vehicle-info .vehicle-published-date { font-size:clamp(9px, 2.4vw, 11px); }
 .is-official-site .vehicle-info:not(:has(.vehicle-price)) .vehicle-published-date { margin-top:auto; padding-top:8px; }
 .inventory-grid { padding: 24px 0 15px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .empty-state { padding: 60px 20px; color: var(--muted); text-align: center; }
