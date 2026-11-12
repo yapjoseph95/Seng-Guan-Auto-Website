@@ -499,3 +499,13 @@
  .admin-compact-row > .admin-compact-action:last-child { grid-column:6; grid-row:1; }
  .inventory-admin .admin-compact-action { width:100%; min-width:0; }
 }
+@media(max-width:760px) {
+ .admin-compact-row, .admin-compact-row:not(:has(.admin-mobile-plate)) {
+  --compact-photo-width:clamp(48px,16vw,64px);
+  grid-template-columns:18px var(--compact-photo-width) minmax(0,calc(66.6667% - 28.6667px - var(--compact-photo-width))) minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);
+  gap:4px;
+ }
+ .inventory-admin .admin-compact-photo { width:var(--compact-photo-width); height:auto; aspect-ratio:var(--vehicle-photo-ratio); }
+ .admin-compact-row > select { grid-column:4 / 6; }
+ .inventory-admin .admin-compact-row > .admin-compact-action:not(.admin-compact-delete) { display:none; }
+}
