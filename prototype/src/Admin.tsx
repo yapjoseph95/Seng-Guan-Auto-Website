@@ -574,7 +574,6 @@ export default function Admin() {
    {loading ? <p className="admin-empty"><LoaderCircle className="admin-spin" />{t('正在载入车辆…')}</p> : (
     compact ? <div className="admin-compact-list">
      {visible.map(vehicle=><article className="admin-compact-row" key={vehicle.id}>
-      <div className="admin-compact-left">
       <input type="checkbox" aria-label={t('Select {name}',{name:vehicle.name})} checked={selected.includes(vehicle.id)} disabled={batchBusy}
        onChange={event=>setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))} />
       <MobileCompactPlate vehicle={vehicle} disabled={batchBusy || !!updatingStatus} onEdit={()=>void openEditor(vehicle)} />
@@ -585,11 +584,9 @@ export default function Admin() {
        {vehicle.plate_number && <span className="admin-plate">{vehicle.plate_number}</span>}
        <strong>{vehicle.name}</strong><span>{vehicle.make} · {vehicle.year}</span>
       </button>
+      <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
       <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
        onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
-      </div>
-      <div className="admin-compact-right">
-      <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
       <select className="admin-compact-status" data-status={vehicle.status} aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||!!updatingStatus}
        onChange={event=>void changeStatus(vehicle,event.target.value as typeof publishedStatuses[number])}>
        {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
@@ -598,7 +595,6 @@ export default function Admin() {
        onClick={()=>void openEditor(vehicle)}><Pencil size={18} aria-hidden="true" /></button>
       <button type="button" className="admin-compact-action admin-compact-delete" disabled={batchBusy||!!updatingStatus} aria-label={t('删除 {name}',{name:vehicle.name})}
        onClick={()=>setConfirmDelete(vehicle)}><Trash2 size={18} aria-hidden="true" /></button>
-      </div>
      </article>)}
     </div> : <div className="admin-list">
      {visible.map(vehicle => (
