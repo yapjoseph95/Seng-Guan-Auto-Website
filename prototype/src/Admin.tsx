@@ -202,7 +202,7 @@ function MobileCompactPlate({vehicle,disabled,onEdit}: {vehicle:ManagedVehicle;d
    if (!active || !label.clientWidth) return
    label.style.fontSize='16px'
    const available=label.clientWidth-8, textWidth=label.scrollWidth-8
-   if (textWidth>available && textWidth>0) label.style.fontSize=`${Math.max(11,16 * available / textWidth)}px`
+   if (textWidth>available && textWidth>0) label.style.fontSize=`${Math.max(9,16 * available / textWidth)}px`
   }
   const observer=new ResizeObserver(fit)
   observer.observe(label)

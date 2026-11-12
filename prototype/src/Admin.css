@@ -519,11 +519,11 @@
   --compact-photo-width:clamp(75.6px,25.2vw,100.8px);
   grid-template-rows:auto auto auto 1fr;
  }
- .inventory-admin .admin-mobile-plate { grid-column:3; grid-row:3; align-self:start; width:min(100%,80px); }
- .inventory-admin .admin-mobile-model { display:block; grid-column:2 / 4; grid-row:1; white-space:nowrap; text-overflow:ellipsis; }
+ .inventory-admin .admin-mobile-plate { grid-column:3; grid-row:3; align-self:start; width:min(100%,90px); }
+ .inventory-admin .admin-mobile-model { display:block; grid-column:2 / 4; grid-row:1; margin-top:6px; white-space:nowrap; text-overflow:ellipsis; }
  .admin-compact-row > input[type=checkbox] { grid-row:2 / 4; }
  .inventory-admin .admin-compact-photo { grid-column:2; grid-row:2 / 4; width:100%; height:auto; }
- .inventory-admin .admin-compact-details { display:flex; grid-column:3; grid-row:2; align-self:end; width:min(100%,80px); }
+ .inventory-admin .admin-compact-details { display:flex; grid-column:3; grid-row:2; align-self:end; width:min(100%,90px); }
  .inventory-admin .admin-compact-details .admin-compact-meta { display:block; width:100%; min-height:27.2px; padding-top:4px; font-size:16px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
  .admin-mobile-plate > span { width:100%; min-width:0; padding-inline:4px; overflow:hidden; text-overflow:ellipsis; }
  .admin-inline-prices--compact { grid-row:2 / 5; }
