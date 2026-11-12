@@ -2,7 +2,7 @@ import { canonicalVehicleMake, vehicleMakeKey, vehicleMakeOptions } from '../sha
 import { formatPublicationDate } from './vehicle-date'
 import type { MileageBand } from '../shared/vehicle-mileage'
 import { useLocale, LanguageSelect } from './locale'
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type InputHTMLAttributes } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { CarFront, Check, ChevronDown, FileText, Settings, ChevronLeft, ChevronRight, Image, ImagePlus, LoaderCircle, LogOut, Pencil, Plus, Search, Stamp, Trash2, X } from 'lucide-react'
 import type { VehicleStatus } from './data'
@@ -14,8 +14,8 @@ import type { WatermarkPlacement } from '../shared/watermarks'
 import AdminVehicleTemplate from './AdminVehicleTemplate'
 import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength, type VehicleTemplate, type VehicleTemplateLanguage } from '../shared/vehicle-template'
 import './Admin.css'
-export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;updated_at:string;published_at?:string|null;listing_updated_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
-const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
+export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;discount_price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;updated_at:string;published_at?:string|null;listing_updated_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
+const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,discount_price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const execute=()=>fetch('/api/admin/'+path,{...options,credentials:'same-origin',headers:{...(typeof options.body==='string'?{'Content-Type':'application/json'}:{}),...options.headers}})
  let response=await execute()
@@ -153,14 +153,14 @@ const publishedStatuses = ['available', 'reserved', 'sold'] as const
 const editorStatuses = [...publishedStatuses, 'draft'] as const
 const amountFormat = new Intl.NumberFormat('en-MY')
 
-function VehicleAmountInput({ value, onChange }: {
+function VehicleAmountInput({ value, onChange, ...props }: {
  value: number | null
  onChange: (value: number | null) => void
-}) {
+} & Omit<InputHTMLAttributes<HTMLInputElement>,'value'|'onChange'|'type'|'inputMode'>) {
  const change = (event: ChangeEvent<HTMLInputElement>) => {
   const input = event.currentTarget
   const digits = input.value.replace(/[,\s]/g, '')
-  if (!/^\d{0,9}$/.test(digits)) return
+  if (!/^\d{0,9}$/.test(digits) || digits && Number(digits) > 100000000) return
   const digitOffset = input.value.slice(0, input.selectionStart ?? input.value.length).replace(/\D/g, '').length
   const next = digits ? Number(digits) : null
   const formatted = next === null ? '' : amountFormat.format(next)
@@ -177,6 +177,7 @@ function VehicleAmountInput({ value, onChange }: {
  return <input
   type="text"
   inputMode="numeric"
+  {...props}
   value={value === null ? '' : amountFormat.format(value)}
   onChange={change}
   onKeyDown={(event) => {
@@ -187,6 +188,25 @@ function VehicleAmountInput({ value, onChange }: {
    if (event.key === 'Delete' && input.value[caret] === ',') input.setSelectionRange(caret + 1, caret + 1)
   }}
  />
+}
+
+type PriceChanges = Partial<Pick<ManagedVehicle,'price'|'discount_price'>>
+function AdminVehiclePrices({vehicle,onSave,disabled,compact=false}: {
+ vehicle:ManagedVehicle
+ onSave:(vehicle:ManagedVehicle,changes:PriceChanges)=>void
+ disabled:boolean
+ compact?:boolean
+}) {
+ const {t}=useLocale()
+ const [price,setPrice]=useState(vehicle.price)
+ const [discountPrice,setDiscountPrice]=useState(vehicle.discount_price)
+ useEffect(()=>{setPrice(vehicle.price);setDiscountPrice(vehicle.discount_price)},[vehicle.price,vehicle.discount_price])
+ return <div className={compact?'admin-inline-prices admin-inline-prices--compact':'admin-inline-prices'}>
+  <label>{t('Original Price (RM)')}<VehicleAmountInput aria-label={t('Original Price (RM)')} value={price} disabled={disabled}
+   onChange={setPrice} onBlur={()=>{if(price!==vehicle.price)onSave(vehicle,{price})}} /></label>
+  <label>{t('Discounted Price (RM)')}<VehicleAmountInput aria-label={t('Discounted Price (RM)')} value={discountPrice} disabled={disabled}
+   onChange={setDiscountPrice} onBlur={()=>{if(discountPrice!==vehicle.discount_price)onSave(vehicle,{discount_price:discountPrice})}} /></label>
+ </div>
 }
 export default function Admin() {
   const { t, locale, language } = useLocale()
@@ -205,6 +225,8 @@ export default function Admin() {
  const [bulkStatus,setBulkStatus]=useState<VehicleStatus>('available')
  const [batchBusy,setBatchBusy]=useState(false)
  const [updatingStatus,setUpdatingStatus]=useState<string|null>(null)
+ const [updatingPrice,setUpdatingPrice]=useState<Set<string>>(()=>new Set())
+ const updatingPriceRef=useRef(new Set<string>())
  const [edit,setEdit]=useState<ManagedVehicle|null>(null)
  const [dirty,setDirty]=useState(false)
  const [settings,setSettings]=useState<'watermark'|'template'|null>(null)
@@ -429,6 +451,21 @@ export default function Admin() {
    setUpdatingStatus(null)
   }
  }
+ const savePrices = async (vehicle:ManagedVehicle,changes:PriceChanges) => {
+  if (!vehicle.id || updatingPriceRef.current.has(vehicle.id)) return
+  updatingPriceRef.current.add(vehicle.id)
+  setUpdatingPrice(new Set(updatingPriceRef.current))
+  setError('')
+  try {
+   const saved = await api<ManagedVehicle>(`vehicles/${vehicle.id}`,{method:'PATCH',body:JSON.stringify(changes)})
+   setVehicles(current=>current.map(item=>item.id===saved.id?saved:item))
+   setNotice('Vehicle price updated.')
+  } catch (error) { setError((error as Error).message) }
+  finally {
+   updatingPriceRef.current.delete(vehicle.id)
+   setUpdatingPrice(new Set(updatingPriceRef.current))
+  }
+ }
  const updateCompact = (value:boolean) => {
   setCompact(value)
   try { localStorage.setItem('sga-admin-layout',value ? 'compact' : 'cards') } catch { /* Layout still works for this session. */ }
@@ -520,14 +557,18 @@ export default function Admin() {
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy || !!updatingStatus} onClick={()=>void openEditor(vehicle)}>
        <strong>{vehicle.name}</strong><span>{vehicle.plate_number || '—'} · {vehicle.make} · {vehicle.year}</span>
-       <span>{vehicle.price === null ? t('售价未填写') : 'RM '+vehicle.price.toLocaleString(locale)}</span>
       </button>
+      <AdminVehiclePrices vehicle={vehicle} compact onSave={savePrices} disabled={batchBusy||!!updatingStatus||updatingPrice.has(vehicle.id)} />
       <label className="admin-compact-featured"><input type="checkbox" checked={vehicle.featured} disabled={batchBusy || !!updatingStatus}
        onChange={event=>void setFeatured(vehicle,event.target.checked)} />{t('Featured on homepage')}</label>
       <select aria-label={t('车辆状态：{name}',{name:vehicle.name})} value={vehicle.status} disabled={batchBusy||!!updatingStatus}
        onChange={event=>void changeStatus(vehicle,event.target.value as typeof publishedStatuses[number])}>
        {editorStatuses.map(status=><option key={status} value={status}>{t(statuses[status])}</option>)}
       </select>
+      <button type="button" className="admin-compact-action" disabled={batchBusy||!!updatingStatus} aria-label={t('编辑 {name}',{name:vehicle.name})} title={t('编辑资料')}
+       onClick={()=>void openEditor(vehicle)}><Pencil size={18} aria-hidden="true" /></button>
+      <button type="button" className="admin-compact-action admin-compact-delete" disabled={batchBusy||!!updatingStatus} aria-label={t('删除 {name}',{name:vehicle.name})}
+       onClick={()=>setConfirmDelete(vehicle)}><Trash2 size={18} aria-hidden="true" /></button>
      </article>)}
     </div> : <div className="admin-list">
      {visible.map(vehicle => (
@@ -550,7 +591,8 @@ export default function Admin() {
         <p>{vehicle.year} · {vehicle.make}{vehicle.featured && vehicle.status === 'available' ? ' · ' + t('首页推荐') : ''}</p>
         <h2>{vehicle.name}</h2>
         {vehicle.plate_number&&<p>{vehicle.plate_number}</p>}
-        <span>{vehicle.price === null ? t('售价未填写') : 'RM ' + vehicle.price.toLocaleString(locale)} · {t(
+        <AdminVehiclePrices vehicle={vehicle} onSave={savePrices} disabled={updatingPrice.has(vehicle.id)} />
+        <span>{t(
          vehicle.photos.length === 1 ? '{count} 张照片（单张）' : '{count} 张照片', { count: vehicle.photos.length },
         )}</span>
         <fieldset className="admin-status-control"
@@ -622,7 +664,8 @@ export default function Admin() {
       </datalist>
      </label>
      <label>{t("年份")}<input required type="number" min="1950" max={new Date().getFullYear()+1} value={edit.year} onChange={e=>update({year:Number(e.target.value)})}/></label>
-     <label>{t("售价 (RM)")}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
+     <label>{t('Original Price (RM)')}<VehicleAmountInput value={edit.price} onChange={price => update({ price })} /></label>
+     <label>{t('Discounted Price (RM)')}<VehicleAmountInput value={edit.discount_price} onChange={discount_price => update({ discount_price })} /></label>
      <label>{t("里程 (km)")}
       <VehicleAmountInput value={edit.mileage} onChange={mileage => update({ mileage, mileage_band:null })} />
      </label>

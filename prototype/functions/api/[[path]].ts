@@ -6,7 +6,7 @@ import { maxNewPhotoBytes, maxPhotoBytes, maxVehiclePhotos } from '../../shared/
 import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkDefaults, type WatermarkPlacement } from '../../shared/watermarks'
 import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength } from '../../shared/vehicle-template'
 type Row = Record<string, unknown>
-const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at,description_template,listing_updated_at'
+const publicVehicleFields = 'id,name,make,year,body,fuel,transmission,price,discount_price,mileage,description,status,featured,created_at,updated_at,mileage_band,published_at,description_template,listing_updated_at'
 const vehicleFields = (admin: boolean) => admin
  ? 'vehicles.*, (SELECT plate_number FROM vehicle_private_details WHERE vehicle_id=vehicles.id) AS plate_number'
  : publicVehicleFields
@@ -50,7 +50,7 @@ function fields(data: Record<string, unknown>) {
  const mileageBand = data.mileage_band ?? null
  if (mileageBand !== null && !isMileageBand(mileageBand)) throw new HttpError(400,'Please check mileage.')
  const make = canonicalVehicleMake(text('make',80,true))
- return [text('name',160,true),officialVehicleMake(make) ? null : make,make,year,text('body',60),text('fuel',60),text('transmission',60),number('price'),mileageBand === null ? number('mileage') : null,text('description',10000),status,data.featured === true ? 1 : 0,data.description_template == null ? null : serializedTemplate(data.description_template),mileageBand]
+ return [text('name',160,true),officialVehicleMake(make) ? null : make,make,year,text('body',60),text('fuel',60),text('transmission',60),number('price'),number('discount_price'),mileageBand === null ? number('mileage') : null,text('description',10000),status,data.featured === true ? 1 : 0,data.description_template == null ? null : serializedTemplate(data.description_template),mileageBand]
 }
 function serializedTemplate(value: unknown) {
  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new HttpError(400,'Please check the vehicle template.')
@@ -89,11 +89,11 @@ async function body(request: Request, maxBytes = 40000) {
  return parseBody(await limitedText(request,maxBytes))
 }
 const storedMake = 'COALESCE((SELECT make FROM vehicles WHERE make = ? COLLATE NOCASE ORDER BY created_at,id LIMIT 1),?)'
-const insertVehicle = `INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,mileage,description,status,featured,description_template,mileage_band) VALUES(?,?,${storedMake},?,?,?,?,?,?,?,?,?,?,?)`
+const insertVehicle = `INSERT INTO vehicles(id,name,make,year,body,fuel,transmission,price,discount_price,mileage,description,status,featured,description_template,mileage_band) VALUES(?,?,${storedMake},?,?,?,?,?,?,?,?,?,?,?,?)`
 const timestamp = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 const nextUpdatedAt = `CASE WHEN ${timestamp} <= updated_at THEN strftime('%Y-%m-%dT%H:%M:%fZ',updated_at,'+0.001 seconds') ELSE ${timestamp} END`
 const touchListing = `UPDATE vehicles SET listing_updated_at=${nextUpdatedAt},updated_at=${nextUpdatedAt} WHERE id=? AND published_at IS NOT NULL`
-const updateVehicle = `UPDATE vehicles SET name=?,make=${storedMake},year=?,body=?,fuel=?,transmission=?,price=?,mileage=?,description=?,status=?,featured=?,description_template=COALESCE(?,description_template),mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
+const updateVehicle = `UPDATE vehicles SET name=?,make=${storedMake},year=?,body=?,fuel=?,transmission=?,price=?,discount_price=?,mileage=?,description=?,status=?,featured=?,description_template=COALESCE(?,description_template),mileage_band=COALESCE(?, CASE WHEN ? THEN mileage_band END),updated_at=${nextUpdatedAt} WHERE id=?`
 function preserveMileageBand(data: Record<string, unknown>) {
  return !Object.hasOwn(data,'mileage_band') && (data.mileage == null || data.mileage === '') ? 1 : 0
 }
@@ -465,6 +465,24 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   if (!id) throw new HttpError(404,'Vehicle not found.')
   if (parts.length === 2 && request.method === 'PATCH') {
    const data = await body(request)
+   const priceKeys = ['price','discount_price'] as const
+   const suppliedPriceKeys = priceKeys.filter(key => Object.hasOwn(data,key))
+   if (suppliedPriceKeys.length && Object.keys(data).every(key => (priceKeys as readonly string[]).includes(key))) {
+    const values = suppliedPriceKeys.map(key => {
+     const value = data[key]
+     if (value === null || value === '') return null
+     if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0 || value > 100000000) {
+      throw new HttpError(400,`Please check ${key}.`)
+     }
+     return value
+    })
+    const assignments = suppliedPriceKeys.map(key => `${key}=?`).join(',')
+    const result = await env.DB.prepare(
+     `UPDATE vehicles SET ${assignments},updated_at=${nextUpdatedAt} WHERE id=?`
+    ).bind(...values,id).run()
+    if (!result.meta.changes) throw new HttpError(404,'Vehicle not found.')
+    return json(await vehicle(env,id,true))
+   }
    if (typeof data.featured === 'boolean' && !Object.hasOwn(data, 'status')) {
     const result = await env.DB.prepare(`UPDATE vehicles SET featured=?,updated_at=${nextUpdatedAt} WHERE id=?`)
      .bind(data.featured ? 1 : 0,id).run()

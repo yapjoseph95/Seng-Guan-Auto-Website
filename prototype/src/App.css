@@ -973,6 +973,13 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 .vehicle-description > p { margin: 0; }
 .vehicle-description > hr { margin: 20px 0; border: 0; border-top: 1px solid #41464b; }
 .vehicle-price { font-size: 23px; color: #f46b63; font-variant-numeric: tabular-nums; }
+.vehicle-pricing { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 4px 9px; margin-top: auto; padding-top: 14px; }
+.vehicle-pricing .vehicle-price { margin: 0; padding: 0; }
+.vehicle-info .vehicle-pricing .vehicle-price { margin: 0; padding: 0; text-align: end; }
+.vehicle-price-original { color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
+.vehicle-price-drop { padding: 3px 7px; border-radius: 5px; background: #f04432; color: #fff; font-size: 12px; font-weight: 700; line-height: 1.4; }
+.vehicle-pricing--details { justify-content: flex-start; margin-top: 12px; padding: 0; }
+.vehicle-pricing--details .vehicle-price { font-size: 27px; }
 
 .featured-showroom-fallback { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .6; }
 

@@ -1,5 +1,9 @@
 // Source messages are retained as keys so copy remains readable at the call site.
 export const translations: Readonly<Record<string, readonly [en: string, ms: string, zh: string]>> = {
+  "Price drop!": ["Price drop!","Harga turun!","降价了！"],
+  "Original Price (RM)": ["Original Price (RM)","Harga Asal (RM)","原价 (RM)"],
+  "Discounted Price (RM)": ["Discounted Price (RM)","Harga Diskaun (RM)","折后价 (RM)"],
+  "Vehicle price updated.": ["Vehicle price updated.","Harga kenderaan dikemas kini.","车辆价格已更新。"],
   "Skip to content": ["Skip to content","Langkau ke kandungan","跳至内容"],
   "Seng Guan Auto home": ["Seng Guan Auto home","Laman utama Seng Guan Auto","Seng Guan Auto 首页"],
   "Your trusted partner in quality used cars since 1995.": ["Your trusted partner in quality used cars since 1995.","Rakan dipercayai anda untuk kereta terpakai berkualiti sejak 1995.","自 1995 年起，您值得信赖的优质二手车伙伴。"],

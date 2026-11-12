@@ -125,6 +125,7 @@ export type Vehicle = {
   status?: VehicleStatus
   featured?: boolean
   price?: number | null
+  discount_price?: number | null
   mileage?: number | null
   mileage_band?: MileageBand | null
   description?: string

@@ -1,6 +1,7 @@
 import WhatsAppGlyph from './WhatsAppGlyph'
 import { formatPublicationDate } from './vehicle-date'
 import { formatMileage } from '../shared/vehicle-mileage'
+import { getVehicleDiscount } from '../shared/vehicle-pricing'
 import { useLocale } from './locale'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
@@ -144,7 +145,14 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
     <VehicleListingDate car={car} />
    </div>
    <h2 id="vehicle-detail-title">{car.name}</h2>
-   {car.price != null && <strong className="vehicle-price">RM {car.price.toLocaleString(locale)}</strong>}
+   {car.price != null && (() => {
+    const discount = getVehicleDiscount(car.price,car.discount_price)
+    return discount ? <div className="vehicle-pricing vehicle-pricing--details">
+     <strong className="vehicle-price">RM {car.discount_price!.toLocaleString(locale)}</strong>
+     <del className="vehicle-price-original">RM {car.price!.toLocaleString(locale)}</del>
+     <span className="vehicle-price-drop">-{discount.percent}% {t('Price drop!')}</span>
+    </div> : <strong className="vehicle-price">RM {car.price!.toLocaleString(locale)}</strong>
+   })()}
    <VehicleSpecs car={car} showFuel />
    {(description || template) && <>
     <h3 className="vehicle-description-title">{t('Vehicle Description')}</h3>

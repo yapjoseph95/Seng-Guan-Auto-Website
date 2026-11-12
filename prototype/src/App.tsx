@@ -1,6 +1,7 @@
 import * as Slider from '@radix-ui/react-slider'
 import WhatsAppGlyph from './WhatsAppGlyph'
 import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
+import { getVehicleDiscount } from '../shared/vehicle-pricing'
 import { useLocale, LanguageSelect } from './locale'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
@@ -792,7 +793,14 @@ function VehicleCard({ car }: { car: Vehicle }) {
         <div className="vehicle-info">
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
           <VehicleSpecs car={car} />
-          {car.price != null && <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>}
+          {car.price != null && (() => {
+            const discount = getVehicleDiscount(car.price,car.discount_price)
+            return discount ? <div className="vehicle-pricing">
+              <p className="vehicle-price">RM {car.discount_price!.toLocaleString(locale)}</p>
+              <del className="vehicle-price-original">RM {car.price!.toLocaleString(locale)}</del>
+              <span className="vehicle-price-drop">-{discount.percent}% {t('Price drop!')}</span>
+            </div> : <p className="vehicle-price">RM {car.price.toLocaleString(locale)}</p>
+          })()}
           <VehicleListingDate car={car} />
         </div>
       </a>
