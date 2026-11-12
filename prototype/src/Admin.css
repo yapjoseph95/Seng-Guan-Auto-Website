@@ -450,3 +450,10 @@
  .admin-compact-row > .admin-compact-action:nth-last-child(2),
  .admin-compact-row > .admin-compact-action:last-child { grid-row:3; }
 }
+@media(max-width:340px) {
+ .admin-compact-row { grid-template-columns:18px 48px minmax(60px,1fr) minmax(0,1fr) 36px 36px; }
+ .admin-compact-featured { grid-column:2 / 7; }
+ .admin-compact-row > select { grid-column:2 / 5; grid-row:4; }
+ .admin-compact-row > .admin-compact-action:nth-last-child(2),
+ .admin-compact-row > .admin-compact-action:last-child { grid-row:4; }
+}
