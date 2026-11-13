@@ -989,6 +989,8 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 .vehicle-price { font-size: 23px; color: #f46b63; font-variant-numeric: tabular-nums; }
 .vehicle-pricing { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 4px 9px; margin-top: auto; padding-top: 14px; }
 .vehicle-info .vehicle-pricing { flex-direction: column; align-items: flex-end; }
+.vehicle-info .vehicle-pricing .vehicle-price-original,
+.vehicle-info .vehicle-pricing .vehicle-price { line-height: 1.1; }
 .vehicle-pricing .vehicle-price { margin: 0; padding: 0; }
 .vehicle-info .vehicle-pricing .vehicle-price { margin: 0; padding: 0; text-align: end; }
 .vehicle-price-original { color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -1041,7 +1043,7 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
   .is-official-site .inventory-grid .vehicle-price {
     padding-top: 10px; font-size: clamp(15px, 5vw, 26px); line-height: 1.12; overflow-wrap: anywhere;
   }
-  .is-official-site .inventory-grid .vehicle-pricing .vehicle-price { padding-top: 0; }
+  .is-official-site .inventory-grid .vehicle-pricing .vehicle-price { padding-top: 0; line-height: 1.1; }
   .is-official-site .inventory-grid .vehicle-published-date {
     margin-top: 6px; font-size: clamp(9px, 2.4vw, 12px); line-height: 1.2;
   }
