@@ -43,7 +43,7 @@ export function VehicleSkeleton({compact=false,admin=false}:{compact?:boolean;ad
   return()=>observer.disconnect()
  },[compact,admin])
  return <div ref={ref} className={`loading-skeleton ${admin?'loading-skeleton--admin ':''}${compact?'loading-skeleton--compact':''}`} aria-hidden="true">
-  {Array.from({length:6},(_,index)=><div className="loading-skeleton-card" key={index}><div className="skeleton-photo"/><div className="skeleton-copy"><i/><i/><i/><i/></div></div>)}
+  {Array.from({length:admin?6:3},(_,index)=><div className="loading-skeleton-card" key={index}><div className="skeleton-photo"/><div className="skeleton-copy"><i/><i/><i/><i/></div></div>)}
   <span className="skeleton-light" />
  </div>
 }

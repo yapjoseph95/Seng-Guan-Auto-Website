@@ -757,7 +757,7 @@ function VehicleMake({make}: {make:string}) {
   return <span ref={label} className="vehicle-make" title={make}>{make}</span>
 }
 
-function VehicleCard({ car, index=0 }: { car: Vehicle; index?:number }) {
+function VehicleCard({ car, index=0, forceImage=false, onImageSettled }: { car: Vehicle; index?:number; forceImage?:boolean; onImageSettled?:(car:Vehicle)=>void }) {
   const { t, locale } = useLocale()
   const [opened, setOpened] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -811,11 +811,11 @@ function VehicleCard({ car, index=0 }: { car: Vehicle; index?:number }) {
   }
 
   return (
-    <article className="vehicle-card vehicle-entrance" style={entranceStyle(index)}>
+    <article className="vehicle-card vehicle-entrance" style={entranceStyle(index % 3)}>
       <div className="vehicle-card-link">
         <div className="vehicle-media">
           <div className="vehicle-photo">
-            <ProgressiveImage src={car.photo} alt="" width="300" height="200" priority={index < 3} />
+            <ProgressiveImage src={car.photo} alt="" width="300" height="200" priority={index < 3 || forceImage} onLoad={()=>onImageSettled?.(car)} onError={()=>onImageSettled?.(car)} />
             {stamp && <span className={`vehicle-status vehicle-status--${car.status}`}>{stamp}</span>}
             {isOfficialSite && <span className="vehicle-photo-count" aria-label={t('{count} 张照片',{count:car.photos?.length ?? (car.photo ? 1 : 0)})}><ImageIcon size={15} aria-hidden="true" />{car.photos?.length ?? (car.photo ? 1 : 0)}</span>}
           </div>
@@ -948,12 +948,13 @@ function InventoryPage({ variant }: { variant: Direction }) {
   if(bodyType)pageQuery.set('body',bodyType)
   if(minPrice>0)pageQuery.set('minPrice',String(minPrice))
   if(maxPrice<priceLimit)pageQuery.set('maxPrice',String(maxPrice))
+  const [settledImages,setSettledImages]=useState<Set<string>>(()=>new Set())
   const pages = useVehiclePages<Vehicle>(pageQuery.toString(),async (query,signal)=>{
     const response=await fetch('/api/vehicles?'+query,{signal})
     if(!response.ok)throw Error('Unable to load vehicles.')
     const page=await response.json()
     return {...page,vehicles:page.vehicles.map((v:Vehicle)=>({...v,year:String(v.year)}))}
-  },isOfficialSite)
+  },isOfficialSite,3,items=>items.filter(car=>car.photo && !settledImages.has(`${car.id}:${car.photo}`)).length<=1)
   const allFacets = isOfficialSite ? pages.facets : vehicles
   const makes = vehicleMakeOptions(allFacets.map(car => car.make))
   const years = Array.from(new Set(allFacets.map(car => String(car.year)))).sort((a, b) => Number(b) - Number(a))
@@ -1101,9 +1102,9 @@ function InventoryPage({ variant }: { variant: Direction }) {
           {(search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
         </div>
         <ListingTransition loading={pages.loading && !results.length && isOfficialSite} compact={!photoLayout}>
-          {results.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{results.map((car,index) => <VehicleCard key={car.id} car={car} index={index} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(pages.error ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(pages.error ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
+          {results.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{results.map((car,index) => <VehicleCard key={car.id} car={car} index={index} forceImage={pages.waiting} onImageSettled={item=>setSettledImages(previous=>{const key=`${item.id}:${item.photo}`;return previous.has(key)?previous:new Set([...previous,key])})} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(pages.error ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(pages.error ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
         </ListingTransition>
-        {isOfficialSite && <LoadMore sentinel={pages.sentinel} loading={pages.loading} hasMore={pages.hasMore} error={pages.error} retry={pages.reload} />}
+        {isOfficialSite && <LoadMore sentinel={pages.sentinel} loading={pages.loading || pages.waiting} hasMore={pages.hasMore} error={pages.error} retry={pages.reload} />}
         <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
       {linkedVehicle && (linkedVehicle.status==='sold'||linkedVehicle.status==='reserved'
