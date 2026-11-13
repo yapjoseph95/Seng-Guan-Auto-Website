@@ -5,7 +5,7 @@ import { getVehicleDiscount } from '../shared/vehicle-pricing'
 import { useLocale } from './locale'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
-import { CalendarDays, CarFront, ChevronLeft, ChevronRight, Fuel, Gauge, Pause, Play, Settings2, X } from 'lucide-react'
+import { Calculator, CalendarDays, CarFront, ChevronLeft, ChevronRight, Fuel, Gauge, Pause, Play, Settings2, X } from 'lucide-react'
 import type { Vehicle } from './data'
 import { contact } from './data'
 export function VehicleSpecs({car,showFuel = false}: {car:Vehicle; showFuel?:boolean}) {
@@ -34,7 +34,7 @@ export function VehicleListingDate({car}: {car:Vehicle}) {
  </time>
 }
 
-export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>void}) {
+export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=false}:{car:Vehicle;onClose:()=>void;onCalculator?:()=>void;onShare?:()=>void;copied?:boolean}) {
  const { t, locale, language } = useLocale()
  const dialog = useRef<HTMLDialogElement>(null)
  const thumbnails = useRef<HTMLDivElement>(null)
@@ -145,7 +145,13 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
     <p className="section-label vehicle-dialog-make">{car.make}</p>
     <VehicleListingDate car={car} />
    </div>
-   <h2 id="vehicle-detail-title">{car.name}</h2>
+   <div className="vehicle-dialog-title-row"><h2 id="vehicle-detail-title">{car.name}</h2>
+    {onCalculator && onShare && <div className="vehicle-actions vehicle-dialog-actions">
+     <button type="button" className="vehicle-calculator" onClick={onCalculator} aria-label={t('Loan calculator for {name}',{name:car.name})} title={t('Loan calculator')}><Calculator size={20} aria-hidden="true" /></button>
+     <button type="button" className="vehicle-share" onClick={onShare} aria-label={t('Share {name}',{name:car.name})}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 10.5 14 5v3C8 8.8 4 12.3 2.5 19c3.4-4.3 7.1-6.3 11.5-6.3v3.3l8-5.5Z" /></svg></button>
+     <span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span>
+    </div>}
+   </div>
    {car.price != null && (() => {
     const discount = getVehicleDiscount(car.price,car.discount_price)
     return discount ? <div className="vehicle-pricing vehicle-pricing--details">

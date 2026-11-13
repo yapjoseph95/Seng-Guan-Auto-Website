@@ -840,7 +840,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
       {calculatorOpen && <LoanCalculatorDialog initialPrice={calculatorPrice} onClose={()=>setCalculatorOpen(false)} />}
       {opened && (unavailableStatus
         ? <VehicleUnavailable status={unavailableStatus} onClose={() => setOpened(false)} />
-        : <VehicleDetails car={car} onClose={() => setOpened(false)} />)}
+        : <VehicleDetails car={car} onClose={() => setOpened(false)} onCalculator={isOfficialSite ? ()=>setCalculatorOpen(true) : undefined} onShare={isOfficialSite ? ()=>void shareVehicle() : undefined} copied={copied} />)}
     </article>
   )
 }
