@@ -110,3 +110,11 @@
 @media (max-width:600px) { .initial-loading--admin::before { left:16px; top:120px; } }
 @media (prefers-reduced-motion:reduce) { .initial-loading::after { animation:none; } }
 .admin-watermark-stage .progressive-image > img { object-fit:contain; }
+/* Reserve room for the price stack while keeping the existing card layout. */
+.loading-skeleton:not(.loading-skeleton--admin):not(.loading-skeleton--compact) .skeleton-copy {
+ min-height:clamp(236px,calc(372.5px - 10.5vw),278px);
+}
+@media (max-width:760px) {
+ .loading-skeleton--compact:not(.loading-skeleton--admin) .skeleton-photo,
+ .loading-skeleton--compact:not(.loading-skeleton--admin) .skeleton-copy { min-height:172px; }
+}
