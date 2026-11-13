@@ -281,6 +281,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
  const marks = drafts.get(photo.id) ?? original
  const [selected,setSelected] = useState(0)
  const [photoSize,setPhotoSize] = useState<Size>()
+ const [previewSize,setPreviewSize] = useState<Size>()
  const [assetSizes,setAssetSizes] = useState<Record<string,Size>>({})
  const [busy,setBusy] = useState(false)
  const [error,setError] = useState('')
@@ -323,6 +324,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
   if (busy || next.id === photo.id) return
   layerDrag.current = null
   setPhotoSize(undefined)
+  setPreviewSize(undefined)
   setError('')
   setSelected(0)
   onSelect(next.id)
@@ -444,8 +446,10 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
    {photos.length > 1 && <button type="button" aria-label={t('Previous photo')} disabled={busy} onClick={() => movePhoto(-1)}>
     <ChevronLeft size={20} aria-hidden="true" />
    </button>}
-   <div className="admin-watermark-stage" data-drop-target={ghost?.over || undefined} ref={stage}>
-    <img key={photo.id} className="admin-watermark-base" src={photoUrl} alt={t('照片预览')} draggable={false}
+   <div className="admin-watermark-stage" data-drop-target={ghost?.over || undefined} ref={stage}
+    style={{aspectRatio:`${(photoSize ?? previewSize)?.width ?? 4} / ${(photoSize ?? previewSize)?.height ?? 3}`,width:`min(100%, ${42*((photoSize ?? previewSize)?.width ?? 4)/((photoSize ?? previewSize)?.height ?? 3)}dvh, ${420*((photoSize ?? previewSize)?.width ?? 4)/((photoSize ?? previewSize)?.height ?? 3)}px)`}}>
+    <ProgressiveImage key={photo.id} className="admin-watermark-base" src={photoUrl} priority alt={t('照片预览')} draggable={false}
+     onPreviewLoad={image=>setPreviewSize({width:image.naturalWidth,height:image.naturalHeight})}
      onLoad={event => setPhotoSize({width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight})}
      onError={() => setError('Could not load the image.')} />
     {layers.map(({placement,asset},i) => {
