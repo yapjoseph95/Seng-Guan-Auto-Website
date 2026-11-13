@@ -1122,9 +1122,11 @@ function LoanCalculatorDialog({initialPrice,onClose}: {initialPrice:number|null|
   const dialog=useRef<HTMLDialogElement>(null)
   useEffect(()=>{
     const previous=document.documentElement.style.overflow
+    const previousScrollBehavior=document.documentElement.style.scrollBehavior
     document.documentElement.style.overflow='hidden'
+    document.documentElement.style.scrollBehavior='auto'
     dialog.current?.showModal()
-    return ()=>{dialog.current?.close();document.documentElement.style.overflow=previous}
+    return ()=>{dialog.current?.close();document.documentElement.style.overflow=previous;document.documentElement.style.scrollBehavior=previousScrollBehavior}
   },[])
   return <dialog ref={dialog} className="vehicle-dialog loan-calculator-dialog" aria-label={t('Loan calculator')} onCancel={event=>{event.preventDefault();onClose()}}>
     <button type="button" className="vehicle-dialog-close" onClick={onClose} aria-label={t('Close')}><X /></button>
