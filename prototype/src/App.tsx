@@ -731,6 +731,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
   const [opened, setOpened] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
   const [copied, setCopied] = useState(false)
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
+  const calculatorPrice = getVehicleDiscount(car.price,car.discount_price) ? car.discount_price : car.price
   const available = car.status === 'available'
   const unavailableStatus = car.status === 'sold' || car.status === 'reserved' ? car.status : null
   const stamp = unavailableStatus ? t(unavailableStatus === 'sold' ? 'SOLD' : 'RESERVED') : null
@@ -807,13 +808,13 @@ function VehicleCard({ car }: { car: Vehicle }) {
           <VehicleListingDate car={car} />
         </div>
       </a>
-      {isOfficialSite && <button type="button" className="vehicle-share" onClick={() => void shareVehicle()}
+      {isOfficialSite && <div className="vehicle-actions"><button type="button" className="vehicle-share" onClick={() => void shareVehicle()}
         aria-label={t('Share {name}', {name:car.name})}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M22 10.5 14 5v3C8 8.8 4 12.3 2.5 19c3.4-4.3 7.1-6.3 11.5-6.3v3.3l8-5.5Z" />
         </svg>
-      </button>}
+      </button><a className="vehicle-calculator" href={`/financing?price=${calculatorPrice ?? ''}`} aria-label={t('Loan calculator for {name}',{name:car.name})} title={t('Loan calculator')}><Calculator size={20} aria-hidden="true" /></a></div>}
       {isOfficialSite && <span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span>}
       {opened && (unavailableStatus
         ? <VehicleUnavailable status={unavailableStatus} onClose={() => setOpened(false)} />
@@ -1055,8 +1056,10 @@ function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: st
 
 function FinancePage({ variant }: { variant: Direction }) {
   const { t, locale } = useLocale()
-  const [price, setPrice] = useState('80000')
-  const [down, setDown] = useState('8000')
+  const initialPrice = new URLSearchParams(window.location.search).get('price')
+  const validInitialPrice = initialPrice !== null && initialPrice.trim() !== '' && Number.isFinite(Number(initialPrice)) && Number(initialPrice) > 0 ? Number(initialPrice) : null
+  const [price, setPrice] = useState(() => initialPrice === null ? '80000' : validInitialPrice === null ? '' : String(validInitialPrice))
+  const [down, setDown] = useState(() => initialPrice === null ? '8000' : validInitialPrice === null ? '' : String(Math.round(validInitialPrice * .1)))
   const [rate, setRate] = useState('3.5')
   const [years, setYears] = useState('7')
   const [calculated, setCalculated] = useState(false)

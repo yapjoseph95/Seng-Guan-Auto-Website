@@ -84,6 +84,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Right here.": ["Right here.","Di sini.","就在这里。"],
   "Explore the featured selection from Seng Guan Auto. View vehicle photos and details, or ask our team about current availability.": ["Explore the featured selection from Seng Guan Auto. View vehicle photos and details, or ask our team about current availability.","Terokai pilihan Seng Guan Auto. Lihat gambar dan butiran kereta atau tanya pasukan kami tentang ketersediaannya.","浏览 Seng Guan Auto 的精选车辆，查看照片和详情，或向团队确认目前是否有车。"],
   "Loan calculator": ["Loan calculator","Kalkulator pinjaman","车贷计算器"],
+  "Loan calculator for {name}": ["Loan calculator for {name}","Kalkulator pinjaman untuk {name}","{name} 的车贷计算器"],
   "Used cars, with room to think.": ["Used cars, with room to think.","Pilih kereta terpakai mengikut rentak anda.","从容挑选二手车。"],
   "Browse a selection, check live details on Carlist, and contact the team when you are ready.": ["Browse a selection, check live details on Carlist, and contact the team when you are ready.","Lihat pilihan kami, semak butiran terkini di Carlist dan hubungi kami apabila anda bersedia.","浏览车辆，在 Carlist 查看最新详情，准备好后再联系我们。"],
   "See featured cars": ["See featured cars","Lihat kereta pilihan","查看精选车辆"],
