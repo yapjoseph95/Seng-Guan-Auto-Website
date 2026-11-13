@@ -39,6 +39,16 @@ textarea {
   font: inherit;
 }
 
+/* Keep mobile browsers from zooming when a form control receives focus. */
+@media (max-width: 760px), (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]),
+  select,
+  textarea,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}
+
 button {
   cursor: pointer;
 }
