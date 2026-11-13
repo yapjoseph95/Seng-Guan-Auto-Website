@@ -46,8 +46,10 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
 
  useEffect(() => {
   const modal = dialog.current
+  const previousOverflow = document.documentElement.style.overflow
+  document.documentElement.style.overflow = 'hidden'
   modal?.showModal()
-  return () => modal?.close()
+  return () => { modal?.close(); document.documentElement.style.overflow = previousOverflow }
  }, [])
 
  useEffect(() => {
@@ -107,8 +109,7 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
  const message = t('Hi, I am interested in the {year} {name}. Is it available?', {year:car.year,name:car.name})
 
  return <dialog ref={dialog} className="vehicle-dialog" aria-labelledby="vehicle-detail-title"
-  onCancel={event => {event.preventDefault(); dismiss()}}
-  onClick={event => {if (event.target === event.currentTarget) dismiss()}}>
+  onCancel={event => {event.preventDefault(); dismiss()}}>
   <button type="button" className="vehicle-dialog-close" onClick={dismiss} aria-label={t('Close vehicle details')}><X /></button>
   <div className="vehicle-gallery">
    <div className="vehicle-gallery-frame" onPointerDown={startGesture} onPointerUp={finishGesture}
@@ -176,8 +177,10 @@ export function VehicleUnavailable({ status, onClose }: { status: 'reserved' | '
 
  useEffect(() => {
   const modal = dialog.current
+  const previousOverflow = document.documentElement.style.overflow
+  document.documentElement.style.overflow = 'hidden'
   modal?.showModal()
-  return () => modal?.close()
+  return () => { modal?.close(); document.documentElement.style.overflow = previousOverflow }
  }, [])
 
  const dismiss = () => {
@@ -187,8 +190,7 @@ export function VehicleUnavailable({ status, onClose }: { status: 'reserved' | '
 
  return <dialog ref={dialog} className="vehicle-dialog vehicle-dialog--unavailable"
   aria-labelledby={titleId} aria-describedby={descriptionId}
-  onCancel={event => { event.preventDefault(); dismiss() }}
-  onClick={event => { if (event.target === event.currentTarget) dismiss() }}>
+  onCancel={event => { event.preventDefault(); dismiss() }}>
   <div className="vehicle-dialog-copy">
    <h2 id={titleId}>{t('Oh no!')}</h2>
    <p id={descriptionId}>{t(status === 'sold'
