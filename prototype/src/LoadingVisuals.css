@@ -118,3 +118,4 @@
  .loading-skeleton--compact:not(.loading-skeleton--admin) .skeleton-photo,
  .loading-skeleton--compact:not(.loading-skeleton--admin) .skeleton-copy { min-height:172px; }
 }
+.admin-watermark-default-preview { aspect-ratio:3/2; }

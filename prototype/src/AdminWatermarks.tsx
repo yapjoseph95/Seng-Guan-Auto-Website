@@ -5,6 +5,7 @@ import { defaultWatermarkSettings, maxWatermarksPerPhoto, type WatermarkAsset, t
 import { maxPhotoBytes } from '../shared/vehicle-photos'
 import { useLocale } from './locale'
 import sampleVehiclePhoto from './assets/cars/1.jpg'
+import sampleVehiclePreview from './assets/previews/watermark-sample.jpg'
 import type { AdminPhoto } from './AdminPhotoGrid'
 import { ProgressiveImage } from './LoadingVisuals'
 
@@ -150,7 +151,7 @@ function WatermarkAssetSettings({asset,fallback,disabled,saving,onSave,onRename}
    {nameError && <p className="admin-error" role="alert">{t(nameError)}</p>}
   </form>}
   <div className="admin-watermark-default-preview">
-   <img src={sampleVehiclePhoto} alt={t('Watermark preview on a sample vehicle')} onLoad={event => setPreviewSize({
+   <ProgressiveImage src={sampleVehiclePhoto} preview={sampleVehiclePreview} alt={t('Watermark preview on a sample vehicle')} onLoad={event => setPreviewSize({
     width:event.currentTarget.naturalWidth,height:event.currentTarget.naturalHeight,
    })} />
    {bounds && previewSize && <img className="admin-watermark-default-overlay" src={asset.url} alt=""
