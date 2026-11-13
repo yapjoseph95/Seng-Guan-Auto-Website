@@ -1041,6 +1041,7 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
   .is-official-site .inventory-grid .vehicle-price {
     padding-top: 10px; font-size: clamp(15px, 5vw, 26px); line-height: 1.12; overflow-wrap: anywhere;
   }
+  .is-official-site .inventory-grid .vehicle-pricing .vehicle-price { padding-top: 0; }
   .is-official-site .inventory-grid .vehicle-published-date {
     margin-top: 6px; font-size: clamp(9px, 2.4vw, 12px); line-height: 1.2;
   }
