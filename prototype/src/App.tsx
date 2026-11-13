@@ -487,7 +487,7 @@ function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
 
   return (
     <div className="featured-display">
-      {!columns.length && (loading ? <div className="hero-skeleton" aria-hidden="true" /> : <img className="featured-showroom-fallback" src={showroom} alt={t("Seng Guan Auto showroom")} />)}
+      {!columns.length && (loading ? <div className="hero-skeleton" aria-hidden="true" /> : <ProgressiveImage containerClassName="featured-showroom-fallback" src={showroom} preview={showroomPreview} alt={t("Seng Guan Auto showroom")} />)}
       <div className="showroom-gallery" aria-hidden="true">
         {columns.map((column, columnIndex) => (
           <div className={`showroom-gallery-column showroom-gallery-column--${columnIndex + 1}`} key={columnIndex}>
@@ -545,7 +545,7 @@ function ShowroomHeroImage() {
 
   return (
     <div className="showroom-image" aria-hidden="true">
-      {!vehicles.length && (loading ? <div className="hero-skeleton" aria-hidden="true" /> : <img className="showroom-photo showroom-photo--visible" src={showroom} alt="" />)}
+      {!vehicles.length && (loading ? <div className="hero-skeleton" aria-hidden="true" /> : <ProgressiveImage containerClassName="showroom-photo showroom-photo--visible" src={showroom} preview={showroomPreview} priority alt="" />)}
       {vehicles.map((vehicle, index) => {
         if(index!==activeIndex && index!==incomingIndex && index!==(activeIndex+1)%vehicles.length)return null
         const isVisible = index === activeIndex && incomingIndex === null || index === incomingIndex
