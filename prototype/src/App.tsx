@@ -3,7 +3,7 @@ import WhatsAppGlyph from './WhatsAppGlyph'
 import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
 import { getVehicleDiscount } from '../shared/vehicle-pricing'
 import { useLocale, LanguageSelect } from './locale'
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useGSAP } from '@gsap/react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
@@ -726,6 +726,30 @@ function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (
   )
 }
 
+function VehicleMake({make}: {make:string}) {
+  const label=useRef<HTMLSpanElement>(null)
+  useLayoutEffect(()=>{
+    const node=label.current
+    if(!node)return
+    const mobile=window.matchMedia('(max-width: 760px)')
+    let active=true
+    const fit=()=>{
+      if(!active)return
+      node.style.removeProperty('font-size')
+      if(!mobile.matches || !node.closest('.inventory-grid:not(.inventory-grid--photo)') || !node.clientWidth)return
+      const initial=parseFloat(getComputedStyle(node).fontSize)
+      for(let size=initial;size>10 && node.scrollWidth>node.clientWidth;size=Math.max(10,size-0.5))node.style.fontSize=`${Math.max(10,size-0.5)}px`
+    }
+    const observer=new ResizeObserver(fit)
+    observer.observe(node)
+    mobile.addEventListener('change',fit)
+    fit()
+    void document.fonts.ready.then(fit)
+    return ()=>{active=false;observer.disconnect();mobile.removeEventListener('change',fit)}
+  },[make])
+  return <span ref={label} className="vehicle-make" title={make}>{make}</span>
+}
+
 function VehicleCard({ car }: { car: Vehicle }) {
   const { t, locale } = useLocale()
   const [opened, setOpened] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
@@ -796,10 +820,10 @@ function VehicleCard({ car }: { car: Vehicle }) {
           {isOfficialSite && car.status && car.status !== 'draft' && <span className={`vehicle-info-status vehicle-info-status--${car.status}`}>
             <span>{t(car.status === 'available' ? 'AVAILABLE' : 'NOT AVAILABLE')}</span>
           </span>}
-          {isOfficialSite && <div className="vehicle-actions"><button type="button" className="vehicle-calculator" onClick={()=>setCalculatorOpen(true)} aria-label={t('Loan calculator for {name}',{name:car.name})} title={t('Loan calculator')}><Calculator size={20} aria-hidden="true" /></button><button type="button" className="vehicle-share" onClick={() => void shareVehicle()} aria-label={t('Share {name}', {name:car.name})}>
+          <div className="vehicle-info-header"><VehicleMake make={car.make} />{isOfficialSite && <div className="vehicle-actions"><button type="button" className="vehicle-calculator" onClick={()=>setCalculatorOpen(true)} aria-label={t('Loan calculator for {name}',{name:car.name})} title={t('Loan calculator')}><Calculator size={20} aria-hidden="true" /></button><button type="button" className="vehicle-share" onClick={() => void shareVehicle()} aria-label={t('Share {name}', {name:car.name})}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 10.5 14 5v3C8 8.8 4 12.3 2.5 19c3.4-4.3 7.1-6.3 11.5-6.3v3.3l8-5.5Z" /></svg>
-          </button><span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span></div>}
-          <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
+          </button><span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span></div>}</div>
+          <div className="vehicle-title"><h3>{car.name}</h3></div>
           <VehicleSpecs car={car} />
           {car.price != null && (() => {
             const discount = getVehicleDiscount(car.price,car.discount_price)
