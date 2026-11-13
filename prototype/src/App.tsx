@@ -1128,7 +1128,7 @@ function LoanCalculatorDialog({initialPrice,onClose}: {initialPrice:number|null|
     dialog.current?.showModal()
     return ()=>{dialog.current?.close();document.documentElement.style.overflow=previous;document.documentElement.style.scrollBehavior=previousScrollBehavior}
   },[])
-  return <dialog ref={dialog} className="vehicle-dialog loan-calculator-dialog" aria-label={t('Loan calculator')} onCancel={event=>{event.preventDefault();onClose()}}>
+  return <dialog ref={dialog} autoFocus className="vehicle-dialog loan-calculator-dialog" aria-label={t('Loan calculator')} onCancel={event=>{event.preventDefault();onClose()}}>
     <button type="button" className="vehicle-dialog-close" onClick={onClose} aria-label={t('Close')}><X /></button>
     <LoanCalculatorPanel initialValue={initialPrice ?? null} />
   </dialog>

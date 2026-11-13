@@ -1,0 +1,7 @@
+{
+  "name": "seng-guan-auto-image-resizer",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": false,
+  "images": {"binding": "IMAGES"}
+}

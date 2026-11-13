@@ -22,6 +22,7 @@ sql.exec(readFileSync(new URL('../migrations/0009_watermark_asset_defaults.sql',
 sql.exec(readFileSync(new URL('../migrations/0010_watermark_default_position.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0013_vehicle_templates.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0014_vehicle_listing_updates.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0015_vehicle_discount_price.sql',import.meta.url),'utf8'))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
@@ -54,7 +55,7 @@ const env={DB:{prepare:(query:string)=>new Statement(query),batch:async(stmts:St
   return photo?{body:photo.bytes,arrayBuffer:async()=>photo.bytes.slice().buffer}:null
  },
  delete:async(keys:string|string[])=>{for(const key of Array.isArray(keys)?keys:[keys])objects.delete(key)},
-},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
+},IMAGE_RESIZER:{fetch:async(_url:string,init:{body:BodyInit})=>new Response(init.body,{headers:{'Content-Type':'image/jpeg'}})},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
 const users:Record<string,unknown>={valid:{email:'admin@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},other:{email:'other@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},unverified:{email:'admin@example.test'}}
 const sent:string[]=[]
 const originalFetch=globalThis.fetch
@@ -228,7 +229,10 @@ test('a multipart save commits details, uploads, cover order and removals togeth
  assert.equal(saved.photo,'/api/photos/new-cover')
  assert.equal((await call('/api/photos/initial-1','GET',undefined,false)).status,404)
  assert.equal((await call('/api/photos/new-cover','GET',undefined,false)).status,200)
- assert.equal(objects.size,2)
+ assert.equal(objects.size,3)
+ assert.equal([...objects.keys()].filter(key=>key.startsWith('public-preview-v1/')).length,1)
+ assert.equal((await call('/api/photos/new-cover','GET',undefined,false)).status,200)
+ assert.equal(objects.size,3)
  assert.equal((await call(path,'PUT',edit())).status,409)
 
  const concurrent=edit()
@@ -238,7 +242,7 @@ test('a multipart save commits details, uploads, cover order and removals togeth
  onPut=()=>{sql.prepare("UPDATE vehicles SET updated_at='2030-01-01T00:00:00.000Z' WHERE id=?").run(createId)}
  try {
   assert.equal((await call(path,'PUT',concurrent)).status,409)
-  assert.equal(objects.size,2)
+  assert.equal(objects.size,3)
   const unchanged=await (await call(publicPath,'GET',undefined,false)).json() as any
   assert.equal(unchanged.name,'After')
   assert.deepEqual(unchanged.photos.map((photo: {id:string})=>photo.id),['new-cover','initial-2'])
@@ -277,10 +281,10 @@ test('selected photos can upload privately before the vehicle save',async()=>{
  const vehicle=await published.json() as {id:string;photo:string}
  assert.equal(vehicle.photo,'/api/admin/photos/'+id)
  assert.equal((await call('/api/photos/'+id,'GET',undefined,false)).status,200)
- assert.equal(objects.size,1)
+ assert.equal(objects.size,2)
  assert.ok([...objects.keys()][0].startsWith('vehicles/'))
  assert.equal((await call(stagedPath,'DELETE')).status,200)
- assert.equal(objects.size,1)
+ assert.equal(objects.size,2)
  assert.equal((await call('/api/admin/vehicles/'+vehicle.id,'DELETE')).status,200)
 })
 

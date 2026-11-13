@@ -124,8 +124,10 @@ function photoIds(value: unknown): string[] {
 
 async function deletePhotoObjects(env: Env, keys: string[]) {
  if (!keys.length) return
- await env.PHOTOS.delete(keys).catch(() => console.error('Vehicle photo cleanup failed.'))
+ await env.PHOTOS.delete([...keys,...keys.map(publicPhotoKey)]).catch(() => console.error('Vehicle photo cleanup failed.'))
 }
+
+const publicPhotoKey = (key:string) => `public-preview-v1/${key}`
 
 const stagedPhotoUnavailable = 'An uploaded photo is no longer available. Remove it and upload it again.'
 
@@ -437,9 +439,23 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     +' WHERE p.id=?'+(admin ? '' : " AND v.status!='draft'")).bind(parts[1]).first<StoredPhoto & {content_type:string}>()
    if (!p) throw new HttpError(404,'Photo not found.')
    const render = p.render_key && (!admin || url.searchParams.has('v'))
-   const object = await env.PHOTOS.get(render ? p.render_key! : p.object_key)
+   const sourceKey = render ? p.render_key! : p.object_key
+   if (admin) {
+    const object = await env.PHOTOS.get(sourceKey)
+    if (!object) throw new HttpError(404,'Photo not found.')
+    return imageResponse(object.body,render ? 'image/jpeg' : p.content_type,true)
+   }
+   const previewKey=publicPhotoKey(sourceKey)
+   const preview=await env.PHOTOS.get(previewKey)
+   if (preview) return imageResponse(preview.body,'image/jpeg',false)
+   const object=await env.PHOTOS.get(sourceKey)
    if (!object) throw new HttpError(404,'Photo not found.')
-   return imageResponse(object.body,render ? 'image/jpeg' : p.content_type,admin)
+   if (!env.IMAGE_RESIZER) throw new HttpError(503,'Photo temporarily unavailable.')
+   const resized=await env.IMAGE_RESIZER.fetch('https://image-resizer.internal/',{method:'POST',body:object.body})
+   if (!resized.ok) throw new HttpError(503,'Photo temporarily unavailable.')
+   const bytes=await resized.arrayBuffer()
+   await env.PHOTOS.put(previewKey,bytes,{httpMetadata:{contentType:'image/jpeg'}}).catch(()=>console.error('Public photo cache failed.'))
+   return imageResponse(new Response(bytes).body!,'image/jpeg',false)
   }
   if (parts[0] !== 'vehicles') throw new HttpError(404,'Not found.')
   const id = parts[1]

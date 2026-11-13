@@ -30,11 +30,11 @@ async function compress(file:File) {
  if(file.size>25*1024*1024)throw new Error('原图不能超过 25 MB。')
  const bitmap=await createImageBitmap(file)
  try {
-  const scale=Math.min(1,2000/Math.max(bitmap.width,bitmap.height))
+  const scale=Math.min(1,1200/Math.max(bitmap.width,bitmap.height))
   const canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale)
   const ctx=canvas.getContext('2d');if(!ctx)throw new Error('浏览器不支持照片处理。')
   ctx.drawImage(bitmap,0,0,canvas.width,canvas.height)
-  const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('照片处理失败。')),'image/jpeg',.86))
+  const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('照片处理失败。')),'image/jpeg',.8))
   return new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})
  } finally { bitmap.close() }
 }
@@ -138,7 +138,7 @@ function PhotoPreview({ mobileOpen, onClose, ...gallery }: PreviewGalleryProps &
    <h3>{t('照片预览')}</h3>
    <PreviewGallery {...gallery} />
   </aside>
-  <dialog ref={dialog} className="admin-mobile-photo-preview" aria-label={t('照片预览')} onClose={onClose}
+  <dialog ref={dialog} autoFocus className="admin-mobile-photo-preview" aria-label={t('照片预览')} onClose={onClose}
    onClick={event => { if (event.target === event.currentTarget) onClose() }}>
    <header><span>{t('照片预览')}</span>
     <button type="button" aria-label={t('关闭照片预览')} onClick={onClose}><X size={20} aria-hidden="true" /></button>
@@ -340,8 +340,8 @@ export default function Admin() {
   const previous=document.activeElement as HTMLElement|null
   const modal=document.querySelector<HTMLElement>(confirmDelete?'.admin-confirm':'.admin-edit-dialog')
   const focusable=()=>Array.from(modal?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]')??[]).filter(e=>e.getClientRects().length>0)
-  focusable()[0]?.focus()
-  const trap=(e:KeyboardEvent)=>{if(e.key!=='Tab'||modal?.querySelector('dialog[open]'))return;const nodes=focusable();const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}
+  modal?.focus()
+  const trap=(e:KeyboardEvent)=>{if(e.key!=='Tab'||modal?.querySelector('dialog[open]'))return;const nodes=focusable();const first=nodes[0],last=nodes.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement===modal)){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}
   document.addEventListener('keydown',trap)
   return()=>{document.removeEventListener('keydown',trap);previous?.focus()}
  },[Boolean(edit),Boolean(confirmDelete)])
@@ -685,7 +685,7 @@ export default function Admin() {
   <div className="admin-toast" role="status">
    {notice&&<p className="admin-success"><Check size={17} aria-hidden="true"/>{t(notice)}</p>}
   </div>
-  {edit&&<div className="admin-overlay"><div className="admin-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title">
+  {edit&&<div className="admin-overlay"><div className="admin-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="vehicle-editor-title" tabIndex={-1}>
    <PhotoPreview photos={edit.photos} index={previewNumber} onSelect={setPreviewId} busy={!!busy}
     onWatermark={photo => setWatermarkPhotoId(photo.id)} onRemove={removePhoto} mobileOpen={mobilePreviewOpen} onClose={() => setMobilePreviewOpen(false)} />
    <section className="admin-editor"><div className="admin-editor-heading"><div><p>{t(edit.id?'EDIT VEHICLE':'NEW VEHICLE')}</p><h2 id="vehicle-editor-title">{t(edit.id?'编辑车辆':'新增车辆')}</h2></div><button aria-label={t("关闭编辑")} onClick={close} disabled={!!busy}><X/></button></div>
@@ -778,6 +778,6 @@ export default function Admin() {
   {settings === 'watermark' && <WatermarkLibrary request={api} onClose={() => setSettings(null)} />}
   {settings === 'template' && <AdminVehicleTemplate request={api} onClose={() => setSettings(null)}
    onSaved={() => {setSettings(null);setNotice('Vehicle template saved.')}} />}
-  {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}
+  {confirmDelete&&<div className="admin-overlay"><section className="admin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" tabIndex={-1}><h2 id="delete-title">{t("删除这辆车？")}</h2><p>{confirmDelete.name}{t("的资料和照片将被删除。若只是已售出，请改为「已售」状态。")}</p><div><button disabled={!!busy} onClick={()=>setConfirmDelete(null)}>{t("取消")}</button><button className="admin-primary" disabled={!!busy} onClick={()=>void removeVehicle()}>{t(busy||'确认删除')}</button></div>{error&&<p role="alert">{t(error)}</p>}</section></div>}
  </div>
 }

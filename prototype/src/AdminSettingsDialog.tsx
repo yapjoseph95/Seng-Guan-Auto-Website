@@ -13,7 +13,7 @@ export default function AdminSettingsDialog({ title, onClose, busy = false, chil
   modal?.showModal()
   return () => modal?.close()
  }, [])
- return <dialog ref={dialog} className={'admin-watermark-dialog '+className} aria-labelledby={titleId}
+ return <dialog ref={dialog} autoFocus className={'admin-watermark-dialog '+className} aria-labelledby={titleId}
   onCancel={event => { event.preventDefault(); if (!busy) onClose() }}>
   <div className="admin-watermark-heading">
    <h2 id={titleId}>{title}</h2>

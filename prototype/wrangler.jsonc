@@ -17,6 +17,7 @@
       "bucket_name": "seng-guan-auto-vehicle-photos"
     }
   ],
+  "services": [{"binding":"IMAGE_RESIZER","service":"seng-guan-auto-image-resizer"}],
   "vars": {
     "SUPABASE_URL": "https://goekzghpvctbtzugaacy.supabase.co",
     "SUPABASE_ANON_KEY": "sb_publishable_lZqs6GEdM5e0_bb6qxiAcA_NGfAcetQ"

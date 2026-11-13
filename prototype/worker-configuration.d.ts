@@ -3,6 +3,7 @@
 interface __BaseEnv_Env {
 	PHOTOS: R2Bucket;
 	DB: D1Database;
+	IMAGE_RESIZER: Fetcher;
 	ADMIN_EMAILS: string;
 	SUPABASE_URL: string;
 	SUPABASE_ANON_KEY: string;
