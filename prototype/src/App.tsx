@@ -10,7 +10,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import {
   ArrowDownRight, ArrowLeft, ArrowRight, ArrowUpRight, Award, Calculator,
   CarFront, Check, ChevronDown, CircleHelp, Clock, HeartHandshake, Mail, MapPin,
-  Headset, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
+  Headset, Image as ImageIcon, Menu, MessageCircle, Navigation, Phone, ReceiptText, RefreshCw, Search, ShieldCheck,
   Wrench, X,
 } from 'lucide-react'
 import logo from './assets/logo.svg'
@@ -730,6 +730,7 @@ function VehicleCard({ car }: { car: Vehicle }) {
   const { t, locale } = useLocale()
   const [opened, setOpened] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
   const [copied, setCopied] = useState(false)
+  const [calculatorOpen, setCalculatorOpen] = useState(false)
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
   const calculatorPrice = getVehicleDiscount(car.price,car.discount_price) ? car.discount_price : car.price
   const available = car.status === 'available'
@@ -780,12 +781,12 @@ function VehicleCard({ car }: { car: Vehicle }) {
 
   return (
     <article className="vehicle-card">
-      <a className="vehicle-card-link" href={href} onClick={openVehicle} target="_blank" rel="noreferrer"
-        aria-label={t(unavailableStatus ? 'Check availability for {year} {name}' : 'View photos and details for {year} {name}', { year: car.year, name: car.name })}>
+      <div className="vehicle-card-link">
         <div className="vehicle-media">
           <div className="vehicle-photo">
             <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
             {stamp && <span className={`vehicle-status vehicle-status--${car.status}`}>{stamp}</span>}
+            {isOfficialSite && <span className="vehicle-photo-count" aria-label={t('{count} 张照片',{count:car.photos?.length ?? (car.photo ? 1 : 0)})}><ImageIcon size={15} aria-hidden="true" />{car.photos?.length ?? (car.photo ? 1 : 0)}</span>}
           </div>
           {(available || stamp) && <span className={`vehicle-status-bar${available ? ' vehicle-status-bar--available' : ''}`}>
             {available ? <span ref={availableLabel}>{t('AVAILABLE')}</span> : t('NOT AVAILABLE')}
@@ -795,6 +796,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
           {isOfficialSite && car.status && car.status !== 'draft' && <span className={`vehicle-info-status vehicle-info-status--${car.status}`}>
             <span>{t(car.status === 'available' ? 'AVAILABLE' : 'NOT AVAILABLE')}</span>
           </span>}
+          {isOfficialSite && <div className="vehicle-actions"><button type="button" className="vehicle-calculator" onClick={()=>setCalculatorOpen(true)} aria-label={t('Loan calculator for {name}',{name:car.name})} title={t('Loan calculator')}><Calculator size={20} aria-hidden="true" /></button><button type="button" className="vehicle-share" onClick={() => void shareVehicle()} aria-label={t('Share {name}', {name:car.name})}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 10.5 14 5v3C8 8.8 4 12.3 2.5 19c3.4-4.3 7.1-6.3 11.5-6.3v3.3l8-5.5Z" /></svg>
+          </button><span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span></div>}
           <div className="vehicle-title"><span>{car.make}</span><h3>{car.name}</h3></div>
           <VehicleSpecs car={car} />
           {car.price != null && (() => {
@@ -807,15 +811,9 @@ function VehicleCard({ car }: { car: Vehicle }) {
           })()}
           <VehicleListingDate car={car} />
         </div>
-      </a>
-      {isOfficialSite && <div className="vehicle-actions"><button type="button" className="vehicle-share" onClick={() => void shareVehicle()}
-        aria-label={t('Share {name}', {name:car.name})}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M22 10.5 14 5v3C8 8.8 4 12.3 2.5 19c3.4-4.3 7.1-6.3 11.5-6.3v3.3l8-5.5Z" />
-        </svg>
-      </button><a className="vehicle-calculator" href={`/financing?price=${calculatorPrice ?? ''}`} aria-label={t('Loan calculator for {name}',{name:car.name})} title={t('Loan calculator')}><Calculator size={20} aria-hidden="true" /></a></div>}
-      {isOfficialSite && <span className="vehicle-share-status" role="status">{copied ? t('Link copied') : ''}</span>}
+      </div>
+      <a className="vehicle-card-cover" href={href} onClick={openVehicle} target="_blank" rel="noreferrer" aria-label={t(unavailableStatus ? 'Check availability for {year} {name}' : 'View photos and details for {year} {name}', { year: car.year, name: car.name })} />
+      {calculatorOpen && <LoanCalculatorDialog initialPrice={calculatorPrice} onClose={()=>setCalculatorOpen(false)} />}
       {opened && (unavailableStatus
         ? <VehicleUnavailable status={unavailableStatus} onClose={() => setOpened(false)} />
         : <VehicleDetails car={car} onClose={() => setOpened(false)} />)}
@@ -1054,12 +1052,10 @@ function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: st
   return <header className="page-intro"><p className="section-label">{eyebrow}</p><h1>{title}</h1><p>{description}</p></header>
 }
 
-function FinancePage({ variant }: { variant: Direction }) {
+function LoanCalculatorPanel({initialValue}: {initialValue?:number|null}) {
   const { t, locale } = useLocale()
-  const initialPrice = new URLSearchParams(window.location.search).get('price')
-  const validInitialPrice = initialPrice !== null && initialPrice.trim() !== '' && Number.isFinite(Number(initialPrice)) && Number(initialPrice) > 0 ? Number(initialPrice) : null
-  const [price, setPrice] = useState(() => initialPrice === null ? '80000' : validInitialPrice === null ? '' : String(validInitialPrice))
-  const [down, setDown] = useState(() => initialPrice === null ? '8000' : validInitialPrice === null ? '' : String(Math.round(validInitialPrice * .1)))
+  const [price, setPrice] = useState(() => initialValue === undefined ? '80000' : initialValue == null ? '' : String(initialValue))
+  const [down, setDown] = useState(() => initialValue === undefined ? '8000' : initialValue == null ? '' : String(Math.round(initialValue * .1)))
   const [rate, setRate] = useState('3.5')
   const [years, setYears] = useState('7')
   const [calculated, setCalculated] = useState(false)
@@ -1082,11 +1078,7 @@ function FinancePage({ variant }: { variant: Direction }) {
     setCalculated(true)
   }
 
-  return (
-    <div className={`content-page content-page--finance content-page--${variant.id}`}>
-      <PageIntro eyebrow={t("A browser-only estimate")} title={t("Plan a payment that works for you.")} description={t("Change the example values, calculate a simple estimate, and discuss actual terms with a finance provider.")} />
-      <section className="calculator-layout">
-        <div className="calculator-panel">
+  return <div className="calculator-panel">
           <div className="calculator-heading"><div><p className="section-label">{t("Loan calculator")}</p><h2>{t("Your estimate")}</h2></div><Calculator size={24} aria-hidden="true" /></div>
           <div className="calculator-fields">
             <label>{t("Car price")} <span>RM</span><input name="car-price" inputMode="decimal" type="number" min="1" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
@@ -1099,6 +1091,32 @@ function FinancePage({ variant }: { variant: Direction }) {
           {calculated && <div className="estimate-result" aria-live="polite"><span>{t("Estimated monthly payment")}</span><strong>{formatMoney(monthly)}</strong><p>{t('Estimated loan amount: {amount} · {term} years', { amount: formatMoney(loan), term })}</p></div>}
           <p className="calculator-disclaimer">{t("Illustrative flat-rate calculation only. Actual rates, eligibility, fees, and terms vary. Your inputs stay in this browser and are not submitted.")}</p>
         </div>
+}
+
+function LoanCalculatorDialog({initialPrice,onClose}: {initialPrice:number|null|undefined;onClose:()=>void}) {
+  const {t}=useLocale()
+  const dialog=useRef<HTMLDialogElement>(null)
+  useEffect(()=>{
+    const previous=document.documentElement.style.overflow
+    document.documentElement.style.overflow='hidden'
+    dialog.current?.showModal()
+    return ()=>{dialog.current?.close();document.documentElement.style.overflow=previous}
+  },[])
+  return <dialog ref={dialog} className="vehicle-dialog loan-calculator-dialog" aria-label={t('Loan calculator')} onCancel={event=>{event.preventDefault();onClose()}}>
+    <button type="button" className="vehicle-dialog-close" onClick={onClose} aria-label={t('Close')}><X /></button>
+    <LoanCalculatorPanel initialValue={initialPrice ?? null} />
+  </dialog>
+}
+
+function FinancePage({ variant }: { variant: Direction }) {
+  const {t}=useLocale()
+  const initialPrice = new URLSearchParams(window.location.search).get('price')
+  const initialValue = initialPrice === null ? undefined : initialPrice.trim() !== '' && Number.isFinite(Number(initialPrice)) && Number(initialPrice)>0 ? Number(initialPrice) : null
+  return (
+    <div className={`content-page content-page--finance content-page--${variant.id}`}>
+      <PageIntro eyebrow={t("A browser-only estimate")} title={t("Plan a payment that works for you.")} description={t("Change the example values, calculate a simple estimate, and discuss actual terms with a finance provider.")} />
+      <section className="calculator-layout">
+        <LoanCalculatorPanel initialValue={initialValue} />
         <aside className="finance-aside"><div className="finance-aside-icon"><CircleHelp size={22} aria-hidden="true" /></div><h2>{t("What should I compare?")}</h2><ul><li>{t("Monthly payment and total repayment")}</li><li>{t("Down payment and loan length")}</li><li>{t("Provider terms and any additional fees")}</li><li>{t("Vehicle price and live availability")}</li></ul><a className="text-link" href={contact.whatsapp} target="_blank" rel="noreferrer">{t("Ask the team about financing")} <ArrowUpRight size={15} aria-hidden="true" /></a></aside>
       </section>
       <section className="finance-next"><div><p className="section-label">{t("Keep your options open")}</p><h2>{t("Compare the car and the payment together.")}</h2></div><a className="button button--primary" href={contact.inventory} target="_blank" rel="noreferrer">{t("Browse current listings")} <ArrowUpRight size={16} aria-hidden="true" /></a></section>
