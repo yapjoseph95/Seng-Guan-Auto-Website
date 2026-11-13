@@ -87,3 +87,24 @@
 .initial-loading { min-height:100dvh; padding:0 max(24px,calc((100vw - 1400px)/2)); background:#0d0f11; }
 .initial-loading-header { height:88px; border-bottom:1px solid #303438; background:#111315; }
 .initial-loading .loading-skeleton { margin-top:32px; }
+.initial-loading--public { padding-inline:max(20px,5vw); }
+.initial-loading--admin { max-width:1400px; margin:auto; padding-inline:24px; }
+.initial-loading--public .loading-skeleton { margin-top:473px; }
+.initial-loading--admin .loading-skeleton { margin-top:472px; }
+.initial-loading--admin.initial-loading--compact .loading-skeleton { margin-top:534px; }
+@media (max-width:760px) {
+ .initial-loading--public { padding-inline:20px; }
+ .initial-loading--public .loading-skeleton { margin-top:368px; }
+}
+@media (max-width:600px) {
+ .initial-loading--admin { padding-inline:16px; }
+ .initial-loading--admin .initial-loading-header { height:72px; }
+ .initial-loading--admin .loading-skeleton { margin-top:700px; }
+ .initial-loading--admin.initial-loading--compact .loading-skeleton { margin-top:816px; }
+}
+.initial-loading { position:relative; overflow:hidden; }
+.initial-loading::before { content:''; position:absolute; top:150px; left:max(20px,5vw); width:min(520px,80%); height:300px; pointer-events:none; background:linear-gradient(#303439,#303439) 0 0 / 24% 12px no-repeat,linear-gradient(#303439,#303439) 0 35px / 68% 44px no-repeat,linear-gradient(#303439,#303439) 0 90px / 88% 44px no-repeat,linear-gradient(#303439,#303439) 0 158px / 80% 14px no-repeat,linear-gradient(#303439,#303439) 0 184px / 60% 14px no-repeat,linear-gradient(#303439,#303439) 0 248px / 100% 48px no-repeat; }
+.initial-loading::after { content:''; position:absolute; inset:88px 0 auto; height:400px; pointer-events:none; background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.09) 50%,transparent 60%); animation:skeleton-sweep 1500ms linear infinite; }
+.initial-loading--admin::before { left:24px; }
+@media (max-width:600px) { .initial-loading--admin::before { left:16px; top:120px; } }
+@media (prefers-reduced-motion:reduce) { .initial-loading::after { animation:none; } }

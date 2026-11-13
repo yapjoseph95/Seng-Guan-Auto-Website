@@ -6,6 +6,7 @@ import { maxPhotoBytes } from '../shared/vehicle-photos'
 import { useLocale } from './locale'
 import sampleVehiclePhoto from './assets/cars/1.jpg'
 import type { AdminPhoto } from './AdminPhotoGrid'
+import { ProgressiveImage } from './LoadingVisuals'
 
 export type WatermarkRequest = <T>(path: string, options?: RequestInit) => Promise<T>
 
@@ -475,7 +476,7 @@ export function PhotoWatermarkEditor({ photos, photo, request, onSelect, onApply
     aria-label={t('预览照片 {number}', {number:position + 1})} aria-current={item.id === photo.id ? 'true' : undefined}
     data-pending={drafts.has(item.id) || undefined} aria-description={drafts.has(item.id) ? t('有未保存的修改') : undefined}
     disabled={busy} onClick={() => switchPhoto(item)}>
-    <img src={item.url} alt="" loading="lazy" draggable={false} />
+    <ProgressiveImage src={item.url} alt="" draggable={false} />
    </button>)}
   </div>
   <div className="admin-watermark-controls">

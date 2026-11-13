@@ -21,7 +21,14 @@ const App = lazy(() => import('./App'))
 
 function AdminLoading() {
   const { t } = useLocale()
-  return <main className="initial-loading" role="status" aria-label={t('正在载入后台…')}><div className="initial-loading-header"/><VehicleSkeleton admin /></main>
+  let compact=false
+  try { compact=localStorage.getItem('sga-admin-layout')==='compact' } catch { /* Use the default layout. */ }
+  return <main className={`initial-loading initial-loading--admin${compact?' initial-loading--compact':''}`} role="status" aria-label={t('正在载入后台…')}><div className="initial-loading-header"/><VehicleSkeleton admin compact={compact} /></main>
+}
+
+function PublicLoading() {
+  const compact=window.matchMedia('(max-width: 760px)').matches
+  return <main className="initial-loading initial-loading--public" aria-busy="true"><div className="initial-loading-header"/><VehicleSkeleton compact={compact} /></main>
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -29,7 +36,7 @@ createRoot(document.getElementById('root')!).render(
     <LocaleProvider>
       {window.location.pathname.replace(/\/$/, '') === '/admin'
         ? <Suspense fallback={<AdminLoading />}><Admin /></Suspense>
-        : <Suspense fallback={<main className="initial-loading" aria-busy="true"><div className="initial-loading-header"/><VehicleSkeleton /></main>}><App /></Suspense>}
+        : <Suspense fallback={<PublicLoading />}><App /></Suspense>}
     </LocaleProvider>
   </StrictMode>,
 )
