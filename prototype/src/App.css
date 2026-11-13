@@ -376,8 +376,8 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .vehicle-card { position:relative; min-width: 0; overflow: hidden; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .is-official-site .vehicle-card { position: relative; }
 .vehicle-info-header { display:flex; align-items:center; justify-content:space-between; gap:4px; min-width:0; }
-.is-official-site .vehicle-actions { position:relative; z-index:2; display:flex; flex-shrink:0; gap:4px; margin-left:auto; }
-.is-official-site .vehicle-actions .vehicle-share, .is-official-site .vehicle-calculator { display:grid; place-items:center; width:40px; height:40px; padding:0; border:0; border-radius:6px; background:transparent; color:#fff; cursor:pointer; }
+.is-official-site .vehicle-actions { position:relative; z-index:2; display:flex; flex-shrink:0; gap:0; margin-left:auto; }
+.is-official-site .vehicle-actions .vehicle-share, .is-official-site .vehicle-calculator { display:grid; place-items:center; width:36px; height:40px; padding:0; border:0; border-radius:6px; background:transparent; color:#fff; cursor:pointer; }
 .is-official-site .vehicle-actions .vehicle-share:hover, .is-official-site .vehicle-calculator:hover { color:#ff8079; }
 .is-official-site .vehicle-share-status { display:block; position:absolute; top:44px; right:0; z-index:3; white-space:nowrap; }
 .is-official-site .vehicle-share-status:not(:empty) { padding:5px 8px; border-radius:4px; background:var(--ink); color:var(--paper); font-size:11px; pointer-events:none; }
@@ -764,7 +764,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 
 @media (max-width: 760px) {
   .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-actions .vehicle-share,
-  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-calculator { width:32px; height:32px; }
+  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-calculator { width:28px; height:32px; }
   .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-actions svg { width:16px; height:16px; }
   .site-atmosphere { background: linear-gradient(145deg, #070809 0%, #0b0c0e 40%, #130b0d 56%, #2c0d12 72%, #4b1017 90%); }
   .prototype-app { padding-bottom: calc(144px + env(safe-area-inset-bottom)); }
@@ -1063,6 +1063,9 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 
 .inventory-grid.inventory-grid--photo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .inventory-grid--photo .vehicle-card-link { display: flex; flex-direction: column; }
+@media (min-width:900px) {
+  .is-official-site .inventory-grid--photo .vehicle-make { font-size:18px; }
+}
 @media (max-width: 760px) {
   .inventory-grid.inventory-grid--photo { grid-template-columns: minmax(0, 1fr); }
   .is-official-site .inventory-grid--photo .vehicle-info { padding: 16px; }
