@@ -111,7 +111,7 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
  return <dialog ref={dialog} className="vehicle-dialog" aria-labelledby="vehicle-detail-title"
   onCancel={event => {event.preventDefault(); dismiss()}}>
   <button type="button" className="vehicle-dialog-close" onClick={dismiss} aria-label={t('Close vehicle details')}><X /></button>
-  <div className="vehicle-gallery">
+  <div className="vehicle-gallery" onContextMenu={event=>event.preventDefault()} onDragStart={event=>event.preventDefault()}>
    <div className="vehicle-gallery-frame" onPointerDown={startGesture} onPointerUp={finishGesture}
     onPointerCancel={clearGesture} onLostPointerCapture={clearGesture}>
     <img src={photos[index]?.url} draggable={false} alt={t('{name} — photo {number}',{name:car.name,number:index+1})} />
@@ -131,7 +131,7 @@ export default function VehicleDetails({car,onClose}:{car:Vehicle;onClose:()=>vo
      {photos.map((photo,position) => <button type="button" key={photo.id}
       aria-label={t('预览照片 {number}',{number:position+1})} aria-current={index === position ? 'true' : undefined}
       onClick={() => setIndex(position)}>
-      <img src={photo.url} alt="" loading="lazy" />
+      <img src={photo.url} alt="" loading="lazy" draggable={false} />
      </button>)}
     </div>
     <button type="button" className="vehicle-gallery-play"
