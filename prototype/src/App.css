@@ -386,6 +386,10 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .vehicle-card-cover:focus-visible { outline:2px solid var(--brand); outline-offset:-3px; }
 .vehicle-photo-count { position:absolute; right:8px; bottom:8px; display:flex; align-items:center; gap:5px; padding:4px 7px; border-radius:5px; background:rgb(0 0 0 / 75%); color:#fff; font-size:12px; font-weight:700; }
 .loan-calculator-dialog { width:min(560px,calc(100% - 32px)); }
+.loan-calculator-dialog { overscroll-behavior:contain; scroll-behavior:auto; }
+html:has(.loan-calculator-dialog[open]) { scroll-behavior:auto; }
+.loan-calculator-dialog .calculator-fields input { touch-action:manipulation; }
+@media (max-width:760px) { .loan-calculator-dialog .calculator-fields input { font-size:16px; } }
 .loan-calculator-dialog .calculator-panel { border:0; box-shadow:none; padding-top:56px; }
 .vehicle-card-link:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
 .vehicle-card-link:active { box-shadow: inset 0 0 0 1px var(--brand); }
