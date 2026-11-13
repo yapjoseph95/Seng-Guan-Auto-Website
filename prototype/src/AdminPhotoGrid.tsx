@@ -10,6 +10,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowLeft, ArrowRight, Stamp, Trash2 } from 'lucide-react'
 import { useLocale } from './locale'
+import { ProgressiveImage } from './LoadingVisuals'
 
 import type { WatermarkPlacement } from '../shared/watermarks'
 
@@ -35,7 +36,7 @@ function PhotoTile({ photo, index, total, selected, onPreview, onMove, onRemove,
       style={{ transform: CSS.Translate.toString(transform), transition }}>
       <button {...listeners} ref={setActivatorNodeRef} type="button" className="admin-photo-handle" data-sortable={total > 1}
         aria-label={t('预览照片 {number}', { number })} onClick={() => onPreview(photo)}>
-        <img src={photo.url} alt={t('车辆照片 {number}', { number })} draggable={false} />
+        <ProgressiveImage src={photo.url} alt={t('车辆照片 {number}', { number })} draggable={false} />
       </button>
       {index === 0 && <span className="admin-photo-cover">{t('封面')}</span>}
       <div className="admin-photo-actions">

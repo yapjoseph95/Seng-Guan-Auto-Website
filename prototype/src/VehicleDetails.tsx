@@ -8,6 +8,7 @@ import type { PointerEvent } from 'react'
 import { Calculator, CalendarDays, CarFront, ChevronLeft, ChevronRight, Fuel, Gauge, Pause, Play, Settings2, X } from 'lucide-react'
 import type { Vehicle } from './data'
 import { contact } from './data'
+import { ProgressiveImage } from './LoadingVisuals'
 export function VehicleSpecs({car,showFuel = false}: {car:Vehicle; showFuel?:boolean}) {
  const { t, locale } = useLocale()
  const mileage = formatMileage(car.mileage,car.mileage_band,locale)
@@ -114,7 +115,7 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
   <div className="vehicle-gallery" onContextMenu={event=>event.preventDefault()} onDragStart={event=>event.preventDefault()}>
    <div className="vehicle-gallery-frame" onPointerDown={startGesture} onPointerUp={finishGesture}
     onPointerCancel={clearGesture} onLostPointerCapture={clearGesture}>
-    <img src={photos[index]?.url} draggable={false} alt={t('{name} — photo {number}',{name:car.name,number:index+1})} />
+    <ProgressiveImage key={photos[index]?.id} src={photos[index]?.url} draggable={false} priority alt={t('{name} — photo {number}',{name:car.name,number:index+1})} />
     {photos.length > 1 && <>
      <button type="button" className="vehicle-gallery-edge vehicle-gallery-edge--previous"
       aria-label={t('Previous photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(-1)}}>
@@ -131,7 +132,7 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
      {photos.map((photo,position) => <button type="button" key={photo.id}
       aria-label={t('预览照片 {number}',{number:position+1})} aria-current={index === position ? 'true' : undefined}
       onClick={() => setIndex(position)}>
-      <img src={photo.url} alt="" loading="lazy" draggable={false} />
+      <ProgressiveImage src={photo.url} alt="" draggable={false} />
      </button>)}
     </div>
     <button type="button" className="vehicle-gallery-play"

@@ -14,6 +14,8 @@ import type { WatermarkPlacement } from '../shared/watermarks'
 import AdminVehicleTemplate from './AdminVehicleTemplate'
 import { emptyVehicleTemplate, vehicleTemplateLanguages, vehicleTemplateMaxLength, type VehicleTemplate, type VehicleTemplateLanguage } from '../shared/vehicle-template'
 import './Admin.css'
+import { useVehiclePages } from './useVehiclePages'
+import { ProgressiveImage, ListingTransition, LoadMore, entranceStyle } from './LoadingVisuals'
 export type ManagedVehicle = {id:string;name:string;make:string;year:number;body:string;fuel:string;transmission:string;price:number|null;discount_price:number|null;mileage:number|null;mileage_band?:MileageBand|null;description:string;description_template?:VehicleTemplate|null;status:VehicleStatus;created_at?:string|null;updated_at:string;published_at?:string|null;listing_updated_at?:string|null;plate_number?:string|null;featured:boolean;photos:AdminPhoto[];photo:string}
 const empty = ():ManagedVehicle => ({id:'',name:'',make:'',year:new Date().getFullYear(),body:'Sedan',fuel:'Petrol',transmission:'Automatic',price:null,discount_price:null,mileage:null,mileage_band:null,description:'',status:'available',updated_at:'',plate_number:'',featured:true,photos:[],photo:''})
 async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
@@ -82,7 +84,7 @@ function PreviewGallery({ photos, index, onSelect, onWatermark, onRemove, busy }
 
  return <div className="admin-preview-gallery">
   <div className="admin-preview-frame">
-   <img className="admin-preview-image" src={photo.url} alt={t('车辆照片 {number}', { number: index + 1 })} draggable={false} />
+   <ProgressiveImage key={photo.id} className="admin-preview-image" src={photo.url} priority alt={t('车辆照片 {number}', { number: index + 1 })} draggable={false} />
    {photos.length > 1 && <>
     <button type="button" className="admin-preview-edge admin-preview-edge--previous"
      aria-label={t('Previous photo')} onClick={() => move(-1)}><ChevronLeft size={20} aria-hidden="true" /></button>
@@ -115,7 +117,7 @@ function PreviewGallery({ photos, index, onSelect, onWatermark, onRemove, busy }
    {photos.map((item, position) => <button key={item.id} type="button"
     aria-label={t('预览照片 {number}', { number: position + 1 })}
     aria-current={position === index ? 'true' : undefined} onClick={() => onSelect(item.id)}>
-    <img src={item.url} alt="" draggable={false} />
+    <ProgressiveImage src={item.url} alt="" draggable={false} />
    </button>)}
   </div>
  </div>
@@ -263,9 +265,8 @@ function AdminVehiclePrices({vehicle,onSave,disabled,compact=false}: {
 }
 export default function Admin() {
   const { t, locale, language } = useLocale()
- const [vehicles,setVehicles]=useState<ManagedVehicle[]>([])
  const [email,setEmail]=useState('')
- const [loading,setLoading]=useState(true)
+ const [sessionLoading,setSessionLoading]=useState(true)
  const [busy,setBusy]=useState('')
  const [uploadProgress,setUploadProgress]=useState<{number:number;total:number}|null>(null)
  const processingPhotos = busy === '处理照片 {number}/{total}…' || busy === '上传照片 {number}/{total}…'
@@ -277,6 +278,7 @@ export default function Admin() {
  const [ascending,setAscending]=useState(false)
  const [compact,setCompact]=useState(() => { try { return localStorage.getItem('sga-admin-layout') === 'compact' } catch { return false } })
  const [selected,setSelected]=useState<string[]>([])
+ const [allSelectedKey,setAllSelectedKey]=useState('')
  const [bulkStatus,setBulkStatus]=useState<VehicleStatus>('available')
  const [batchBusy,setBatchBusy]=useState(false)
  const [updatingStatus,setUpdatingStatus]=useState<Set<string>>(()=>new Set())
@@ -326,8 +328,16 @@ export default function Admin() {
   }
  }, [])
  const messageRef=useRef<HTMLDivElement>(null)
- const refresh=async()=>{const data=await api<{vehicles:ManagedVehicle[]}>('vehicles');setVehicles(data.vehicles)}
- useEffect(()=>{Promise.all([api<{email:string}>('session').then(s=>setEmail(s.email)),refresh()]).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[])
+ const params=new URLSearchParams({sort:sortDate,direction:ascending?'asc':'desc'})
+ if(query.trim())params.set('q',query.trim())
+ if(filter!=='all')params.set('status',filter)
+ const pages=useVehiclePages<ManagedVehicle>(params.toString(),(query,signal)=>api(`vehicles?${query}`,{signal}))
+ const vehicles=pages.items, setVehicles=pages.setItems
+ const selectionKey=params.toString()
+ const loading=sessionLoading || (pages.loading && vehicles.length===0)
+ const refresh=async()=>{pages.reload()}
+ const refreshCounts=async()=>{try{const result=await api<{counts:Record<string,number>}>('vehicles?limit=1');pages.setCounts(result.counts)}catch{/* The next listing refresh retries the counts. */}}
+ useEffect(()=>{api<{email:string}>('session').then(s=>setEmail(s.email)).catch(e=>setError(e.message)).finally(()=>setSessionLoading(false))},[])
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[dirty])
  useEffect(()=>{if(error&&!edit&&!confirmDelete)messageRef.current?.focus()},[error,edit,confirmDelete])
  useEffect(() => {
@@ -386,7 +396,7 @@ export default function Admin() {
    clearWatermarkChanges()
    setEdit(null)
    setDirty(false)
-   setVehicles(current => edit.id ? current.map(vehicle => vehicle.id === saved.id ? saved : vehicle) : [saved,...current])
+   pages.reload()
    setNotice(saved.status === 'draft' ? '草稿已保存。' : '已保存，网站将显示最新资料。')
   } catch (error) {
    setError((error as Error).message)
@@ -447,7 +457,7 @@ export default function Admin() {
  }
  const removeVehicle=async()=>{
   if(!confirmDelete)return;setBusy('删除车辆…');setError('')
-  try{await api(`vehicles/${confirmDelete.id}`,{method:'DELETE'});setConfirmDelete(null);if(edit?.id===confirmDelete.id){setEdit(null);setDirty(false)}await refresh();setNotice('车辆已删除。')}catch(e){setError((e as Error).message)}finally{setBusy('')}
+  try{await api(`vehicles/${confirmDelete.id}`,{method:'DELETE'});setSelected(current=>current.filter(id=>id!==confirmDelete.id));setAllSelectedKey('');setConfirmDelete(null);if(edit?.id===confirmDelete.id){setEdit(null);setDirty(false)}await refresh();setNotice('车辆已删除。')}catch(e){setError((e as Error).message)}finally{setBusy('')}
  }
  const openEditor = async (vehicle: ManagedVehicle) => {
   if (dirty && !window.confirm(t('放弃未保存的修改？'))) return
@@ -513,7 +523,7 @@ export default function Admin() {
   updatingStatusRef.current.add(vehicle.id)
   setUpdatingStatus(new Set(updatingStatusRef.current))
   setNotice('')
-  try { await saveQuickChanges(vehicle,{status}) }
+  try { if(await saveQuickChanges(vehicle,{status})){void refreshCounts();if(filter!=='all' && filter!==status)setVehicles(current=>current.filter(item=>item.id!==vehicle.id))} }
   finally { updatingStatusRef.current.delete(vehicle.id); setUpdatingStatus(new Set(updatingStatusRef.current)) }
  }
  const savePrices = (vehicle:ManagedVehicle,changes:PriceChanges) => saveQuickChanges(vehicle,changes)
@@ -541,6 +551,8 @@ export default function Admin() {
    }
   }
   setSelected(failed)
+  setAllSelectedKey('')
+  if(failed.length!==selected.length){void refreshCounts();pages.reload()}
   if (failed.length) setError(t('{count} vehicles could not be updated. They remain selected.',{count:failed.length}))
   else setNotice(action === 'delete' ? 'Selected vehicles deleted.' : 'Selected vehicles updated.')
   setBatchBusy(false)
@@ -550,19 +562,7 @@ export default function Admin() {
   if(!await saveQuickChanges(vehicle,{featured})) setVehicles(current=>current.map(item=>item.id===vehicle.id && item.featured===featured ? {...item,featured:!featured} : item))
  }
  const makes = vehicleMakeOptions(vehicles.map(vehicle => vehicle.make),true)
- const search = query.trim().toLowerCase()
- const plateQuery = search.replace(/[\s-]+/g,'')
- const visible = vehicles.filter(vehicle => {
-  if (filter !== 'all' && vehicle.status !== filter) return false
-  const details = `${vehicle.make} ${vehicle.name} ${vehicle.year}`.toLowerCase()
-  const plate = vehicle.plate_number?.toLowerCase().replace(/[\s-]+/g,'')
-  return details.includes(search) || (plateQuery && plate?.includes(plateQuery))
- }).sort((a,b)=>{
-  const first=Date.parse(a[sortDate] ?? ''), second=Date.parse(b[sortDate] ?? '')
-  if (Number.isNaN(first)) return Number.isNaN(second) ? 0 : 1
-  if (Number.isNaN(second)) return -1
-  return ascending ? first-second : second-first
- })
+ const visible = vehicles
  return <div className="inventory-admin">
   <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
@@ -574,7 +574,7 @@ export default function Admin() {
     </DropdownMenu.Content>
    </DropdownMenu.Root><button className="admin-primary" disabled={!!busy||loading||!email} onClick={() => void openEditor(empty())}><Plus size={18}/>{t("新增车辆")}</button></div></div>
    <div ref={messageRef} tabIndex={-1} className="admin-messages" aria-live="polite">{error&&<p className="admin-error" role="alert">{t(error)}</p>}</div>
-   <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{vehicles.filter(v=>s==='all'||v.status===s).length}</strong></button>)}</div>
+   <div className="admin-stats">{(['all', ...publishedStatuses, 'draft'] as const).map(s=><button key={s} aria-pressed={filter===s} onClick={()=>setFilter(s)}><span>{t(s==='all'?'所有车辆':statuses[s])}</span><strong>{pages.counts[s] ?? 0}</strong></button>)}</div>
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
    <div className="admin-layout-controls">
     <div className="admin-sort">
@@ -597,8 +597,8 @@ export default function Admin() {
     </div>
    </div>
    {compact && <div className="admin-bulk-controls">
-    <label><input type="checkbox" disabled={batchBusy} checked={visible.length > 0 && visible.every(vehicle=>selected.includes(vehicle.id))}
-     onChange={event=>setSelected(current=>event.target.checked ? [...new Set([...current,...visible.map(vehicle=>vehicle.id)])] : current.filter(id=>!visible.some(vehicle=>vehicle.id===id)))} />
+    <label><input type="checkbox" disabled={batchBusy||loading} checked={visible.length > 0 && (allSelectedKey===selectionKey || allSelectedKey!=='!'+selectionKey && !pages.hasMore && visible.every(vehicle=>selected.includes(vehicle.id)))}
+     onChange={event=>{const checked=event.target.checked;setAllSelectedKey(checked?selectionKey:'!'+selectionKey);setBatchBusy(true);const selectParams=new URLSearchParams(selectionKey);selectParams.set('limit','1');selectParams.set('ids','1');void api<{ids:string[]}>(`vehicles?${selectParams}`).then(({ids})=>{setSelected(current=>checked?[...new Set([...current,...ids])]:current.filter(id=>!ids.includes(id)));if(!checked)setAllSelectedKey('')}).catch(error=>{setAllSelectedKey(checked?'':selectionKey);setError(error.message)}).finally(()=>setBatchBusy(false))}} />
      {t('Select')} ({selected.length})</label>
     <label className="admin-bulk-status">{t('Change to')}
      <select aria-label={t('Bulk status')} disabled={batchBusy} value={bulkStatus} onChange={event=>setBulkStatus(event.target.value as VehicleStatus)}>
@@ -608,16 +608,16 @@ export default function Admin() {
     <button type="button" className={selected.length&&!batchBusy ? 'admin-primary' : ''} disabled={!selected.length||batchBusy} onClick={()=>void batchAction('status')}>{t('Apply')}</button>
     <button type="button" className="admin-bulk-delete" aria-label={t('Delete selected')} title={t('Delete selected')} disabled={!selected.length||batchBusy} onClick={()=>void batchAction('delete')}><Trash2 size={18} aria-hidden="true" /></button>
    </div>}
-   {loading ? <p className="admin-empty"><LoaderCircle className="admin-spin" />{t('正在载入车辆…')}</p> : (
-    compact ? <div className="admin-compact-list">
-     {visible.map(vehicle=><article className="admin-compact-row" key={vehicle.id}>
+   <ListingTransition loading={loading} admin compact={compact}>
+    {compact ? <div className="admin-compact-list">
+     {visible.map((vehicle,index)=><article className="admin-compact-row vehicle-entrance" style={entranceStyle(index)} key={vehicle.id}>
       <input type="checkbox" aria-label={t('Select {name}',{name:vehicle.name})} checked={selected.includes(vehicle.id)} disabled={batchBusy}
-       onChange={event=>setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))} />
+       onChange={event=>{setAllSelectedKey('');setSelected(current=>event.target.checked ? [...current,vehicle.id] : current.filter(id=>id!==vehicle.id))}} />
       <MobileCompactPlate vehicle={vehicle} disabled={batchBusy} onEdit={()=>void openEditor(vehicle)} />
       <button type="button" className="admin-mobile-model" disabled={batchBusy}
        aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>{vehicle.name}</button>
       <button type="button" className="admin-compact-photo" disabled={batchBusy} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
-       {vehicle.photo ? <img src={vehicle.photo} alt="" /> : <CarFront aria-hidden="true" />}
+       {vehicle.photo ? <ProgressiveImage src={vehicle.photo} alt="" priority={index<3} /> : <CarFront aria-hidden="true" />}
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy} onClick={()=>void openEditor(vehicle)}>
        <span className="admin-plate">{vehicle.plate_number?.trim() || '-'}</span>
@@ -636,10 +636,10 @@ export default function Admin() {
        onClick={()=>setConfirmDelete(vehicle)}><Trash2 size={18} aria-hidden="true" /></button>
      </article>)}
     </div> : <div className="admin-list">
-     {visible.map(vehicle => (
-      <article key={vehicle.id} className="admin-car">
+     {visible.map((vehicle,index) => (
+      <article key={vehicle.id} className="admin-car vehicle-entrance" style={entranceStyle(index)}>
        <div className="admin-car-photo">
-        {vehicle.photo ? <img src={vehicle.photo} alt={vehicle.name} /> : <CarFront aria-hidden="true" />}
+        {vehicle.photo ? <ProgressiveImage src={vehicle.photo} alt={vehicle.name} priority={index<3} /> : <CarFront aria-hidden="true" />}
         <span className={`admin-status admin-status--${vehicle.status}`}>{t(statuses[vehicle.status])}</span>
         <span className="admin-photo-count" aria-label={t('{count} 张照片',{count:vehicle.photos.length})}><Image size={15} aria-hidden="true" />{vehicle.photos.length}</span>
        </div>
@@ -678,9 +678,10 @@ export default function Admin() {
        </div>
       </article>
      ))}
-    </div>
-   )}
-   {!loading&&!visible.length&&<div className="admin-empty"><CarFront size={32}/><h2>{t(query?'没有找到这辆车':'这里将展示你的车辆')}</h2><p>{t(query?'试试其他车型或品牌。':'点击「新增车辆」，填写资料并上传照片。')}</p></div>}
+    </div>}
+   </ListingTransition>
+   <LoadMore sentinel={pages.sentinel} loading={pages.loading || sessionLoading} hasMore={pages.hasMore} error={pages.error} retry={pages.reload} />
+   {!loading&&!pages.error&&!visible.length&&<div className="admin-empty"><CarFront size={32}/><h2>{t(query?'没有找到这辆车':'这里将展示你的车辆')}</h2><p>{t(query?'试试其他车型或品牌。':'点击「新增车辆」，填写资料并上传照片。')}</p></div>}
   </main>
   <div className="admin-toast" role="status">
    {notice&&<p className="admin-success"><Check size={17} aria-hidden="true"/>{t(notice)}</p>}

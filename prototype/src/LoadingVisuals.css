@@ -1,0 +1,89 @@
+.progressive-image { position:absolute; inset:0; display:block; overflow:hidden; background:#303439; }
+.progressive-image > img, .vehicle-photo .progressive-image > img, .admin-car-photo .progressive-image > img { position:absolute; inset:0; display:block; width:100%; height:100%; object-fit:cover; opacity:0; filter:blur(20px); transform:scale(1.04); transition:filter 500ms ease,transform 500ms ease,opacity 500ms ease; }
+.progressive-image > .progressive-image-preview, .vehicle-photo .progressive-image > .progressive-image-preview, .admin-car-photo .progressive-image > .progressive-image-preview { opacity:1; filter:blur(20px); transform:scale(1.08); }
+.progressive-image[data-loaded=true] > img:not(.progressive-image-preview) { opacity:1; filter:blur(0); transform:scale(1); }
+.progressive-image[data-loaded=true] > .progressive-image-preview { opacity:0; }
+.admin-compact-photo { position:relative; }
+.loading-skeleton { position:relative; overflow:hidden; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; padding:24px 0 15px; isolation:isolate; }
+.loading-skeleton::after { content:''; position:absolute; z-index:1; inset:0; pointer-events:none; background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.09) 50%,transparent 60%); transform:translateX(-100%); animation:skeleton-sweep 1500ms linear infinite; }
+@keyframes skeleton-sweep { to { transform:translateX(100%); } }
+.loading-skeleton-card { min-width:0; overflow:hidden; border:1px solid #303438; border-radius:6px; background:#16191d; }
+.skeleton-photo { width:100%; aspect-ratio:var(--vehicle-photo-ratio,3/2); background:#303439; }
+.skeleton-copy { padding:18px; display:flex; flex-direction:column; gap:13px; min-height:205px; }
+.skeleton-copy i { display:block; height:15px; width:45%; border-radius:3px; background:#303439; }
+.skeleton-copy i:nth-child(2) { width:80%; height:27px; }
+.skeleton-copy i:nth-child(3) { width:65%; }
+.skeleton-copy i:nth-child(4) { width:40%; margin-top:auto; align-self:flex-end; height:25px; }
+.loading-skeleton--compact { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.loading-skeleton--compact .loading-skeleton-card:not(.loading-skeleton--admin .loading-skeleton-card) { display:grid; grid-template-columns:53% 47%; }
+.loading-skeleton--compact .skeleton-photo { height:100%; min-height:170px; }
+.loading-skeleton--admin.loading-skeleton--compact { grid-template-columns:1fr; gap:8px; padding:0; }
+.loading-skeleton--admin.loading-skeleton--compact .loading-skeleton-card { display:flex; align-items:center; gap:18px; padding:14px; }
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-photo { width:128px; height:104px; min-height:0; flex:none; }
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-copy { min-height:0; flex:1; padding:0; }
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-copy i:nth-child(4) { margin-top:0; }
+.load-more { min-height:54px; display:flex; align-items:center; justify-content:center; color:#aeb4bb; font-size:13px; }
+.loading-dots { display:flex; gap:6px; align-items:center; height:26px; }
+.loading-dots i { width:7px; height:7px; background:currentColor; border-radius:50%; animation:loading-dot 900ms ease-in-out infinite; }
+.loading-dots i:nth-child(2) { animation-delay:150ms; }
+.loading-dots i:nth-child(3) { animation-delay:300ms; }
+@keyframes loading-dot { 0%,60%,100% { transform:translateY(0); opacity:.45 } 30% { transform:translateY(-6px); opacity:1 } }
+.vehicle-entrance { animation:vehicle-arrive 450ms ease both; animation-delay:var(--entrance-delay,0ms); }
+@keyframes vehicle-arrive { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }
+@media (max-width:1000px) { .loading-skeleton--admin:not(.loading-skeleton--compact) { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:886px) { .loading-skeleton--compact:not(.loading-skeleton--admin) { grid-template-columns:1fr; } }
+@media (max-width:760px) { .loading-skeleton:not(.loading-skeleton--admin) { grid-template-columns:1fr; } .loading-skeleton--admin.loading-skeleton--compact .skeleton-photo { width:48px; height:42px; } }
+@media (max-width:600px) { .loading-skeleton--admin:not(.loading-skeleton--compact) { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion:reduce) { .loading-skeleton::after,.loading-dots i,.vehicle-entrance { animation:none; } .progressive-image > img { transition:none; } }
+.showroom-gallery-tile, .vehicle-gallery-thumbnails button { position:relative; }
+.vehicle-gallery-frame { aspect-ratio:var(--vehicle-photo-ratio,3/2); }
+.vehicle-gallery-frame .progressive-image > img { object-fit:contain; }
+.hero-skeleton { position:absolute; inset:0; overflow:hidden; background:#303439; }
+.hero-skeleton::after { content:''; position:absolute; inset:0; background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.09) 50%,transparent 60%); animation:skeleton-sweep 1500ms linear infinite; }
+@media (prefers-reduced-motion:reduce) { .hero-skeleton::after { animation:none; } }
+.listing-transition { position:relative; }
+.skeleton-fade { position:absolute; inset:0; z-index:4; pointer-events:none; animation:skeleton-out 500ms ease forwards; overflow:hidden; }
+@keyframes skeleton-out { to { opacity:0; } }
+.loading-skeleton--admin:not(.loading-skeleton--compact) .skeleton-copy { min-height:314px; }
+.vehicle-entrance .vehicle-info > *, .vehicle-entrance .admin-car-copy > * { animation:content-arrive 350ms ease both; animation-delay:calc(var(--entrance-delay,0ms) + var(--item-delay,0ms)); }
+.vehicle-entrance .vehicle-info > :nth-child(2),.vehicle-entrance .admin-car-copy > :nth-child(2) { --item-delay:60ms; }
+.vehicle-entrance .vehicle-info > :nth-child(3),.vehicle-entrance .admin-car-copy > :nth-child(3) { --item-delay:120ms; }
+.vehicle-entrance .vehicle-info > :nth-child(4),.vehicle-entrance .admin-car-copy > :nth-child(4) { --item-delay:180ms; }
+.vehicle-entrance .vehicle-info > :nth-child(5),.vehicle-entrance .admin-car-copy > :nth-child(5) { --item-delay:240ms; }
+.vehicle-entrance .vehicle-info > :nth-child(6),.vehicle-entrance .admin-car-copy > :nth-child(6) { --item-delay:300ms; }
+@keyframes content-arrive { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
+@media (prefers-reduced-motion:reduce) { .skeleton-fade,.vehicle-entrance .vehicle-info > *,.vehicle-entrance .admin-car-copy > * { animation:none; } .skeleton-fade { display:none; } }
+.story-photo,.about-feature-image,.team-photo { position:relative; }
+.admin-photo-handle,.admin-preview-thumbnails button { position:relative; aspect-ratio:var(--vehicle-photo-ratio,4/3); }
+.admin-preview-frame { aspect-ratio:var(--vehicle-photo-ratio,4/3); }
+.admin-preview-frame .progressive-image > img { object-fit:contain; }
+.loading-skeleton:not(.loading-skeleton--admin):not(.loading-skeleton--compact) .skeleton-copy { min-height:218px; }
+@media (max-width:760px) {
+ .loading-skeleton--compact:not(.loading-skeleton--admin) { gap:13px; }
+ .loading-skeleton--compact:not(.loading-skeleton--admin) .skeleton-photo { min-height:150px; }
+ .loading-skeleton--compact:not(.loading-skeleton--admin) .skeleton-copy { min-height:150px; padding:8px; gap:8px; }
+}
+.admin-compact-row.vehicle-entrance > * { animation:content-arrive 350ms ease both; animation-delay:var(--entrance-delay,0ms); }
+.admin-compact-row.vehicle-entrance > :nth-child(2) { animation-delay:calc(var(--entrance-delay,0ms) + 60ms); }
+.admin-compact-row.vehicle-entrance > :nth-child(3) { animation-delay:calc(var(--entrance-delay,0ms) + 120ms); }
+.admin-compact-row.vehicle-entrance > :nth-child(4) { animation-delay:calc(var(--entrance-delay,0ms) + 180ms); }
+.admin-compact-row.vehicle-entrance > :nth-child(5) { animation-delay:calc(var(--entrance-delay,0ms) + 240ms); }
+.admin-compact-row.vehicle-entrance > :nth-child(6) { animation-delay:calc(var(--entrance-delay,0ms) + 300ms); }
+@media (prefers-reduced-motion:reduce) { .admin-compact-row.vehicle-entrance > * { animation:none; } }
+.loading-skeleton--admin.loading-skeleton--compact .loading-skeleton-card { min-height:93px; }
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-photo { width:64px; height:52px; }
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-copy { gap:6px; }
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-copy i { height:9px; }
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-copy i:nth-child(2),
+.loading-skeleton--admin.loading-skeleton--compact .skeleton-copy i:nth-child(4) { height:14px; }
+@media (min-width:761px) and (max-width:1100px) {
+ .loading-skeleton--admin.loading-skeleton--compact .loading-skeleton-card { min-height:192px; }
+ .loading-skeleton--admin.loading-skeleton--compact .skeleton-photo { width:128px; height:104px; }
+}
+@media (max-width:760px) {
+ .loading-skeleton--admin.loading-skeleton--compact .loading-skeleton-card { min-height:217px; }
+ .loading-skeleton--admin.loading-skeleton--compact .skeleton-photo { width:28%; height:auto; aspect-ratio:var(--vehicle-photo-ratio,4/3); }
+}
+.initial-loading { min-height:100dvh; padding:0 max(24px,calc((100vw - 1400px)/2)); background:#0d0f11; }
+.initial-loading-header { height:88px; border-bottom:1px solid #303438; background:#111315; }
+.initial-loading .loading-skeleton { margin-top:32px; }

@@ -80,6 +80,40 @@ async function call(path:string,method='GET',data?:unknown, auth=true,requestOri
  else if(data!==undefined){headers['Content-Type']='application/json';body=JSON.stringify(data)}
  return onRequest({request:new Request(origin+path,{method,headers,body}),env} as any)
 }
+test('paged vehicle listings search and sort the whole inventory while keeping featured inventory separate',async()=>{
+ for(let i=0;i<8;i++) {
+  sql.prepare("INSERT INTO vehicles(id,name,make,year,status,featured,price,created_at,published_at) VALUES(?,?,?,?,?,?,?,?,?)").run(`page-${i}`,`Model ${i}`,'Toyota',2020+i,i===7?'draft':'available',i===6?1:0,1000+i,`2026-01-0${i+1}`,`2026-01-0${i+1}`)
+  sql.prepare("INSERT INTO photos(id,vehicle_id,object_key,content_type,size,position) VALUES(?,?,?,?,?,?)").run(`page-photo-${i}`,`page-${i}`,`page-key-${i}`,'image/jpeg',100,0)
+ }
+ sql.prepare('INSERT INTO vehicle_private_details(vehicle_id,plate_number) VALUES(?,?)').run('page-7','ABC 9876')
+ const first=await (await call('/api/vehicles?limit=6&sort=published&direction=asc','GET',undefined,false)).json() as any
+ assert.equal(first.vehicles.length,6)
+ assert.equal(first.hasMore,true)
+ assert.equal(first.vehicles.flatMap((v:any)=>v.photos).length,6)
+ assert.deepEqual(first.vehicles.map((v:any)=>v.id),Array.from({length:6},(_,i)=>`page-${i}`))
+ const second=await (await call('/api/vehicles?limit=6&offset=6&sort=published&direction=asc','GET',undefined,false)).json() as any
+ assert.deepEqual(second.vehicles.map((v:any)=>v.id),['page-6'])
+ assert.equal(second.hasMore,false)
+ const search=await (await call('/api/vehicles?limit=6&q=Model%206','GET',undefined,false)).json() as any
+ assert.deepEqual(search.vehicles.map((v:any)=>v.id),['page-6'])
+ const searchByYear=await (await call('/api/vehicles?limit=6&q=Toyota%202026%20Model%206','GET',undefined,false)).json() as any
+ assert.deepEqual(searchByYear.vehicles.map((v:any)=>v.id),['page-6'])
+ const ascendingPrice=await (await call('/api/vehicles?limit=6&sort=price&direction=asc','GET',undefined,false)).json() as any
+ assert.deepEqual(ascendingPrice.vehicles.map((v:any)=>v.price),[1000,1001,1002,1003,1004,1005])
+ const featured=await (await call('/api/vehicles?limit=6&featured=1','GET',undefined,false)).json() as any
+ assert.deepEqual(featured.vehicles.map((v:any)=>v.id),['page-6'])
+ const admin=await (await call('/api/admin/vehicles?limit=6&q=Model%207')).json() as any
+ assert.deepEqual(admin.vehicles.map((v:any)=>v.id),['page-7'])
+ assert.equal(admin.counts.all,8)
+ const plate=await (await call('/api/admin/vehicles?limit=6&q=abc9876')).json() as any
+ assert.deepEqual(plate.vehicles.map((v:any)=>v.id),['page-7'])
+ const wildcards=await (await call('/api/vehicles?limit=6&q=%25','GET',undefined,false)).json() as any
+ assert.equal(wildcards.vehicles.length,0)
+ const selection=await (await call('/api/admin/vehicles?limit=6&ids=1&status=available')).json() as any
+ assert.equal(selection.ids.length,7)
+ assert(!selection.ids.includes('page-7'))
+ sql.exec("DELETE FROM vehicles WHERE id LIKE 'page-%'")
+})
 test('authorized vehicle lifecycle, drafts and photos stay private, validation and same-origin enforcement',async()=>{
  assert.equal((await call('/api/admin/vehicles','GET',undefined,false)).status,401)
  for(const token of ['forged','expired','other','unverified']) {
@@ -347,6 +381,11 @@ test('named watermarks stay private and a vehicle save publishes only the render
  assert.equal(Object.hasOwn(publicVehicle.photos[0],'watermarks'),false)
  assert.equal(Object.hasOwn(publicVehicle.photos[0],'original_url'),false)
  assert.deepEqual(await (await call(publicVehicle.photo,'GET',undefined,false)).arrayBuffer(),await derivative.arrayBuffer())
+ const small=await call(publicVehicle.photo+'&preview=1','GET',undefined,false)
+ assert.equal(small.status,200)
+ assert.deepEqual(await small.arrayBuffer(),await derivative.arrayBuffer())
+ assert.equal((await call('/api/admin/photos/'+photoId+'?preview=1','GET',undefined,false)).status,401)
+ assert.match((await call('/api/admin/photos/'+photoId+'?preview=1')).headers.get('cache-control') ?? '',/private/)
  assert.deepEqual(await (await call('/api/photos/'+photoId,'GET',undefined,false)).arrayBuffer(),await derivative.arrayBuffer())
  assert.deepEqual(await (await call(admin.photos[0].original_url)).arrayBuffer(),await photo.arrayBuffer())
  const layers = [{...mark,opacity:.7},{...mark,x:.85,scale:.22,opacity:1}]

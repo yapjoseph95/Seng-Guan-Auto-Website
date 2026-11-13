@@ -124,10 +124,11 @@ function photoIds(value: unknown): string[] {
 
 async function deletePhotoObjects(env: Env, keys: string[]) {
  if (!keys.length) return
- await env.PHOTOS.delete([...keys,...keys.map(publicPhotoKey)]).catch(() => console.error('Vehicle photo cleanup failed.'))
+ await env.PHOTOS.delete([...keys,...keys.map(publicPhotoKey),...keys.map(thumbnailPhotoKey)]).catch(() => console.error('Vehicle photo cleanup failed.'))
 }
 
 const publicPhotoKey = (key:string) => `public-preview-v1/${key}`
+const thumbnailPhotoKey = (key:string) => `blur-preview-v1/${key}`
 
 const stagedPhotoUnavailable = 'An uploaded photo is no longer available. Remove it and upload it again.'
 
@@ -440,6 +441,19 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    if (!p) throw new HttpError(404,'Photo not found.')
    const render = p.render_key && (!admin || url.searchParams.has('v'))
    const sourceKey = render ? p.render_key! : p.object_key
+   if(url.searchParams.get('preview')==='1') {
+    const previewKey=thumbnailPhotoKey(sourceKey)
+    const preview=await env.PHOTOS.get(previewKey)
+    if(preview)return imageResponse(preview.body,'image/jpeg',admin)
+    const object=await env.PHOTOS.get(sourceKey)
+    if(!object)throw new HttpError(404,'Photo not found.')
+    if(!env.IMAGE_RESIZER)throw new HttpError(503,'Photo temporarily unavailable.')
+    const resized=await env.IMAGE_RESIZER.fetch('https://image-resizer.internal/?preview=1',{method:'POST',body:object.body})
+    if(!resized.ok)throw new HttpError(503,'Photo temporarily unavailable.')
+    const bytes=await resized.arrayBuffer()
+    await env.PHOTOS.put(previewKey,bytes,{httpMetadata:{contentType:'image/jpeg'}}).catch(()=>console.error('Photo thumbnail cache failed.'))
+    return imageResponse(new Response(bytes).body!,'image/jpeg',admin)
+   }
    if (admin) {
     const object = await env.PHOTOS.get(sourceKey)
     if (!object) throw new HttpError(404,'Photo not found.')
@@ -461,6 +475,52 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   const id = parts[1]
   if (request.method === 'GET') {
    if (id) return json(await vehicle(env,id,admin))
+   if (url.searchParams.has('limit')) {
+    const params=url.searchParams
+    const limit=Math.min(24,Math.max(1,Number.parseInt(params.get('limit') ?? '',10)||6))
+    const offset=Math.max(0,Math.min(100000,Number.parseInt(params.get('offset') ?? '',10)||0))
+    const conditions:string[]=[]
+    const values:(string|number)[]=[]
+    if(!admin)conditions.push("status!='draft'")
+    if(params.get('featured')==='1')conditions.push("featured=1 AND status='available'")
+    const status=params.get('status')
+    if(admin && status && ['available','reserved','sold','draft'].includes(status)){conditions.push('status=?');values.push(status)}
+    const query=params.get('q')?.trim().slice(0,160).toLowerCase()
+    if(query){
+     const escaped=query.replace(/[\\%_]/g,'\\$&')
+     const search="lower(make || ' ' || name || ' ' || year || ' ' || body) LIKE ? ESCAPE '\\'"
+     const alternate="lower(make || ' ' || year || ' ' || name || ' ' || body) LIKE ? ESCAPE '\\'"
+     const bodyAlias=!admin?params.get('bodyAlias')?.slice(0,60):null
+     if(admin){conditions.push(`(${search} OR ${alternate} OR replace(replace(lower(COALESCE((SELECT plate_number FROM vehicle_private_details WHERE vehicle_id=vehicles.id),'')),' ',''),'-','') LIKE ? ESCAPE '\\')`);values.push(`%${escaped}%`,`%${escaped}%`,`%${escaped.replace(/[\s-]/g,'')}%`)}
+     else {conditions.push(`(${search} OR ${alternate}${bodyAlias?' OR body = ? COLLATE NOCASE':''})`);values.push(`%${escaped}%`,`%${escaped}%`);if(bodyAlias)values.push(bodyAlias)}
+    }
+    for(const key of ['make','year','body'] as const){const value=params.get(key);if(value){conditions.push(`${key} = ? COLLATE NOCASE`);values.push(value)}}
+    for(const [key,op] of [['minPrice','>='],['maxPrice','<=']] as const){const value=params.get(key);if(value!==null && Number.isFinite(Number(value))){conditions.push(`price ${op} ?`);values.push(Number(value))}}
+    const sorts:Record<string,string>=admin?{created_at:'created_at',updated_at:'updated_at'}:{published:'published_at',year:'year',price:'price'}
+    const sortKey=params.get('sort') ?? ''
+    const sort=Object.hasOwn(sorts,sortKey)?sorts[sortKey]:(admin?'created_at':'published_at')
+    const direction=params.get('direction')==='asc'?'ASC':'DESC'
+    const where=conditions.length?' WHERE '+conditions.join(' AND '):''
+    if(admin && params.get('ids')==='1'){
+     const matching=await env.DB.prepare(`SELECT id FROM vehicles${where}`).bind(...values).all<{id:string}>()
+     return json({ids:matching.results.map(row=>row.id)})
+    }
+    const rows=await env.DB.prepare(`SELECT ${vehicleFields(admin)} FROM vehicles${where} ORDER BY ${sort} IS NULL, ${sort} ${direction}, id ASC LIMIT ? OFFSET ?`).bind(...values,limit+1,offset).all<Row>()
+    const hasMore=rows.results.length>limit
+    const page=rows.results.slice(0,limit)
+    const ids=page.map(row=>String(row.id))
+    const coverOnly=params.get('featured')==='1' && !admin
+    const photos=ids.length?await env.DB.prepare(`SELECT ${photoFields} FROM photos p${photoJoin} WHERE p.vehicle_id IN (${ids.map(()=>'?').join(',')})${coverOnly?' AND p.id=(SELECT cover.id FROM photos cover WHERE cover.vehicle_id=p.vehicle_id ORDER BY cover.position,cover.id LIMIT 1)':''} ORDER BY p.position,p.id`).bind(...ids).all<Row>():{results:[] as Row[]}
+    const grouped=new Map<string,Row[]>()
+    for(const photo of photos.results){const key=String(photo.vehicle_id);const list=grouped.get(key)||[];list.push(photo);grouped.set(key,list)}
+    const result:Record<string,unknown>={vehicles:page.map(row=>formatVehicle(row,grouped.get(String(row.id))||[],admin)),hasMore}
+    if(offset===0){
+     const counts=await env.DB.prepare(`SELECT status,COUNT(*) AS count FROM vehicles${admin?'':" WHERE status!='draft'"} GROUP BY status`).all<{status:string;count:number}>()
+     result.counts=Object.fromEntries([['all',counts.results.reduce((sum,row)=>sum+Number(row.count),0)],...counts.results.map(row=>[row.status,Number(row.count)])])
+     if(!admin){const facets=await env.DB.prepare("SELECT DISTINCT make,year,body FROM vehicles WHERE status!='draft'").all<Row>();result.facets=facets.results}
+    }
+    return json(result)
+   }
    const rows = await env.DB.prepare('SELECT '+vehicleFields(admin)+' FROM vehicles'+(admin?'':" WHERE status!='draft'")+' ORDER BY created_at DESC,id LIMIT 500').all<Row>()
    const photos = await env.DB.prepare('SELECT '+photoFields+' FROM photos p JOIN vehicles v ON v.id=p.vehicle_id'+photoJoin+(admin?'':" WHERE v.status!='draft'")+' ORDER BY p.position,p.id').all<Row>()
    const grouped = new Map<string,Row[]>()

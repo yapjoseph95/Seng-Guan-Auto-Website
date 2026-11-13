@@ -1,8 +1,8 @@
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import App from './App'
 import { LocaleProvider, useLocale } from './locale'
+import { VehicleSkeleton } from './LoadingVisuals'
 
 // Avoid leaving touch-operated buttons focused while preserving keyboard focus.
 let touchInteraction = false
@@ -17,10 +17,11 @@ document.addEventListener('focusin', event => {
 }, true)
 
 const Admin = lazy(() => import('./AdminLogin'))
+const App = lazy(() => import('./App'))
 
 function AdminLoading() {
   const { t } = useLocale()
-  return <p style={{ padding: 32, color: 'white' }}>{t('正在载入后台…')}</p>
+  return <main className="initial-loading" role="status" aria-label={t('正在载入后台…')}><div className="initial-loading-header"/><VehicleSkeleton admin /></main>
 }
 
 createRoot(document.getElementById('root')!).render(
@@ -28,7 +29,7 @@ createRoot(document.getElementById('root')!).render(
     <LocaleProvider>
       {window.location.pathname.replace(/\/$/, '') === '/admin'
         ? <Suspense fallback={<AdminLoading />}><Admin /></Suspense>
-        : <App />}
+        : <Suspense fallback={<main className="initial-loading" aria-busy="true"><div className="initial-loading-header"/><VehicleSkeleton /></main>}><App /></Suspense>}
     </LocaleProvider>
   </StrictMode>,
 )

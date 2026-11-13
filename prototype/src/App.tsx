@@ -16,11 +16,17 @@ import {
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
 import showroom from './assets/showroom.jpg'
+import showroomPreview from './assets/previews/showroom.jpg'
+import team1Preview from './assets/previews/team1.jpg'
+import team2Preview from './assets/previews/team2.jpg'
+import team3Preview from './assets/previews/team3.jpg'
 import angKinGuanPortrait from '../../resources/team/1.jpg'
 import johnAngPortrait from '../../resources/team/2.jpg'
 import angZiWeiPortrait from '../../resources/team/john.jpg'
 import { contact, directions, faqItems, pages, vehicles as fallbackVehicles, type Direction, type PageId, type Vehicle } from './data'
 import './App.css'
+import { useVehiclePages } from './useVehiclePages'
+import { ProgressiveImage, ListingTransition, LoadMore, entranceStyle } from './LoadingVisuals'
 import VehicleDetails, { VehicleListingDate, VehicleSpecs, VehicleUnavailable } from './VehicleDetails'
 
 gsap.registerPlugin(ScrollTrigger, useGSAP)
@@ -66,15 +72,15 @@ function App() {
   useEffect(() => { ScrollTrigger.refresh() }, [t])
   const [inventory, setInventory] = useState<Vehicle[]>(isOfficialSite ? [] : fallbackVehicles)
   const [inventoryStatus, setInventoryStatus] = useState<'loading' | 'ready' | 'error'>(isOfficialSite ? 'loading' : 'ready')
+  const [route, setRoute] = useState<RouteState>(readRoute)
   useEffect(() => {
-    if (!isOfficialSite) return
+    if (!isOfficialSite || route.page !== 'home') return
     const controller = new AbortController()
-    const load = () => fetch('/api/vehicles', { signal: controller.signal, cache: 'no-store' }).then(r => { if (!r.ok) throw Error('Inventory unavailable'); return r.json() }).then(data => { if (!Array.isArray(data.vehicles)) throw Error('Invalid inventory'); setInventory(data.vehicles.map((v: Vehicle) => ({ ...v, year: String(v.year) }))); setInventoryStatus('ready') }).catch(() => { if (!controller.signal.aborted) setInventoryStatus('error') })
+    const load = () => fetch('/api/vehicles?limit=12&featured=1', { signal: controller.signal, cache: 'no-store' }).then(r => { if (!r.ok) throw Error('Inventory unavailable'); return r.json() }).then(data => { if (!Array.isArray(data.vehicles)) throw Error('Invalid inventory'); setInventory(data.vehicles.map((v: Vehicle) => ({ ...v, year: String(v.year) }))); setInventoryStatus('ready') }).catch(() => { if (!controller.signal.aborted) setInventoryStatus('error') })
     void load()
     window.addEventListener('focus', load)
     return () => { controller.abort(); window.removeEventListener('focus', load) }
-  }, [])
-  const [route, setRoute] = useState<RouteState>(readRoute)
+  }, [route.page])
   const [menuOpen, setMenuOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [savedDirection, setSavedDirection] = useState<string | null>(null)
@@ -475,12 +481,13 @@ function HomePage({ variant, goToPage }: { variant: Direction; goToPage: (page: 
 function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
   const { t } = useLocale()
   const vehicles = useFeaturedVehicles()
+  const loading = useContext(InventoryStatusContext) === 'loading'
   const columns = Array.from({length: 3}, (_, column) => Array.from({length:4}, (_, row) => vehicles[(column * 4 + row) % vehicles.length])).filter(() => vehicles.length > 0)
 
 
   return (
     <div className="featured-display">
-      {!columns.length && <img className="featured-showroom-fallback" src={showroom} alt={t("Seng Guan Auto showroom")} />}
+      {!columns.length && (loading ? <div className="hero-skeleton" aria-hidden="true" /> : <img className="featured-showroom-fallback" src={showroom} alt={t("Seng Guan Auto showroom")} />)}
       <div className="showroom-gallery" aria-hidden="true">
         {columns.map((column, columnIndex) => (
           <div className={`showroom-gallery-column showroom-gallery-column--${columnIndex + 1}`} key={columnIndex}>
@@ -489,7 +496,7 @@ function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
                 <div className="showroom-gallery-set" key={loopIndex}>
                   {column.map((car, carIndex) => (
                     <div className="showroom-gallery-tile" key={`${loopIndex}-${car.id}-${carIndex}`}>
-                      <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
+                      <ProgressiveImage src={car.photo} alt="" width="300" height="200" />
                     </div>
                   ))}
                 </div>
@@ -508,6 +515,7 @@ function FeaturedVehicleDisplay({ onBrowse }: { onBrowse: () => void }) {
 
 function ShowroomHeroImage() {
   const vehicles = useFeaturedVehicles()
+  const loading = useContext(InventoryStatusContext) === 'loading'
   const [activeIndex, setActiveIndex] = useState(0)
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null)
   const activeIndexRef = useRef(0)
@@ -537,20 +545,19 @@ function ShowroomHeroImage() {
 
   return (
     <div className="showroom-image" aria-hidden="true">
-      {!vehicles.length && <img className="showroom-photo showroom-photo--visible" src={showroom} alt="" />}
+      {!vehicles.length && (loading ? <div className="hero-skeleton" aria-hidden="true" /> : <img className="showroom-photo showroom-photo--visible" src={showroom} alt="" />)}
       {vehicles.map((vehicle, index) => {
+        if(index!==activeIndex && index!==incomingIndex && index!==(activeIndex+1)%vehicles.length)return null
         const isVisible = index === activeIndex && incomingIndex === null || index === incomingIndex
         return (
-          <img
+          <ProgressiveImage
             key={vehicle.id}
-            className={`showroom-photo${isVisible ? ' showroom-photo--visible' : ''}`}
+            containerClassName={`showroom-photo${isVisible ? ' showroom-photo--visible' : ''}`}
             src={vehicle.photo}
             alt=""
             width="300"
             height="200"
-            loading="eager"
-            decoding="async"
-            fetchPriority={index === activeIndex ? 'high' : 'auto'}
+            priority={index === activeIndex}
           />
         )
       })}
@@ -750,9 +757,9 @@ function VehicleMake({make}: {make:string}) {
   return <span ref={label} className="vehicle-make" title={make}>{make}</span>
 }
 
-function VehicleCard({ car }: { car: Vehicle }) {
+function VehicleCard({ car, index=0 }: { car: Vehicle; index?:number }) {
   const { t, locale } = useLocale()
-  const [opened, setOpened] = useState(() => new URLSearchParams(window.location.search).get('vehicle') === String(car.id))
+  const [opened, setOpened] = useState(false)
   const [copied, setCopied] = useState(false)
   const [calculatorOpen, setCalculatorOpen] = useState(false)
   const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
@@ -804,11 +811,11 @@ function VehicleCard({ car }: { car: Vehicle }) {
   }
 
   return (
-    <article className="vehicle-card">
+    <article className="vehicle-card vehicle-entrance" style={entranceStyle(index)}>
       <div className="vehicle-card-link">
         <div className="vehicle-media">
           <div className="vehicle-photo">
-            <img src={car.photo} alt="" width="300" height="200" loading="lazy" />
+            <ProgressiveImage src={car.photo} alt="" width="300" height="200" priority={index < 3} />
             {stamp && <span className={`vehicle-status vehicle-status--${car.status}`}>{stamp}</span>}
             {isOfficialSite && <span className="vehicle-photo-count" aria-label={t('{count} 张照片',{count:car.photos?.length ?? (car.photo ? 1 : 0)})}><ImageIcon size={15} aria-hidden="true" />{car.photos?.length ?? (car.photo ? 1 : 0)}</span>}
           </div>
@@ -861,7 +868,7 @@ function StoryTeaser({ variant, goToPage }: { variant: Direction; goToPage: (pag
   const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <section className={`section story-teaser${variant.id === 'night-shift' ? ' nightshift-proof' : ''}`}>
-      <div className="story-photo"><img src={showroom} alt={t("Seng Guan Auto's dealership in Banting")} width="1072" height="603" loading="lazy" /></div>
+      <div className="story-photo"><ProgressiveImage src={showroom} preview={showroomPreview} alt={t("Seng Guan Auto's dealership in Banting")} width="1072" height="603" /></div>
       <div className="story-copy"><p className="section-label">{t("The place behind the name")}</p><h2>{t("Find us in Banting.")}</h2><p>{t("Visit Seng Guan Auto at Lot 712, Batu 18, Jln Klang Banting. Browse the current listings first, then contact the team if you would like to see a vehicle.")}</p>
         {variant.id === 'greenlight' ? (
           <div className="story-directions">
@@ -901,7 +908,6 @@ function FaqTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
 function InventoryPage({ variant }: { variant: Direction }) {
   const { t, locale } = useLocale()
   const vehicles = useVehicles()
-  const inventoryStatus = useContext(InventoryStatusContext)
   const [search, setSearch] = useState('')
   const [make, setMake] = useState('')
   const [year, setYear] = useState('')
@@ -933,9 +939,25 @@ function InventoryPage({ variant }: { variant: Direction }) {
     document.addEventListener('click', closeOutside, true)
     return () => document.removeEventListener('click', closeOutside, true)
   }, [advancedOpen])
-  const makes = vehicleMakeOptions(vehicles.map(car => car.make))
-  const years = Array.from(new Set(vehicles.map(car => String(car.year)))).sort((a, b) => Number(b) - Number(a))
-  const bodyTypes = [...new Set(vehicles.map(car => car.body).filter(Boolean))].sort((a,b) => t(a).localeCompare(t(b)))
+  const pageQuery = new URLSearchParams({sort,direction:ascending?'asc':'desc'})
+  if(search.trim())pageQuery.set('q',search.trim())
+  const translatedBody=['Sedan','SUV','MPV','Hatchback','Pickup','Coupe','Van','Wagon','Other'].find(body=>t(body).toLowerCase()===search.trim().toLowerCase() && t(body).toLowerCase()!==body.toLowerCase())
+  if(translatedBody)pageQuery.set('bodyAlias',translatedBody)
+  if(make)pageQuery.set('make',make)
+  if(year)pageQuery.set('year',year)
+  if(bodyType)pageQuery.set('body',bodyType)
+  if(minPrice>0)pageQuery.set('minPrice',String(minPrice))
+  if(maxPrice<priceLimit)pageQuery.set('maxPrice',String(maxPrice))
+  const pages = useVehiclePages<Vehicle>(pageQuery.toString(),async (query,signal)=>{
+    const response=await fetch('/api/vehicles?'+query,{signal})
+    if(!response.ok)throw Error('Unable to load vehicles.')
+    const page=await response.json()
+    return {...page,vehicles:page.vehicles.map((v:Vehicle)=>({...v,year:String(v.year)}))}
+  },isOfficialSite)
+  const allFacets = isOfficialSite ? pages.facets : vehicles
+  const makes = vehicleMakeOptions(allFacets.map(car => car.make))
+  const years = Array.from(new Set(allFacets.map(car => String(car.year)))).sort((a, b) => Number(b) - Number(a))
+  const bodyTypes = [...new Set(allFacets.map(car => car.body).filter(Boolean))].sort((a,b) => t(a).localeCompare(t(b)))
   const activeFilters = [make,year,bodyType,minPrice > 0,maxPrice < priceLimit].filter(Boolean).length
   const formatPrice = (value: number) => `RM ${value.toLocaleString(locale)}`
   const resetFilters = () => {
@@ -966,6 +988,19 @@ function InventoryPage({ variant }: { variant: Direction }) {
       return ascending ? first - second : second - first
     })
   }, [make, year, bodyType, minPrice, maxPrice, search, sort, ascending, vehicles, t])
+
+  const results = isOfficialSite ? pages.items : filtered
+  const [linkedVehicle,setLinkedVehicle]=useState<Vehicle|null>(null)
+  const [linkedCalculator,setLinkedCalculator]=useState(false)
+  const [linkedCopied,setLinkedCopied]=useState(false)
+  useEffect(()=>{
+    if(!isOfficialSite)return
+    const id=new URLSearchParams(window.location.search).get('vehicle')
+    if(!id)return
+    const controller=new AbortController()
+    void fetch(`/api/vehicles/${encodeURIComponent(id)}`,{signal:controller.signal}).then(response=>response.ok?response.json():null).then(car=>{if(car)setLinkedVehicle({...car,year:String(car.year)})}).catch(()=>{})
+    return()=>controller.abort()
+  },[])
 
   return (
     <div className={`content-page content-page--cars content-page--${variant.id}`}>
@@ -1065,9 +1100,20 @@ function InventoryPage({ variant }: { variant: Direction }) {
           </div>
           {(search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
         </div>
-        {filtered.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{filtered.map((car) => <VehicleCard key={car.id} car={car} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(inventoryStatus === 'loading' ? 'Loading vehicles…' : inventoryStatus === 'error' ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(inventoryStatus === 'error' ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
+        <ListingTransition loading={pages.loading && !results.length && isOfficialSite} compact={!photoLayout}>
+          {results.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{results.map((car,index) => <VehicleCard key={car.id} car={car} index={index} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(pages.error ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(pages.error ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
+        </ListingTransition>
+        {isOfficialSite && <LoadMore sentinel={pages.sentinel} loading={pages.loading} hasMore={pages.hasMore} error={pages.error} retry={pages.reload} />}
         <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
+      {linkedVehicle && (linkedVehicle.status==='sold'||linkedVehicle.status==='reserved'
+        ? <VehicleUnavailable status={linkedVehicle.status} onClose={()=>setLinkedVehicle(null)} />
+        : <VehicleDetails car={linkedVehicle} onClose={()=>setLinkedVehicle(null)} onCalculator={()=>setLinkedCalculator(true)} copied={linkedCopied} onShare={()=>{
+          const url=window.location.href
+          if(navigator.share){void navigator.share({title:linkedVehicle.name,url}).catch(()=>{});return}
+          void navigator.clipboard.writeText(url).then(()=>setLinkedCopied(true)).catch(()=>window.prompt(t('Copy this vehicle link'),url))
+        }} />)}
+      {linkedVehicle && linkedCalculator && <LoanCalculatorDialog initialPrice={getVehicleDiscount(linkedVehicle.price,linkedVehicle.discount_price) ? linkedVehicle.discount_price : linkedVehicle.price} onClose={()=>setLinkedCalculator(false)} />}
     </div>
   )
 }
@@ -1193,7 +1239,7 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
         <div><strong>30+</strong><span>{t("Years in used cars")}</span></div>
         <div><strong data-count-to="3000" aria-label={t("More than 3,000 customers")}>3000+</strong><span>{t("Customers")}</span></div>
       </div>
-      <section className="about-feature"><div className="about-feature-image"><img src={showroom} alt={t("Seng Guan Auto showroom in Banting")} width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">{t("Our story")}</p><h2>{t("Built on trust since 1995.")}</h2><p>{t("What began as a small family business grew from a simple aim: offer quality pre-owned cars at fair prices and treat every customer with care.")}</p><p>{t("For more than 30 years, Seng Guan Auto has focused on transparency, integrity and customer satisfaction. Founded by Ang Kin Guan, the business continues with his sons and the values it started with: honesty, quality and putting people first.")}</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">{t("Visit our Banting showroom")} <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
+      <section className="about-feature"><div className="about-feature-image"><ProgressiveImage src={showroom} preview={showroomPreview} alt={t("Seng Guan Auto showroom in Banting")} width="1072" height="603" /></div><div className="about-feature-copy"><p className="section-label">{t("Our story")}</p><h2>{t("Built on trust since 1995.")}</h2><p>{t("What began as a small family business grew from a simple aim: offer quality pre-owned cars at fair prices and treat every customer with care.")}</p><p>{t("For more than 30 years, Seng Guan Auto has focused on transparency, integrity and customer satisfaction. Founded by Ang Kin Guan, the business continues with his sons and the values it started with: honesty, quality and putting people first.")}</p><a className="text-link" href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`} target="_blank" rel="noreferrer">{t("Visit our Banting showroom")} <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
       <section className="about-values">
         <div className="about-section-heading"><p className="section-label">{t("What guides us")}</p><h2>{t("Our core values.")}</h2><p>{t("Simple principles shape how we prepare cars and work with the people who visit us.")}</p></div>
         <div className="about-values-list">
@@ -1208,7 +1254,7 @@ function AboutPage({ variant, goToPage }: { variant: Direction; goToPage: (page:
         <div className="team-grid">
           {team.map((member) => (
             <article className="team-card" key={member.name}>
-              <div className="team-photo"><img src={member.photo} alt={member.name} width="150" height="150" loading="lazy" /></div>
+              <div className="team-photo"><ProgressiveImage src={member.photo} preview={member.photo===angKinGuanPortrait?team1Preview:member.photo===johnAngPortrait?team2Preview:team3Preview} alt={member.name} width="150" height="150" /></div>
               <h3>{member.name}</h3>
               <p className="team-role">{t(member.role)}</p>
               <p className="team-experience"><strong>{member.experience}</strong><span>{t("years experience")}</span></p>
@@ -1265,7 +1311,7 @@ function ContactPage({ variant }: { variant: Direction }) {
           <a className="contact-method" href={contact.whatsapp} target="_blank" rel="noreferrer"><span className="contact-method-icon"><MessageCircle size={19} aria-hidden="true" /></span><span><small>{t("Message on WhatsApp")}</small><strong>{t("Ask about a vehicle or visit")}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
           <a className="contact-method" href={`mailto:${contact.email}`}><span className="contact-method-icon"><Mail size={19} aria-hidden="true" /></span><span><small>{t("Email the team")}</small><strong>{contact.email}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
         </div>
-        <section className="address-panel"><div className="address-map"><img src={showroom} alt={t("Seng Guan Auto showroom frontage")} width="1072" height="603" loading="lazy" /><a href={mapUrl} target="_blank" rel="noreferrer" className="map-label"><MapPin size={17} aria-hidden="true" />{t("Open map")} <ArrowUpRight size={14} aria-hidden="true" /></a></div><div className="address-copy"><p className="section-label">Seng Guan Auto Sdn. Bhd.</p><h2>{t("Find us in Banting.")}</h2><p>{contact.address}</p><a className="text-link" href={mapUrl} target="_blank" rel="noreferrer">{t("Get directions")} <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
+        <section className="address-panel"><div className="address-map"><ProgressiveImage src={showroom} preview={showroomPreview} alt={t("Seng Guan Auto showroom frontage")} width="1072" height="603" /><a href={mapUrl} target="_blank" rel="noreferrer" className="map-label"><MapPin size={17} aria-hidden="true" />{t("Open map")} <ArrowUpRight size={14} aria-hidden="true" /></a></div><div className="address-copy"><p className="section-label">Seng Guan Auto Sdn. Bhd.</p><h2>{t("Find us in Banting.")}</h2><p>{contact.address}</p><a className="text-link" href={mapUrl} target="_blank" rel="noreferrer">{t("Get directions")} <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
       </div>
       <section className="hours-section"><div><p className="section-label">{t("Showroom hours")}</p><h2>{t("Plan a visit.")}</h2></div><dl>{contact.hours.map(([day, hours]) => <div key={day}><dt>{t(day)}</dt><dd>{t(hours)}</dd></div>)}</dl><p className="hours-note">{t("Please confirm opening hours with the team before travelling.")}</p></section>
     </div>
