@@ -989,7 +989,6 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 .vehicle-price { font-size: 23px; color: #f46b63; font-variant-numeric: tabular-nums; }
 .vehicle-pricing { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 4px 9px; margin-top: auto; padding-top: 14px; }
 .vehicle-info .vehicle-pricing { flex-direction: column; align-items: flex-end; }
-.vehicle-info .vehicle-price-original { margin-bottom: -4px; }
 .vehicle-pricing .vehicle-price { margin: 0; padding: 0; }
 .vehicle-info .vehicle-pricing .vehicle-price { margin: 0; padding: 0; text-align: end; }
 .vehicle-price-original { color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
