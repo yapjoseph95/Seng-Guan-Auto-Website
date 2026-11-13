@@ -766,9 +766,9 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 }
 
 @media (max-width: 760px) {
-  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-actions .vehicle-share,
-  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-calculator { width:28px; height:32px; }
-  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-actions svg { width:16px; height:16px; }
+  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-info-header .vehicle-share,
+  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-info-header .vehicle-calculator { width:28px; height:32px; }
+  .is-official-site .inventory-grid:not(.inventory-grid--photo) .vehicle-info-header .vehicle-actions svg { width:16px; height:16px; }
   .site-atmosphere { background: linear-gradient(145deg, #070809 0%, #0b0c0e 40%, #130b0d 56%, #2c0d12 72%, #4b1017 90%); }
   .prototype-app { padding-bottom: calc(144px + env(safe-area-inset-bottom)); }
   .header-inner { --header-gutter: 12px; min-height: 72px; gap: clamp(4px, 1.6vw, 15px); }
