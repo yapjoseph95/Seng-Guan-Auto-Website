@@ -426,6 +426,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .vehicle-specs svg { color: var(--brand); }
 .data-note { margin: 19px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .data-note a { color: var(--brand); font-weight: 700; }
+.inventory-browser .data-note a { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 
 .finance-teaser { display: grid; grid-template-columns: 1fr .75fr; gap: 8vw; align-items: center; }
 .finance-teaser-copy { max-width: 560px; }
