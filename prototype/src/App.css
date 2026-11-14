@@ -977,7 +977,8 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 .vehicle-gallery-edge--previous { left: 0; }
 .vehicle-gallery-edge--next { right: 0; }
 .vehicle-gallery-edge svg { width: 34px; height: 34px; padding: 7px; border-radius: 50%; background: rgb(12 14 16 / 76%); transition: background-color 150ms ease; }
-.vehicle-gallery-edge:is(:hover, :focus-visible) svg { background: #20252a; }
+.vehicle-gallery-edge:focus-visible svg { background: #20252a; }
+@media (hover:hover) { .vehicle-gallery-edge:hover svg { background: #20252a; } }
 .vehicle-gallery-edge:focus-visible { outline-offset: -3px; }
 .vehicle-gallery-thumbnails button { flex: 0 0 56px; aspect-ratio: var(--vehicle-photo-ratio); padding: 0; overflow: hidden; }
 .vehicle-gallery-thumbnails img { display: block; width: 100%; aspect-ratio: var(--vehicle-photo-ratio); object-fit: cover; }
