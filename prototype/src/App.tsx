@@ -757,7 +757,7 @@ function VehicleMake({make}: {make:string}) {
   return <span ref={label} className="vehicle-make" title={make}>{make}</span>
 }
 
-function VehicleCard({ car, index=0, forceImage=false, onImageSettled }: { car: Vehicle; index?:number; forceImage?:boolean; onImageSettled?:(car:Vehicle)=>void }) {
+function VehicleCard({ car, index=0, forceImage=false, imageEnabled=true, onImageSettled }: { car: Vehicle; index?:number; forceImage?:boolean; imageEnabled?:boolean; onImageSettled?:(car:Vehicle)=>void }) {
   const { t, locale } = useLocale()
   const [opened, setOpened] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -815,7 +815,7 @@ function VehicleCard({ car, index=0, forceImage=false, onImageSettled }: { car: 
       <div className="vehicle-card-link">
         <div className="vehicle-media">
           <div className="vehicle-photo">
-            <ProgressiveImage src={car.photo} alt="" width="300" height="200" priority={index < 3 || forceImage} onLoad={()=>onImageSettled?.(car)} onError={()=>onImageSettled?.(car)} />
+            <ProgressiveImage src={car.photo} alt="" width="300" height="200" serial enabled={imageEnabled} priority={imageEnabled || index < 3 || forceImage} onLoad={()=>onImageSettled?.(car)} onError={()=>onImageSettled?.(car)} />
             {stamp && <span className={`vehicle-status vehicle-status--${car.status}`}>{stamp}</span>}
             {isOfficialSite && <span className="vehicle-photo-count" aria-label={t('{count} 张照片',{count:car.photos?.length ?? (car.photo ? 1 : 0)})}><ImageIcon size={15} aria-hidden="true" />{car.photos?.length ?? (car.photo ? 1 : 0)}</span>}
           </div>
@@ -1102,7 +1102,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
           {(search || activeFilters > 0) && <button className="text-link inventory-reset" type="button" onClick={resetFilters}>{t("Reset filters")}</button>}
         </div>
         <ListingTransition loading={pages.loading && !results.length && isOfficialSite} compact={!photoLayout}>
-          {results.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{results.map((car,index) => <VehicleCard key={car.id} car={car} index={index} forceImage={pages.waiting} onImageSettled={item=>setSettledImages(previous=>{const key=`${item.id}:${item.photo}`;return previous.has(key)?previous:new Set([...previous,key])})} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(pages.error ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(pages.error ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
+          {results.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{results.map((car,index) => <VehicleCard key={car.id} car={car} index={index} forceImage={pages.waiting} imageEnabled={!isOfficialSite || settledImages.has(`${car.id}:${car.photo}`) || car.id === results.find(item=>item.photo && !settledImages.has(`${item.id}:${item.photo}`))?.id} onImageSettled={item=>setSettledImages(previous=>{const key=`${item.id}:${item.photo}`;return previous.has(key)?previous:new Set([...previous,key])})} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(pages.error ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(pages.error ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
         </ListingTransition>
         {isOfficialSite && <LoadMore sentinel={pages.sentinel} loading={pages.loading || pages.waiting} hasMore={pages.hasMore} error={pages.error} retry={pages.reload} />}
         <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>

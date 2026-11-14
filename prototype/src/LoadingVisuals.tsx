@@ -2,11 +2,13 @@ import { useEffect, useRef, useState, type CSSProperties, type ImgHTMLAttributes
 import { useLocale } from './locale'
 import './LoadingVisuals.css'
 
-export function ProgressiveImage({src,priority=false,preview,containerClassName='',onPreviewLoad,...props}:ImgHTMLAttributes<HTMLImageElement>&{src:string;priority?:boolean;preview?:string;containerClassName?:string;onPreviewLoad?:(image:HTMLImageElement)=>void}) {
+export function ProgressiveImage({src,priority=false,preview,containerClassName='',onPreviewLoad,serial=false,enabled=true,...props}:ImgHTMLAttributes<HTMLImageElement>&{src:string;priority?:boolean;preview?:string;containerClassName?:string;serial?:boolean;enabled?:boolean;onPreviewLoad?:(image:HTMLImageElement)=>void}) {
  const ref=useRef<HTMLSpanElement>(null)
  const [near,setNear]=useState(priority)
  const [loadedSrc,setLoadedSrc]=useState('')
+ const [previewSettled,setPreviewSettled]=useState(false)
  const loaded=loadedSrc===src
+ useEffect(()=>{setPreviewSettled(false)},[src])
  useEffect(()=>{setNear(priority)},[src])
  useEffect(()=>{if(priority)setNear(true)},[priority])
  useEffect(()=>{
@@ -19,8 +21,8 @@ export function ProgressiveImage({src,priority=false,preview,containerClassName=
  const isPhoto=/^\/api\/(?:admin\/)?photos\//.test(src)
  const separator=src.includes('?')?'&':'?'
  return <span ref={ref} className={`progressive-image ${containerClassName}`} data-loaded={loaded}>
-  {near && (isPhoto || preview) && <img className="progressive-image-preview" src={preview ?? `${src}${separator}preview=1`} onLoad={event=>onPreviewLoad?.(event.currentTarget)} alt="" aria-hidden="true" draggable={false} />}
-  {near && <img {...props} src={src} loading="eager" decoding="async" fetchPriority={priority?'high':'auto'} onLoad={event=>{setLoadedSrc(src);props.onLoad?.(event)}} />}
+  {enabled && near && (isPhoto || preview) && <img className="progressive-image-preview" src={preview ?? `${src}${separator}preview=1`} onLoad={event=>{setPreviewSettled(true);onPreviewLoad?.(event.currentTarget)}} onError={()=>setPreviewSettled(true)} alt="" aria-hidden="true" draggable={false} />}
+  {enabled && near && (!serial || !(isPhoto || preview) || previewSettled) && <img {...props} src={src} loading="eager" decoding="async" fetchPriority={priority?'high':'auto'} onLoad={event=>{setLoadedSrc(src);props.onLoad?.(event)}} />}
  </span>
 }
 export function VehicleSkeleton({compact=false,admin=false}:{compact?:boolean;admin?:boolean}) {
