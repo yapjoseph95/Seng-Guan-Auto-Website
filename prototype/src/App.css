@@ -1140,3 +1140,10 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
  @keyframes calculator-enter { from { transform:translateY(-100vh); } to { transform:translateY(0); } }
  @keyframes calculator-exit { from { transform:translateY(0); } to { transform:translateY(-100vh); } }
 }
+/* Gallery edge controls are transparent hit areas, including after a touch. */
+.prototype-app .vehicle-gallery .vehicle-gallery-edge:not(:disabled):is(:hover,:active) {
+  transform:none;
+  box-shadow:none;
+  background:transparent;
+}
+.prototype-app .vehicle-gallery .vehicle-gallery-edge:not(:disabled):hover > svg:last-child { transform:none; }
