@@ -1132,3 +1132,10 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
 /* Keep card actions above the full-card link without blocking the rest of the card. */
 .is-official-site .vehicle-card .vehicle-info-header { position:relative; z-index:2; pointer-events:none; }
 .is-official-site .vehicle-card .vehicle-info-header .vehicle-actions { pointer-events:auto; }
+
+@media (prefers-reduced-motion:no-preference) {
+ .loan-calculator-dialog[open] { animation:calculator-enter 300ms cubic-bezier(.16,1,.3,1) both; }
+ .loan-calculator-dialog[open].loan-calculator-dialog--closing { animation:calculator-exit 300ms cubic-bezier(.7,0,.84,0) both; }
+ @keyframes calculator-enter { from { transform:translateY(-100vh); } to { transform:translateY(0); } }
+ @keyframes calculator-exit { from { transform:translateY(0); } to { transform:translateY(-100vh); } }
+}

@@ -1168,6 +1168,15 @@ function LoanCalculatorPanel({initialValue}: {initialValue?:number|null}) {
 function LoanCalculatorDialog({initialPrice,onClose}: {initialPrice:number|null|undefined;onClose:()=>void}) {
   const {t}=useLocale()
   const dialog=useRef<HTMLDialogElement>(null)
+  const [closing,setClosing]=useState(false)
+  const closeTimer=useRef<number | undefined>(undefined)
+  const dismiss=()=>{
+    if(closing)return
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){onClose();return}
+    setClosing(true)
+    closeTimer.current=window.setTimeout(onClose,300)
+  }
+  useEffect(()=>()=>window.clearTimeout(closeTimer.current),[])
   useEffect(()=>{
     const previous=document.documentElement.style.overflow
     const previousScrollBehavior=document.documentElement.style.scrollBehavior
@@ -1176,8 +1185,8 @@ function LoanCalculatorDialog({initialPrice,onClose}: {initialPrice:number|null|
     dialog.current?.showModal()
     return ()=>{dialog.current?.close();document.documentElement.style.overflow=previous;document.documentElement.style.scrollBehavior=previousScrollBehavior}
   },[])
-  return <dialog ref={dialog} autoFocus className="vehicle-dialog loan-calculator-dialog" aria-label={t('Loan calculator')} onCancel={event=>{event.preventDefault();onClose()}}>
-    <button type="button" className="vehicle-dialog-close" onClick={onClose} aria-label={t('Close')}><X /></button>
+  return <dialog ref={dialog} autoFocus className={`vehicle-dialog loan-calculator-dialog${closing ? ' loan-calculator-dialog--closing' : ''}`} aria-label={t('Loan calculator')} onCancel={event=>{event.preventDefault();dismiss()}}>
+    <button type="button" className="vehicle-dialog-close" onClick={dismiss} aria-label={t('Close')}><X /></button>
     <LoanCalculatorPanel initialValue={initialPrice ?? null} />
   </dialog>
 }
