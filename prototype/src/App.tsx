@@ -1,4 +1,4 @@
-import { transitionView } from './transitions'
+import { transitionPage, transitionView } from './transitions'
 import * as Slider from '@radix-ui/react-slider'
 import WhatsAppGlyph from './WhatsAppGlyph'
 import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
@@ -103,18 +103,19 @@ function App() {
       url.searchParams.set('variant', next.variant)
       url.searchParams.set('page', next.page)
     }
-    window.history[push ? 'pushState' : 'replaceState']({}, '', url)
-    transitionView(()=>setRoute(next),'forward')
+    void transitionPage(() => {
+      window.history[push ? 'pushState' : 'replaceState']({}, '', url)
+      setRoute(next)
+    }, true)
     setMenuOpen(false)
     setDetailsOpen(false)
-    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }
 
   const goToPage = (page: PageId) => updateRoute({ ...route, page })
   const goToVariant = (variantId: string) => updateRoute({ ...route, variant: variantId })
 
   useEffect(() => {
-    const onPopState = () => transitionView(()=>setRoute(readRoute()),'back')
+    const onPopState = () => { const next = readRoute(); void transitionPage(() => setRoute(next)) }
     const onHashChange = () => {
       if (window.location.protocol === 'file:') setRoute(readRoute())
     }
