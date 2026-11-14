@@ -88,9 +88,46 @@ function App() {
   const [notice, setNotice] = useState('')
   const appRef = useRef<HTMLDivElement>(null)
   const whatsappDialog = useRef<HTMLDialogElement>(null)
+  const whatsappOrigin = useRef<HTMLElement | null>(null)
+  const whatsappClosing = useRef(false)
   const [whatsappName, setWhatsappName] = useState('')
   const [whatsappVehicle, setWhatsappVehicle] = useState(false)
   const variant = directions.find((item) => item.id === route.variant) ?? directions[0]
+
+  const whatsappTransform = () => {
+    const dialog = whatsappDialog.current
+    const origin = whatsappOrigin.current
+    if (!dialog || !origin?.isConnected) return { x: 0, y: 0, scaleX: 0.8, scaleY: 0.8 }
+    const from = origin.getBoundingClientRect()
+    const to = dialog.getBoundingClientRect()
+    return {
+      x: from.left + from.width / 2 - (to.left + to.width / 2),
+      y: from.top + from.height / 2 - (to.top + to.height / 2),
+      scaleX: from.width / to.width,
+      scaleY: from.height / to.height,
+    }
+  }
+
+  const closeWhatsappDialog = () => {
+    const dialog = whatsappDialog.current
+    if (!dialog?.open || whatsappClosing.current) return
+    whatsappClosing.current = true
+    gsap.killTweensOf(dialog)
+    const current = { x: gsap.getProperty(dialog, 'x'), y: gsap.getProperty(dialog, 'y'), scaleX: gsap.getProperty(dialog, 'scaleX'), scaleY: gsap.getProperty(dialog, 'scaleY') }
+    gsap.set(dialog, { clearProps: 'transform' })
+    const destination = whatsappTransform()
+    gsap.set(dialog, current)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      dialog.close()
+      whatsappClosing.current = false
+      return
+    }
+    gsap.to(dialog, { ...destination, opacity: 0, duration: 0.3, ease: 'power3.out', onComplete: () => {
+      dialog.close()
+      gsap.set(dialog, { clearProps: 'transform,opacity' })
+      whatsappClosing.current = false
+    } })
+  }
 
   const updateRoute = (next: RouteState, push = true) => {
     const url = new URL(window.location.href)
@@ -279,7 +316,13 @@ function App() {
       event.preventDefault()
       setWhatsappVehicle(Boolean(link.closest('.vehicle-dialog')))
       setWhatsappName('')
-      whatsappDialog.current?.showModal()
+      const dialog = whatsappDialog.current
+      if (!dialog || dialog.open) return
+      whatsappOrigin.current = link
+      dialog.showModal()
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        gsap.fromTo(dialog, { ...whatsappTransform(), opacity: 0 }, { x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 1, duration: 0.3, ease: 'power3.out', clearProps: 'transform,opacity' })
+      }
     }} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
       {variant.id === 'greenlight' && <div className="site-atmosphere" aria-hidden="true" />}
       <a className="skip-link" href="#main-content">{t("Skip to content")}</a>
@@ -308,7 +351,7 @@ function App() {
           showNotice(t('{name} marked for review in this session.', { name: variant.name }))
         }}
       />}
-      <dialog className="whatsapp-name-dialog" ref={whatsappDialog} aria-labelledby="whatsapp-name-title">
+      <dialog className="whatsapp-name-dialog" ref={whatsappDialog} aria-labelledby="whatsapp-name-title" onCancel={(event) => { event.preventDefault(); closeWhatsappDialog() }}>
         <form onSubmit={(event) => {
           event.preventDefault()
           const name = whatsappName.trim()
@@ -317,13 +360,13 @@ function App() {
             ? "Hi Seng Guan Auto, I'm {name}. I saw your this car from your website. May i know more information about this car?"
             : "Hi Seng Guan Auto, I'm {name}. I saw your car listing from your website. May i know more information?", { name })
           window.open(`${contact.whatsapp}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
-          whatsappDialog.current?.close()
+          closeWhatsappDialog()
         }}>
           <h2 id="whatsapp-name-title">{t('Before we chat')}</h2>
           <label htmlFor="whatsapp-name">{t('Your name')}</label>
           <input id="whatsapp-name" name="name" type="text" autoComplete="name" required maxLength={100} value={whatsappName} onChange={(event) => setWhatsappName(event.target.value)} />
           <div className="whatsapp-name-actions">
-            <button type="button" className="button button--plain" onClick={() => whatsappDialog.current?.close()}>{t('取消')}</button>
+            <button type="button" className="button button--plain" onClick={closeWhatsappDialog}>{t('取消')}</button>
             <button type="submit" className="button button--whatsapp" disabled={!whatsappName.trim()}><WhatsAppGlyph />{t('Continue to WhatsApp')}</button>
           </div>
         </form>
