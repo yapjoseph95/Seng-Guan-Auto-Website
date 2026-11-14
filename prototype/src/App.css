@@ -1140,3 +1140,14 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
  @keyframes calculator-exit { from { transform:translateY(0); } to { transform:translateY(-100vh); } }
 }
 .prototype-app .vehicle-gallery .vehicle-gallery-edge { -webkit-tap-highlight-color: transparent; }
+/* Touch devices must not retain a highlighted edge after a gallery tap. */
+@media (hover: none) {
+ .prototype-app .vehicle-gallery .vehicle-gallery-edge:not(:disabled):is(:hover,:active,:focus) {
+  -webkit-tap-highlight-color:transparent;
+  background:transparent;
+  box-shadow:none;
+  transform:none;
+ }
+ .prototype-app .vehicle-gallery .vehicle-gallery-edge:not(:disabled):is(:hover,:active) > svg:last-child { transform:none; }
+ .prototype-app .vehicle-gallery .vehicle-gallery-edge:is(:hover,:active):not(:focus-visible) svg { background:rgb(12 14 16 / 76%); }
+}
