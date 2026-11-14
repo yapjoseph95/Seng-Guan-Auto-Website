@@ -129,11 +129,11 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
     </div>
     {photos.length > 1 && <>
      <button type="button" className="vehicle-gallery-edge vehicle-gallery-edge--previous"
-      aria-label={t('Previous photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(-1); if (event.detail !== 0 && window.matchMedia('(hover: none)').matches) event.currentTarget.blur()}}>
+      aria-label={t('Previous photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(-1)}}>
       <ChevronLeft size={20} aria-hidden="true" />
      </button>
      <button type="button" className="vehicle-gallery-edge vehicle-gallery-edge--next"
-      aria-label={t('Next photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(1); if (event.detail !== 0 && window.matchMedia('(hover: none)').matches) event.currentTarget.blur()}}>
+      aria-label={t('Next photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(1)}}>
       <ChevronRight size={20} aria-hidden="true" />
      </button>
     </>}
