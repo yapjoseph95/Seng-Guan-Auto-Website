@@ -87,6 +87,9 @@ function App() {
   const [savedDirection, setSavedDirection] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const appRef = useRef<HTMLDivElement>(null)
+  const whatsappDialog = useRef<HTMLDialogElement>(null)
+  const [whatsappName, setWhatsappName] = useState('')
+  const [whatsappVehicle, setWhatsappVehicle] = useState(false)
   const variant = directions.find((item) => item.id === route.variant) ?? directions[0]
 
   const updateRoute = (next: RouteState, push = true) => {
@@ -269,7 +272,15 @@ function App() {
   return (
     <InventoryContext.Provider value={inventory}>
     <InventoryStatusContext.Provider value={inventoryStatus}>
-    <div className={`prototype-app${isOfficialSite ? ' is-official-site' : ''}`} data-variant={variant.id} ref={appRef} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
+    <div className={`prototype-app${isOfficialSite ? ' is-official-site' : ''}`} data-variant={variant.id} ref={appRef} onClickCapture={(event) => {
+      const target = event.target
+      const link = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href^="https://wa.me/"]') : null
+      if (!link) return
+      event.preventDefault()
+      setWhatsappVehicle(Boolean(link.closest('.vehicle-dialog')))
+      setWhatsappName('')
+      whatsappDialog.current?.showModal()
+    }} onDragStart={preventImageDrag} onContextMenu={preventImageContextMenu}>
       {variant.id === 'greenlight' && <div className="site-atmosphere" aria-hidden="true" />}
       <a className="skip-link" href="#main-content">{t("Skip to content")}</a>
       <SiteHeader
@@ -297,6 +308,26 @@ function App() {
           showNotice(t('{name} marked for review in this session.', { name: variant.name }))
         }}
       />}
+      <dialog className="whatsapp-name-dialog" ref={whatsappDialog} aria-labelledby="whatsapp-name-title">
+        <form onSubmit={(event) => {
+          event.preventDefault()
+          const name = whatsappName.trim()
+          if (!name) return
+          const message = t(whatsappVehicle
+            ? "Hi Seng Guan Auto, I'm {name}. I saw your this car from your website. May i know more information about this car?"
+            : "Hi Seng Guan Auto, I'm {name}. I saw your car listing from your website. May i know more information?", { name })
+          window.open(`${contact.whatsapp}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+          whatsappDialog.current?.close()
+        }}>
+          <h2 id="whatsapp-name-title">{t('Before we chat')}</h2>
+          <label htmlFor="whatsapp-name">{t('Your name')}</label>
+          <input id="whatsapp-name" name="name" type="text" autoComplete="name" required maxLength={100} value={whatsappName} onChange={(event) => setWhatsappName(event.target.value)} />
+          <div className="whatsapp-name-actions">
+            <button type="button" className="button button--plain" onClick={() => whatsappDialog.current?.close()}>{t('取消')}</button>
+            <button type="submit" className="button button--whatsapp" disabled={!whatsappName.trim()}><WhatsAppGlyph />{t('Continue to WhatsApp')}</button>
+          </div>
+        </form>
+      </dialog>
       <div className="notice" aria-live="polite" aria-atomic="true">{notice}</div>
     </div>
     </InventoryStatusContext.Provider>

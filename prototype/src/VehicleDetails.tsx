@@ -115,7 +115,6 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
  const dismiss = () => { onClose() }
  const description = car.description
  const template = car.description_template?.[language]
- const message = t('Hi, I am interested in the {year} {name}. Is it available?', {year:car.year,name:car.name})
 
  return <dialog ref={dialog} autoFocus className="vehicle-dialog" aria-labelledby="vehicle-detail-title"
   onCancel={event => {event.preventDefault(); dismiss()}}>
@@ -187,7 +186,7 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
      {template && <p>{template}</p>}
     </div>
    </>}
-   <a className="button button--whatsapp" href={`${contact.whatsapp}?text=${encodeURIComponent(message)}`}
+   <a className="button button--whatsapp" href={contact.whatsapp}
     target="_blank" rel="noreferrer"><WhatsAppGlyph />{t('Ask about this car')}</a>
   </div>
  </dialog>

@@ -1,5 +1,10 @@
 // Source messages are retained as keys so copy remains readable at the call site.
 export const translations: Readonly<Record<string, readonly [en: string, ms: string, zh: string]>> = {
+  "Before we chat": ["Before we chat","Sebelum kita berbual","开始聊天前"],
+  "Your name": ["Your name","Nama anda","您的姓名"],
+  "Continue to WhatsApp": ["Continue to WhatsApp","Teruskan ke WhatsApp","继续前往 WhatsApp"],
+  "Hi Seng Guan Auto, I'm {name}. I saw your car listing from your website. May i know more information?": ["Hi Seng Guan Auto, I'm {name}. I saw your car listing from your website. May i know more information?","Hai Seng Guan Auto, saya {name}. Saya melihat senarai kereta di laman web anda. Boleh saya dapatkan maklumat lanjut?","你好 Seng Guan Auto，我是{name}。我在你们的网站上看到了车辆列表，请问可以了解更多信息吗？"],
+  "Hi Seng Guan Auto, I'm {name}. I saw your this car from your website. May i know more information about this car?": ["Hi Seng Guan Auto, I'm {name}. I saw your this car from your website. May i know more information about this car?","Hai Seng Guan Auto, saya {name}. Saya melihat kereta ini di laman web anda. Boleh saya dapatkan maklumat lanjut tentang kereta ini?","你好 Seng Guan Auto，我是{name}。我在你们的网站上看到了这辆车，请问可以了解更多有关这辆车的信息吗？"],
   "No more vehicles": ["No more vehicles","Tiada lagi kenderaan","没有更多了"],
   "Unable to load vehicles. Try again.": ["Unable to load vehicles. Try again.","Tidak dapat memuatkan kenderaan. Cuba lagi.","无法加载车辆，请重试。"],
   "Price drop!": ["Price drop!","Harga turun!","降价了！"],

@@ -1151,3 +1151,11 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
  .prototype-app .vehicle-gallery .vehicle-gallery-edge:not(:disabled):is(:hover,:active) > svg:last-child { transform:none; }
  .prototype-app .vehicle-gallery .vehicle-gallery-edge:is(:hover,:active):not(:focus-visible) svg { background:rgb(12 14 16 / 76%); }
 }
+
+.whatsapp-name-dialog { width: min(420px, calc(100% - 32px)); padding: 24px; color: #f6f6f3; background: #171a1d; border: 1px solid #41464b; border-radius: 8px; font-family: "DM Sans Variable", sans-serif; }
+.whatsapp-name-dialog::backdrop { background: rgb(0 0 0 / 78%); backdrop-filter: blur(5px); }
+.whatsapp-name-dialog h2 { margin: 0 0 20px; font-size: 22px; }
+.whatsapp-name-dialog label { display: block; margin-bottom: 8px; }
+.whatsapp-name-dialog input { width: 100%; min-height: 48px; padding: 10px 12px; color: #fff; background: #20242a; border: 1px solid #41464b; border-radius: 6px; font-size: 16px; }
+.whatsapp-name-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.whatsapp-name-actions button:disabled { opacity: .5; cursor: not-allowed; }
