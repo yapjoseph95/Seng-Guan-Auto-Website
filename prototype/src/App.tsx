@@ -815,7 +815,7 @@ function VehicleCard({ car, index=0, forceImage=false, imageEnabled=true, onImag
       <div className="vehicle-card-link">
         <div className="vehicle-media">
           <div className="vehicle-photo">
-            <ProgressiveImage src={car.photo} alt="" width="300" height="200" serial enabled={imageEnabled} priority={imageEnabled || index < 3 || forceImage} onLoad={()=>onImageSettled?.(car)} onError={()=>onImageSettled?.(car)} />
+            <ProgressiveImage src={car.photo} alt="" width="300" height="200" enabled={imageEnabled} priority={imageEnabled || index < 3 || forceImage} onLoad={()=>onImageSettled?.(car)} onError={()=>onImageSettled?.(car)} />
             {stamp && <span className={`vehicle-status vehicle-status--${car.status}`}>{stamp}</span>}
             {isOfficialSite && <span className="vehicle-photo-count" aria-label={t('{count} 张照片',{count:car.photos?.length ?? (car.photo ? 1 : 0)})}><ImageIcon size={15} aria-hidden="true" />{car.photos?.length ?? (car.photo ? 1 : 0)}</span>}
           </div>
