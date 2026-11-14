@@ -1,3 +1,4 @@
+import { transitionView } from './transitions'
 import * as Slider from '@radix-ui/react-slider'
 import WhatsAppGlyph from './WhatsAppGlyph'
 import { vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
@@ -103,7 +104,7 @@ function App() {
       url.searchParams.set('page', next.page)
     }
     window.history[push ? 'pushState' : 'replaceState']({}, '', url)
-    setRoute(next)
+    transitionView(()=>setRoute(next),'forward')
     setMenuOpen(false)
     setDetailsOpen(false)
     window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
@@ -113,7 +114,7 @@ function App() {
   const goToVariant = (variantId: string) => updateRoute({ ...route, variant: variantId })
 
   useEffect(() => {
-    const onPopState = () => setRoute(readRoute())
+    const onPopState = () => transitionView(()=>setRoute(readRoute()),'back')
     const onHashChange = () => {
       if (window.location.protocol === 'file:') setRoute(readRoute())
     }
@@ -771,7 +772,7 @@ function VehicleCard({ car, index=0, forceImage=false, imageEnabled=true, onImag
   const openVehicle = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!isPlainLeftClick(event) || (!isOfficialSite && !car.photos)) return
     event.preventDefault()
-    setOpened(true)
+    transitionView(()=>setOpened(true))
   }
 
   useEffect(() => {
@@ -814,7 +815,7 @@ function VehicleCard({ car, index=0, forceImage=false, imageEnabled=true, onImag
     <article className="vehicle-card vehicle-entrance" style={entranceStyle(index % 3)}>
       <div className="vehicle-card-link">
         <div className="vehicle-media">
-          <div className="vehicle-photo">
+          <div className="vehicle-photo" style={{viewTransitionName:opened ? undefined : `vehicle-photo-${String(car.id).replace(/[^a-zA-Z0-9_-]/g,'')}`}}>
             <ProgressiveImage src={car.photo} alt="" width="300" height="200" enabled={imageEnabled} priority={imageEnabled || index < 3 || forceImage} onLoad={()=>onImageSettled?.(car)} onError={()=>onImageSettled?.(car)} />
             {stamp && <span className={`vehicle-status vehicle-status--${car.status}`}>{stamp}</span>}
             {isOfficialSite && <span className="vehicle-photo-count" aria-label={t('{count} 张照片',{count:car.photos?.length ?? (car.photo ? 1 : 0)})}><ImageIcon size={15} aria-hidden="true" />{car.photos?.length ?? (car.photo ? 1 : 0)}</span>}
@@ -847,7 +848,7 @@ function VehicleCard({ car, index=0, forceImage=false, imageEnabled=true, onImag
       {calculatorOpen && <LoanCalculatorDialog initialPrice={calculatorPrice} onClose={()=>setCalculatorOpen(false)} />}
       {opened && (unavailableStatus
         ? <VehicleUnavailable status={unavailableStatus} onClose={() => setOpened(false)} />
-        : <VehicleDetails car={car} onClose={() => setOpened(false)} onCalculator={isOfficialSite ? ()=>setCalculatorOpen(true) : undefined} onShare={isOfficialSite ? ()=>void shareVehicle() : undefined} copied={copied} />)}
+        : <VehicleDetails car={car} onClose={() => transitionView(()=>setOpened(false))} onCalculator={isOfficialSite ? ()=>setCalculatorOpen(true) : undefined} onShare={isOfficialSite ? ()=>void shareVehicle() : undefined} copied={copied} />)}
     </article>
   )
 }

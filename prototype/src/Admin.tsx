@@ -1,3 +1,4 @@
+import { transitionView } from './transitions'
 import { canonicalVehicleMake, vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
 import { formatPublicationDate } from './vehicle-date'
 import type { MileageBand } from '../shared/vehicle-mileage'
@@ -26,6 +27,17 @@ async function api<T>(path:string, options:RequestInit = {}):Promise<T> {
  const data=await response.json().catch(()=>({error:'服务器暂时无法连接，请稍后重试。'}))
  if(!response.ok)throw new Error(data.error||'操作失败，请重试。')
  return data
+}
+async function uploadPhoto(id:string, form:FormData, onProgress:(fraction:number)=>void) {
+ const execute=()=>new Promise<number>((resolve,reject)=>{
+  const request=new XMLHttpRequest()
+  request.open('POST','/api/admin/staged-photos/'+encodeURIComponent(id))
+  request.upload.onprogress=event=>{if(event.lengthComputable)onProgress(event.loaded/event.total)}
+  request.onerror=()=>reject(new Error('服务器暂时无法连接，请稍后重试。'))
+  request.onload=()=>{if(request.status===401){resolve(401);return} if(request.status<200||request.status>=300){let message='操作失败，请重试。';try{message=JSON.parse(request.responseText).error||message}catch{} reject(new Error(message));return} resolve(request.status)}
+  request.send(form)
+ })
+ if(await execute()===401){const refreshed=await fetch('/api/auth/refresh',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'});if(!refreshed.ok){window.dispatchEvent(new Event('admin-session-expired'));throw new Error('请重新登录。')} if(await execute()===401){window.dispatchEvent(new Event('admin-session-expired'));throw new Error('请重新登录。')}}
 }
 async function compress(file:File) {
  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('请使用 JPG、PNG 或 WebP 照片。')
@@ -83,7 +95,7 @@ function PreviewGallery({ photos, index, onSelect, onWatermark, onRemove, busy }
  const move = (offset: number) => onSelect(photos[(index + offset + photos.length) % photos.length].id)
 
  return <div className="admin-preview-gallery">
-  <div className="admin-preview-frame">
+  <div className="admin-preview-frame" style={{viewTransitionName:"admin-vehicle-photo"}}>
    <ProgressiveImage key={photo.id} className="admin-preview-image" src={photo.url} priority alt={t('车辆照片 {number}', { number: index + 1 })} draggable={false} />
    {photos.length > 1 && <>
     <button type="button" className="admin-preview-edge admin-preview-edge--previous"
@@ -268,6 +280,7 @@ export default function Admin() {
  const [email,setEmail]=useState('')
  const [sessionLoading,setSessionLoading]=useState(true)
  const [busy,setBusy]=useState('')
+ const [uploadFraction,setUploadFraction]=useState(0)
  const [uploadProgress,setUploadProgress]=useState<{number:number;total:number}|null>(null)
  const processingPhotos = busy === '处理照片 {number}/{total}…' || busy === '上传照片 {number}/{total}…'
  const [error,setError]=useState('')
@@ -359,7 +372,7 @@ export default function Admin() {
   if (busy || (dirty && !window.confirm(t('还有未保存的修改，确定离开吗？')))) return
   releasePhotos(stagedPhotos.current,true)
   clearWatermarkChanges()
-  setEdit(null)
+  transitionView(()=>{setEdit(null);document.querySelectorAll<HTMLElement>("[data-admin-transition-photo]").forEach(node=>{node.style.viewTransitionName=node.dataset.adminTransitionPhoto===edit?.id ? "admin-vehicle-photo" : ""})})
   setDirty(false)
   setError('')
  }
@@ -414,6 +427,7 @@ export default function Admin() {
   }
   setError('')
   setNotice('')
+  setUploadFraction(0)
   try {
    for (const [index, file] of selected.entries()) {
     setUploadProgress({ number:index + 1, total:selected.length })
@@ -424,7 +438,7 @@ export default function Admin() {
     const form = new FormData()
     form.set('file',photo)
     setBusy('上传照片 {number}/{total}…')
-    await api(`staged-photos/${id}`,{method:'POST',body:form})
+    await uploadPhoto(id,form,fraction=>setUploadFraction((index+fraction)/selected.length))
     const url = URL.createObjectURL(photo)
     stagedPhotos.current.set(id,url)
     setEdit(vehicle => vehicle ? { ...vehicle, photos:[...vehicle.photos,{id,url}] } : vehicle)
@@ -475,12 +489,13 @@ export default function Admin() {
    }
   }
   releasePhotos(stagedPhotos.current)
+  document.querySelectorAll<HTMLElement>("[data-admin-transition-photo]").forEach(node=>{node.style.viewTransitionName=node.dataset.adminTransitionPhoto===vehicle.id ? "admin-vehicle-photo" : ""})
   originalVehicle.current = { updatedAt:vehicle.updated_at, photoOrder:vehicle.photos.map(photo => photo.id), createId:crypto.randomUUID() }
   setPreviewId(null)
   setWatermarkPhotoId(null)
   setMobilePreviewOpen(false)
   setTemplateLanguage(language)
-  setEdit({ ...vehicle, description_template:template, photos: [...vehicle.photos] })
+  transitionView(()=>{document.querySelectorAll<HTMLElement>("[data-admin-transition-photo]").forEach(node=>{node.style.viewTransitionName=""});setEdit({ ...vehicle, description_template:template, photos: [...vehicle.photos] })})
   setDirty(false)
   setError('')
   setNotice('')
@@ -616,7 +631,7 @@ export default function Admin() {
       <MobileCompactPlate vehicle={vehicle} disabled={batchBusy} onEdit={()=>void openEditor(vehicle)} />
       <button type="button" className="admin-mobile-model" disabled={batchBusy}
        aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>{vehicle.name}</button>
-      <button type="button" className="admin-compact-photo" disabled={batchBusy} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
+      <button type="button" className="admin-compact-photo" data-admin-transition-photo={vehicle.id} disabled={batchBusy} aria-label={t('编辑 {name}',{name:vehicle.name})} onClick={()=>void openEditor(vehicle)}>
        {vehicle.photo ? <ProgressiveImage src={vehicle.photo} alt="" priority={index<3} /> : <CarFront aria-hidden="true" />}
       </button>
       <button type="button" className="admin-compact-details" disabled={batchBusy} onClick={()=>void openEditor(vehicle)}>
@@ -638,7 +653,7 @@ export default function Admin() {
     </div> : <div className="admin-list">
      {visible.map((vehicle,index) => (
       <article key={vehicle.id} className="admin-car vehicle-entrance" style={entranceStyle(index)}>
-       <div className="admin-car-photo">
+       <div className="admin-car-photo" data-admin-transition-photo={vehicle.id}>
         {vehicle.photo ? <ProgressiveImage src={vehicle.photo} alt={vehicle.name} priority={index<3} /> : <CarFront aria-hidden="true" />}
         <span className={`admin-status admin-status--${vehicle.status}`}>{t(statuses[vehicle.status])}</span>
         <span className="admin-photo-count" aria-label={t('{count} 张照片',{count:vehicle.photos.length})}><Image size={15} aria-hidden="true" />{vehicle.photos.length}</span>
@@ -707,7 +722,7 @@ export default function Admin() {
      {processingPhotos && uploadProgress && <div className="admin-photo-upload-status" role="status">
       <LoaderCircle size={18} className="admin-spin" aria-hidden="true" />
       <span>{t(busy,uploadProgress)}</span>
-      <span className="admin-photo-upload-track" aria-hidden="true" />
+      <span className="admin-photo-upload-track" role="progressbar" aria-label={t("Upload progress")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(uploadFraction*100)}><span style={{transform:`translateX(${(uploadFraction-1)*100}%)`}} /></span>
      </div>}
      <label className="admin-checkbox"><input type="checkbox" checked={edit.featured} onChange={e=>update({featured:e.target.checked})}/>{t("放入首页推荐（仅在售车辆）")}</label>
     </section>

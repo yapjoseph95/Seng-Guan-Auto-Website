@@ -119,3 +119,5 @@
  .loading-skeleton--compact:not(.loading-skeleton--admin) .skeleton-copy { min-height:172px; }
 }
 .admin-watermark-default-preview { aspect-ratio:3/2; }
+
+@media (prefers-reduced-motion:no-preference) { ::view-transition-group(*) { animation-duration:300ms; } }

@@ -42,6 +42,9 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
  const gesture = useRef<{id:number; x:number; y:number} | null>(null)
  const dragged = useRef(false)
  const [index,setIndex] = useState(0)
+ const [previous,setPrevious] = useState<{index:number;direction:number}|null>(null)
+ const currentIndex = useRef(0)
+ const photoTimer = useRef<number | undefined>(undefined)
  const [paused,setPaused] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
  const photos = car.photos?.length ? car.photos : [{id:'cover',url:car.photo}]
 
@@ -56,7 +59,7 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
  useEffect(() => {
   if (paused || photos.length < 2) return
   const timer = window.setInterval(() => {
-   if (!document.hidden && !gesture.current) setIndex(current => (current + 1) % photos.length)
+   if (!document.hidden && !gesture.current) stepPhoto(1)
   },5000)
   return () => window.clearInterval(timer)
  }, [index,paused,photos.length])
@@ -71,9 +74,17 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
   }
  }, [index])
 
- const stepPhoto = (direction: number) => {
-  setIndex(current => (current + direction + photos.length) % photos.length)
+ const changePhoto = (next:number, direction:number) => {
+  if(next===currentIndex.current)return
+  window.clearTimeout(photoTimer.current)
+  setPrevious({index:currentIndex.current,direction})
+  currentIndex.current=next
+  setIndex(next)
+  photoTimer.current=window.setTimeout(()=>setPrevious(null),350)
  }
+ const stepPhoto = (direction: number) => changePhoto((currentIndex.current + direction + photos.length) % photos.length,direction)
+ useEffect(()=>()=>window.clearTimeout(photoTimer.current),[])
+
 
  const startGesture = (event: PointerEvent<HTMLDivElement>) => {
   if (photos.length < 2 || !event.isPrimary || event.button !== 0) return
@@ -101,10 +112,7 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
   if (gesture.current?.id === event.pointerId) gesture.current = null
  }
 
- const dismiss = () => {
-  dialog.current?.close()
-  onClose()
- }
+ const dismiss = () => { onClose() }
  const description = car.description
  const template = car.description_template?.[language]
  const message = t('Hi, I am interested in the {year} {name}. Is it available?', {year:car.year,name:car.name})
@@ -113,9 +121,12 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
   onCancel={event => {event.preventDefault(); dismiss()}}>
   <button type="button" className="vehicle-dialog-close" onClick={dismiss} aria-label={t('Close vehicle details')}><X /></button>
   <div className="vehicle-gallery" onContextMenu={event=>event.preventDefault()} onDragStart={event=>event.preventDefault()}>
-   <div className="vehicle-gallery-frame" onPointerDown={startGesture} onPointerUp={finishGesture}
+   <div className="vehicle-gallery-frame" style={{viewTransitionName:`vehicle-photo-${String(car.id).replace(/[^a-zA-Z0-9_-]/g,'')}`}} onPointerDown={startGesture} onPointerUp={finishGesture}
     onPointerCancel={clearGesture} onLostPointerCapture={clearGesture}>
-    <ProgressiveImage key={photos[index]?.id} src={photos[index]?.url} draggable={false} priority alt={t('{name} — photo {number}',{name:car.name,number:index+1})} />
+    <div className={`vehicle-gallery-slides${previous ? ` vehicle-gallery-slides--${previous.direction > 0 ? 'next' : 'previous'}` : ''}`} key={index}>
+     {previous && <div className="vehicle-gallery-slide vehicle-gallery-slide--old" aria-hidden="true"><ProgressiveImage src={photos[previous.index]?.url} draggable={false} priority alt="" /></div>}
+     <div className="vehicle-gallery-slide vehicle-gallery-slide--current"><ProgressiveImage src={photos[index]?.url} draggable={false} priority alt={t('{name} — photo {number}',{name:car.name,number:index+1})} /></div>
+    </div>
     {photos.length > 1 && <>
      <button type="button" className="vehicle-gallery-edge vehicle-gallery-edge--previous"
       aria-label={t('Previous photo')} onClick={event => {if (!dragged.current || event.detail === 0) stepPhoto(-1)}}>
@@ -127,11 +138,12 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
      </button>
     </>}
    </div>
+   {photos.length > 1 && <div className="vehicle-gallery-dots">{photos.map((photo,position)=><button key={photo.id} type="button" aria-label={t('预览照片 {number}',{number:position+1})} aria-current={index===position?'true':undefined} onClick={()=>changePhoto(position,position>index?1:-1)} />)}</div>}
    {photos.length > 1 && <div className="vehicle-gallery-controls">
     <div className="vehicle-gallery-thumbnails" ref={thumbnails}>
      {photos.map((photo,position) => <button type="button" key={photo.id}
       aria-label={t('预览照片 {number}',{number:position+1})} aria-current={index === position ? 'true' : undefined}
-      onClick={() => setIndex(position)}>
+      onClick={() => changePhoto(position,position>index?1:-1)}>
       <ProgressiveImage src={photo.url} alt="" draggable={false} />
      </button>)}
     </div>
@@ -190,10 +202,7 @@ export function VehicleUnavailable({ status, onClose }: { status: 'reserved' | '
   return () => { modal?.close(); document.documentElement.style.overflow = previousOverflow }
  }, [])
 
- const dismiss = () => {
-  dialog.current?.close()
-  onClose()
- }
+ const dismiss = () => { onClose() }
 
  return <dialog ref={dialog} autoFocus className="vehicle-dialog vehicle-dialog--unavailable"
   aria-labelledby={titleId} aria-describedby={descriptionId}
