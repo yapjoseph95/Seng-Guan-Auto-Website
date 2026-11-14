@@ -489,7 +489,7 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
         ':host, .launcher, .launcher * { -webkit-tap-highlight-color: transparent !important; }',
         '@media (hover: hover) { .launcher:hover { background: #c92823 !important; box-shadow: 0 12px 34px rgb(0 0 0 / 42%) !important; } }',
         '.launcher:focus-visible { outline-color: #f25a54 !important; }',
-        '.panel { border: 1px solid #303438 !important; border-radius: 8px !important; box-shadow: 0 18px 58px rgb(0 0 0 / 52%) !important; }',
+        '.panel { border: 0 !important; background: transparent !important; box-shadow: none !important; }',
         'iframe { border-radius: 7px !important; }',
         '@media (max-width: 760px) {',
         '  :host { right: 0 !important; bottom: 0 !important; width: 0 !important; height: 0 !important; }',
