@@ -453,6 +453,7 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
 
     setReady(false)
     let widgetShadow: ShadowRoot | null = null
+    let cleanupOrigin = () => {}
     const originalAttachShadow = Element.prototype.attachShadow
     const patchedAttachShadow: typeof Element.prototype.attachShadow = function (this: Element, init) {
       const shadow = originalAttachShadow.call(this, init)
@@ -485,11 +486,13 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
 
       const style = document.createElement('style')
       style.textContent = [
-        '.launcher { width: 54px !important; height: 54px !important; border: 1px solid #f25a54 !important; border-radius: 7px !important; background: #e6322b !important; box-shadow: 0 10px 30px rgb(0 0 0 / 36%) !important; }',
+        '.launcher { width: 54px !important; height: 54px !important; border: 0 !important; border-radius: 7px !important; background: #e6322b !important; box-shadow: 0 10px 30px rgb(0 0 0 / 36%) !important; }',
         ':host, .launcher, .launcher * { -webkit-tap-highlight-color: transparent !important; }',
         '@media (hover: hover) { .launcher:hover { background: #c92823 !important; box-shadow: 0 12px 34px rgb(0 0 0 / 42%) !important; } }',
         '.launcher:focus-visible { outline-color: #f25a54 !important; }',
-        '.panel { border: 0 !important; background: transparent !important; box-shadow: none !important; }',
+        '.panel { border: 0 !important; background: transparent !important; box-shadow: none !important; transform-origin: center !important; transform: translate(var(--chat-x, 0px), var(--chat-y, 0px)) scale(var(--chat-scale-x, .15), var(--chat-scale-y, .15)) !important; transition: opacity 300ms cubic-bezier(.16,1,.3,1), transform 300ms cubic-bezier(.16,1,.3,1) !important; }',
+        '.panel[data-open="true"] { transform: translate(0, 0) scale(1) !important; }',
+        '@media (prefers-reduced-motion: reduce) { .panel { transition-duration: 0.01ms !important; } }',
         'iframe { border-radius: 7px !important; }',
         '@media (max-width: 760px) {',
         '  :host { right: 0 !important; bottom: 0 !important; width: 0 !important; height: 0 !important; }',
@@ -498,6 +501,34 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
         '}',
       ].join('\n')
       shadow.append(style)
+      const panel = shadow.querySelector<HTMLElement>('.panel')
+      const updateOrigin = () => {
+        if (!panel || !launcher) return
+        const source = window.matchMedia('(max-width: 760px)').matches ? buttonRef.current : launcher
+        if (!source) return
+        const from = source.getBoundingClientRect()
+        // Measure the untransformed panel without interrupting its visible transition.
+        const width = panel.offsetWidth
+        const height = panel.offsetHeight
+        const hostRect = host?.getBoundingClientRect()
+        if (!width || !height || !hostRect) return
+        const mobile = window.matchMedia('(max-width: 760px)').matches
+        const left = mobile ? window.innerWidth - 12 - width : hostRect.right - width
+        const top = mobile ? 80 : hostRect.bottom - 72 - height
+        panel.style.setProperty('--chat-x', `${from.left + from.width / 2 - left - width / 2}px`)
+        panel.style.setProperty('--chat-y', `${from.top + from.height / 2 - top - height / 2}px`)
+        panel.style.setProperty('--chat-scale-x', String(from.width / width))
+        panel.style.setProperty('--chat-scale-y', String(from.height / height))
+      }
+      updateOrigin()
+      launcher?.addEventListener('click', updateOrigin, true)
+      buttonRef.current?.addEventListener('click', updateOrigin, true)
+      window.addEventListener('resize', updateOrigin)
+      cleanupOrigin = () => {
+        launcher?.removeEventListener('click', updateOrigin, true)
+        buttonRef.current?.removeEventListener('click', updateOrigin, true)
+        window.removeEventListener('resize', updateOrigin)
+      }
       setReady(true)
     }
 
@@ -520,6 +551,7 @@ function CustomerServiceWidget({ enabled }: { enabled: boolean }) {
 
     return () => {
       button?.removeEventListener('click', trigger)
+      cleanupOrigin()
       restoreAttachShadow()
       script.remove()
       document.querySelector('lime-chat-widget-host[data-widget-id="lcw_2104dc5cd4cd3d7fd9827e16e095d2cc"]')?.remove()
