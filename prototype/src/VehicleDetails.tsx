@@ -138,7 +138,12 @@ export default function VehicleDetails({car,onClose,onCalculator,onShare,copied=
      </button>
     </>}
    </div>
-   {photos.length > 1 && <div className="vehicle-gallery-dots">{photos.map((photo,position)=><button key={photo.id} type="button" aria-label={t('预览照片 {number}',{number:position+1})} aria-current={index===position?'true':undefined} onClick={()=>changePhoto(position,position>index?1:-1)} />)}</div>}
+   {photos.length > 1 && <div className="vehicle-gallery-dots">{Array.from({length:Math.min(5,photos.length)},(_,position)=>{
+    const last=Math.min(5,photos.length)-1
+    const target=Math.round(position*(photos.length-1)/last)
+    const active=Math.round(index*last/(photos.length-1))===position
+    return <button key={position} type="button" aria-label={t('预览照片 {number}',{number:target+1})} aria-current={active?'true':undefined} onClick={()=>changePhoto(target,target>index?1:-1)} />
+   })}</div>}
    {photos.length > 1 && <div className="vehicle-gallery-controls">
     <div className="vehicle-gallery-thumbnails" ref={thumbnails}>
      {photos.map((photo,position) => <button type="button" key={photo.id}
