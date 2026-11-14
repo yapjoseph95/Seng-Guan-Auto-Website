@@ -1038,6 +1038,28 @@ function InventoryPage({ variant }: { variant: Direction }) {
   }, [])
   const filterPanel = useRef<HTMLDivElement>(null)
   const filterToggle = useRef<HTMLButtonElement>(null)
+  useLayoutEffect(() => {
+    const panel = filterPanel.current
+    const toggle = filterToggle.current
+    if (!panel || !toggle || (!advancedOpen && panel.hidden)) return
+    const wasHidden = panel.hidden
+    panel.hidden = false
+    gsap.killTweensOf(panel)
+    const current = { x: gsap.getProperty(panel, 'x'), y: gsap.getProperty(panel, 'y'), scaleX: gsap.getProperty(panel, 'scaleX'), scaleY: gsap.getProperty(panel, 'scaleY'), opacity: gsap.getProperty(panel, 'opacity') }
+    gsap.set(panel, { clearProps: 'transform,opacity' })
+    const from = toggle.getBoundingClientRect()
+    const to = panel.getBoundingClientRect()
+    const origin = { x: from.left + from.width / 2 - to.left - to.width / 2, y: from.top + from.height / 2 - to.top - to.height / 2, scaleX: from.width / to.width, scaleY: from.height / to.height, opacity: 0 }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      panel.hidden = !advancedOpen
+      return
+    }
+    gsap.set(panel, wasHidden ? origin : current)
+    gsap.to(panel, advancedOpen
+      ? { x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 1, duration: .3, ease: 'power3.out', clearProps: 'transform,opacity' }
+      : { ...origin, duration: .3, ease: 'power3.out', onComplete: () => { panel.hidden = true; gsap.set(panel, { clearProps: 'transform,opacity' }) } })
+    return () => { gsap.killTweensOf(panel) }
+  }, [advancedOpen])
   useEffect(() => {
     if (!advancedOpen) return
     const closeOutside = (event: Event) => {
@@ -1131,7 +1153,7 @@ function InventoryPage({ variant }: { variant: Direction }) {
               {activeFilters > 0 && <span className="inventory-filter-count">{activeFilters}</span>}
               <ChevronDown size={12} aria-hidden="true" />
             </button>
-            <div ref={filterPanel} id="inventory-refine" className="inventory-refine" hidden={!advancedOpen}>
+            <div ref={filterPanel} id="inventory-refine" className="inventory-refine" hidden inert={!advancedOpen} aria-hidden={!advancedOpen}>
               <label><span id="inventory-make-label">{t("Filter by make")}</span>
                 <select aria-labelledby="inventory-make-label" value={make} onChange={event => setMake(event.target.value)}>
                   <option value="">{t("All makes")}</option>
