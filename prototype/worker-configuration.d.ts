@@ -5,6 +5,8 @@ interface __BaseEnv_Env {
 	DB: D1Database;
 	IMAGE_RESIZER: Fetcher;
 	ADMIN_EMAILS: string;
+	RESEND_API_KEY?: string;
+	RESEND_WEBHOOK_SECRET?: string;
 	SUPABASE_URL: string;
 	SUPABASE_ANON_KEY: string;
 }

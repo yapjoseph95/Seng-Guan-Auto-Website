@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeft, ArrowRight, LoaderCircle, Mail, ShieldCheck } from 'lucide-react'
 import logo from './assets/logo-dark.svg'
 import Admin from './Admin'
+import AdminMail from './AdminMail'
 import './AdminLogin.css'
 async function auth(path:string,data?:unknown) {
  const r=await fetch('/api/auth/'+path,{method:data===undefined?'GET':'POST',credentials:'same-origin',headers:data===undefined?{}:{'Content-Type':'application/json'},body:data===undefined?undefined:JSON.stringify(data)})
@@ -32,7 +33,7 @@ export default function AdminLogin() {
  useEffect(()=>{if(!cooldown)return;const timer=window.setTimeout(()=>setCooldown(s=>s-1),1000);return()=>window.clearTimeout(timer)},[cooldown])
  const send=async()=>{setBusy(true);setError('');try{await auth('request-code',{email:email.trim().toLowerCase()});setStep('code');setCode('');setCooldown(60)}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
  const submit=async(e:FormEvent)=>{e.preventDefault();if(step==='email'){await send();return}setBusy(true);setError('');try{await auth('verify-code',{email:email.trim().toLowerCase(),code});setSignedIn(true)}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
- if(signedIn)return <Admin/>
+ if(signedIn)return new URLSearchParams(window.location.search).get('section')==='mail'?<AdminMail/>:<Admin/>
  return <main className="admin-login">
   <LanguageSelect />
   <a href="/" className="login-back"><ArrowLeft size={16}/>{t("返回官网")}</a>

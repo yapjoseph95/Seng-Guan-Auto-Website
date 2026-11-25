@@ -1,5 +1,6 @@
 // Source messages are retained as keys so copy remains readable at the call site.
 export const translations: Readonly<Record<string, readonly [en: string, ms: string, zh: string]>> = {
+  "Mail center": ["Mail center","Pusat e-mel","邮件中心"],
   "Before we chat": ["Before we chat","Sebelum kita berbual","开始聊天前"],
   "Your name": ["Your name","Nama anda","您的姓名"],
   "Continue to WhatsApp": ["Continue to WhatsApp","Teruskan ke WhatsApp","继续前往 WhatsApp"],

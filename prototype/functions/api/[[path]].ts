@@ -1,4 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
+import { mailApi, receiveMail } from '../../server/mail'
 import { canonicalVehicleMake, officialVehicleMake } from '../../shared/vehicle-makes'
 import { isMileageBand } from '../../shared/vehicle-mileage'
 import { administrator, authentication, limitedText, HttpError, json, type Env } from '../../server/auth'
@@ -410,6 +411,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
  try {
   const url = new URL(request.url)
   const parts = url.pathname.replace(/^\/api\//,'').split('/').filter(Boolean)
+  if(parts[0] === 'mail-webhook' && parts.length===1) return await receiveMail(request,env)
   if(parts[0] === 'auth') return await authentication(request,env,parts[1]||'')
   const admin = parts[0] === 'admin'
   let email = ''
@@ -418,6 +420,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    parts.shift()
    if (!['GET','HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site')) throw new HttpError(403,'Please make changes from the admin dashboard.')
   } else if (!['GET','HEAD'].includes(request.method)) throw new HttpError(405,'Method not allowed.')
+  if(admin && parts[0]==='mail') return await mailApi(request,env,parts.slice(1))
   if (admin && parts[0] === 'vehicle-template' && parts.length === 1) {
   if (request.method === 'GET') {
    const row = await env.DB.prepare('SELECT content FROM vehicle_template_settings WHERE id=1').first<{content:string}>()
