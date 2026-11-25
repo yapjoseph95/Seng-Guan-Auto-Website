@@ -27,3 +27,13 @@ First version sends plain-text messages to one recipient, displays received HTML
 `pnpm build`, `pnpm check:server`, `pnpm test:api`, `pnpm test:mail`.
 
 Manual checks: phone/desktop mail layout; reply sender/recipient; notification settings; unauthorized detail/attachment rejection; signed webhook and repeated delivery; failed second notification followed by retry; external round-trip with both sales/admin; notification deep link when signed in and after OTP. Local browser fixture confirmed sanitizer output made zero tracking-image/iframe requests. Fixtures contain synthetic data and are removed before commit.
+
+## Activation record — 2026-11-25
+
+Production main mail center is active. Receiving webhook ID: `4253cc22-2abc-40cc-8f9e-4e22c61d7c65`. Dedicated key name: `Seng Guan Auto mail center production`. Both key values are encrypted Pages secrets; the earlier unused key was revoked.
+
+Root MX is `10 receive-apne1.forge.rmta.net`. Previous primary MX was `33 route1.mx.cloudflare.net`; fallbacks were `53 route2.mx.cloudflare.net` and `75 route3.mx.cloudflare.net`. They have been replaced/removed. Pre-existing info/support/admin forwarding rules were all Disabled, and catch-all was Disabled/Drop. They remain recorded in Cloudflare but no longer handle domain mail. No active custom aliases beyond sales/admin were migrated.
+
+R2 Public Access was checked Disabled before actual receipt. Actual sales/admin self-addressed setup messages reached Resend and the backend inbox. Both default Hotmail recipients showed Delivered for each test, and notification content contained the matching authenticated deep link. Delivered means recipient mail server acceptance, not proof of inbox placement or reading.
+
+Unsigned webhook and unauthenticated settings requests returned 401 in production. Build, server checks, 12 existing API tests and 8 mail tests passed. HTML resource blocking and phone layout were tested with synthetic browser fixtures. Real-attachment handling and a complete logged-out OTP round trip to an inbound deep link have not been tested end to end; the login code preserves the query and unauthorized requests are rejected.
