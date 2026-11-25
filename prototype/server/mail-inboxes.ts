@@ -20,7 +20,7 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   const value=await input(request),box=mailAddress(value.from),to=addressList(value.to,true),cc=addressList(value.cc),bcc=addressList(value.bcc)
   const subject=typeof value.subject==='string'?value.subject.trim():'',text=typeof value.text==='string'?value.text:''
   const id=typeof value.id==='string'?value.id:''
-  if(!/^out-[0-9a-f-]{36}$/.test(id)||!subject||subject.length>250||/[\r\n]/.test(subject)||!text.trim()||text.length>50000||to.length+cc.length+bcc.length>50)throw new HttpError(400,'Check recipients, subject and message.')
+  if(!/^out-[0-9a-f-]{36}$/.test(id)||!subject||subject.length>250||/[\r\n]/.test(subject)||(!text.trim()&&!value.forwardId)||text.length>50000||to.length+cc.length+bcc.length>50)throw new HttpError(400,'Check recipients, subject and message.')
   const reply=typeof value.replyId==='string'&&value.replyId?parseInboxRef(value.replyId):null,forward=typeof value.forwardId==='string'&&value.forwardId?parseInboxRef(value.forwardId):null
   if(reply&&forward||(reply||forward)&&((reply||forward)!.box!==box||!(reply||forward)!.email))throw new HttpError(400,'The source mailbox does not match.')
   const payload=JSON.stringify({box,to,cc,bcc,subject,text,reply,forward})

@@ -38,6 +38,7 @@ globalThis.fetch=(async(input:any,init:any)=>{
  if(url==='https://files.example.com/final')return new Response(new Uint8Array([7,8,9]))
  if(url.startsWith('https://api.resend.com/inboxes/')){
   const path=url.slice('https://api.resend.com'.length)
+  if(path==='/inboxes/cccccccc-cccc-4ccc-cccc-cccccccccccc')return Response.json({email_address:'admin@sengguanauto.com.my'})
   if(path==='/inboxes/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa')return Response.json({email_address:'sales@sengguanauto.com.my'})
   if(path.includes('/emails/bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')&&!path.endsWith('/forward'))return Response.json(nativeEmail)
   if(path.includes('/emails?'))return Response.json({data:[nativeEmail,{...nativeEmail,id:'cccccccc-cccc-4ccc-cccc-cccccccccccc',text:'Second message'}],has_more:false})
@@ -202,4 +203,15 @@ test('native attachment download works without a backup row and rejects unrelate
  assert.deepEqual([...new Uint8Array(await response.arrayBuffer())],[7,8,9])
  await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/'+ref+'/attachments/other'),env,['conversations',ref,'attachments','other']))
  nativeEmail.attachments=[]
+})
+
+test('a second native inbox delivery preserves attempted notification links and adds only its matching notice',async()=>{
+ const row=db.prepare('SELECT * FROM mail_messages WHERE id=?').get(nativeEmail.id) as any
+ const body=JSON.parse(String(storage.get(row.content_key)));delete body.inbox_ref;storage.set(row.content_key,JSON.stringify(body))
+ const raw=JSON.stringify({type:'inbox.email.received',data:{inbox_id:'cccccccc-cccc-4ccc-cccc-cccccccccccc',thread_id:nativeThread,email_id:nativeEmail.id}})
+ const before=sends.length;await receiveMail(new Request('https://sengguanauto.com.my/api/mail-webhook',{method:'POST',headers:await signed(raw),body:raw}),env)
+ assert.equal(sends.length,before+1);assert.deepEqual(sends.at(-1)?.body.to,['sengguanauto.bos@hotmail.com'])
+ assert.ok(sends.at(-1)?.body.text.includes('message='+nativeEmail.id));assert.equal(JSON.parse(String(storage.get(row.content_key))).inbox_ref,undefined)
+ const updated=db.prepare('SELECT mailbox FROM mail_messages WHERE id=?').get(nativeEmail.id) as any;assert.equal(updated.mailbox,'sales@sengguanauto.com.my,admin@sengguanauto.com.my')
+ await receiveMail(new Request('https://sengguanauto.com.my/api/mail-webhook',{method:'POST',headers:await signed(raw),body:raw}),env);assert.equal(sends.length,before+1)
 })

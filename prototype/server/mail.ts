@@ -110,7 +110,22 @@ export async function receiveMail(request:Request,env:Env) {
  const id=event.data?.email_id
  if(typeof id!=='string'||!/^[a-zA-Z0-9-]{1,100}$/.test(id))throw new HttpError(400,'Invalid email identifier.')
  const existing=await env.DB.prepare('SELECT * FROM mail_messages WHERE id=?').bind(id).first<Message>()
- if(existing){await notifyMail(env,id);if(existing.status==='attachments_pending')await storeAttachments(env,existing);return json({ok:true})}
+ if(existing){
+  if(event.type?.startsWith('inbox.')){
+   const inboxId=event.data?.inbox_id,thread=event.data?.thread_id
+   if(!inboxId||!thread||! /^[0-9a-f-]{36}$/i.test(inboxId)||! /^[0-9a-f-]{36}$/i.test(thread))throw new HttpError(400,'Invalid inbox event.')
+   const inbox=await resend<{email_address:string}>(env,'/inboxes/'+inboxId)
+   if(!mailboxes.includes(inbox.email_address as typeof mailboxes[number]))return json({ok:true,ignored:true})
+   const {inboxRef}=await import('./mail-inboxes');const saved=await content(env,existing)
+   // An attempted notice must retain its original URL under its fixed idempotency key.
+   const attempted=await env.DB.prepare('SELECT message_id FROM mail_notifications WHERE message_id=? AND first_attempt_at IS NOT NULL LIMIT 1').bind(id).first()
+   if(!saved.inbox_ref&&!attempted){saved.inbox_ref=inboxRef(inbox.email_address,thread);await env.PHOTOS.put(existing.content_key,JSON.stringify(saved))}
+   await env.DB.prepare("UPDATE mail_messages SET mailbox=CASE WHEN instr(','||mailbox||',',','||?||',')>0 THEN mailbox ELSE mailbox||','||? END WHERE id=?").bind(inbox.email_address,inbox.email_address,id).run()
+   const prefs=await settings(env)
+   if(prefs.enabled&&event.type==='inbox.email.received')await env.DB.batch(prefs.routes[inbox.email_address].map(to=>env.DB.prepare('INSERT OR IGNORE INTO mail_notifications(message_id,recipient) VALUES(?,?)').bind(id,to)))
+  }
+  await notifyMail(env,id);if(existing.status==='attachments_pending')await storeAttachments(env,existing);return json({ok:true})
+ }
  let nativeRef:string|undefined;let direction:'inbound'|'outbound'='inbound'
  let nativeReceived:unknown
  if(event.type?.startsWith('inbox.')){
