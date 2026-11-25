@@ -18,18 +18,41 @@ import {onRequest} from '../functions/api/[[path]].ts'
 import {mailApi,receiveMail} from '../server/mail.ts'
 const db=new DatabaseSync(':memory:')
 db.exec(readFileSync(new URL('../migrations/0016_mail_center.sql',import.meta.url),'utf8'))
+db.exec(readFileSync(new URL('../migrations/0017_mail_features.sql',import.meta.url),'utf8'))
+db.exec(readFileSync(new URL('../migrations/0018_resend_inboxes.sql',import.meta.url),'utf8'))
 class Stmt{constructor(public sql:string,public params:unknown[]=[]){}bind(...p:unknown[]){return new Stmt(this.sql,p)}async first(){return db.prepare(this.sql).get(...this.params as any[])||null}async all(){return {results:db.prepare(this.sql).all(...this.params as any[])}}async run(){return {meta:{changes:Number(db.prepare(this.sql).run(...this.params as any[]).changes)}}}}
 const storage=new Map<string,string|Uint8Array>()
-const env={DB:{prepare:(s:string)=>new Stmt(s),batch:async(stmts:Stmt[])=>{db.exec('BEGIN');try{const result=[];for(const s of stmts)result.push(await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}},PHOTOS:{put:async(k:string,v:string|Uint8Array,opts?:any)=>{if(opts?.onlyIf&&storage.has(k))return null;storage.set(k,v);return {}},get:async(k:string)=>{const v=storage.get(k);return v?{json:async()=>JSON.parse(String(v)),body:v}:null}},RESEND_API_KEY:'test',RESEND_WEBHOOK_SECRET:secret,SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'test',ADMIN_EMAILS:'owner@example.com'} as any
+const env={DB:{prepare:(s:string)=>new Stmt(s),batch:async(stmts:Stmt[])=>{db.exec('BEGIN');try{const result=[];for(const s of stmts)result.push(await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}},PHOTOS:{head:async(k:string)=>{const v=storage.get(k);return v?{size:typeof v==='string'?new TextEncoder().encode(v).length:v.length}:null},put:async(k:string,v:string|Uint8Array,opts?:any)=>{if(opts?.onlyIf&&storage.has(k))return null;storage.set(k,v);return {}},get:async(k:string)=>{const v=storage.get(k);return v?{json:async()=>JSON.parse(String(v)),body:v,arrayBuffer:async()=>typeof v==='string'?new TextEncoder().encode(v).buffer:(v as Uint8Array).slice().buffer}:null}},RESEND_API_KEY:'test',RESEND_WEBHOOK_SECRET:secret,SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'test',ADMIN_EMAILS:'owner@example.com'} as any
 const originalFetch=globalThis.fetch
 const sends:{key:string;body:any}[]=[]
 let failSecond=false
+let failDownload=false
 const mailId='12345678-1234-1234-1234-123456789abc'
+const nativeThread='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+const nativeEmail={id:'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',direction:'inbound',from:'customer@example.com',to:['sales@sengguanauto.com.my'],cc:[],bcc:[],reply_to:[],subject:'Thread',text:'First message',html:null,attachments:[],read:false,received_at:'2026-11-25T10:00:00Z'}
+let nativeDrafts=0;const nativeSends:any[]=[]
 let fetched=0
 globalThis.fetch=(async(input:any,init:any)=>{
  const url=String(input)
+ if(url==='https://api.resend.com/emails/receiving/bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb/attachments/native-file')return Response.json({download_url:'https://files.example.com/final'})
+ if(url==='https://files.example.com/final')return new Response(new Uint8Array([7,8,9]))
+ if(url.startsWith('https://api.resend.com/inboxes/')){
+  const path=url.slice('https://api.resend.com'.length)
+  if(path==='/inboxes/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa')return Response.json({email_address:'sales@sengguanauto.com.my'})
+  if(path.includes('/emails/bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')&&!path.endsWith('/forward'))return Response.json(nativeEmail)
+  if(path.includes('/emails?'))return Response.json({data:[nativeEmail,{...nativeEmail,id:'cccccccc-cccc-4ccc-cccc-cccccccccccc',text:'Second message'}],has_more:false})
+  if(path.includes('/threads?'))return Response.json({data:[{id:nativeThread,subject:'Thread',from:'customer@example.com',to:['sales@sengguanauto.com.my'],read:false,received_at:'2026-11-25T10:00:00Z',email_count:2}],has_more:true})
+  if(init?.method==='PATCH')return Response.json({ok:true})
+  if(path.endsWith('/drafts')){nativeDrafts++;return Response.json({id:'dddddddd-dddd-4ddd-dddd-dddddddddddd'})}
+  if(path.endsWith('/send')||path.endsWith('/forward')){nativeSends.push({path,body:JSON.parse(init.body),key:init.headers['Idempotency-Key']});return Response.json({id:'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee'})}
+ }
+
  if(url==='https://test.supabase.co/auth/v1/user')return Response.json({email:'owner@example.com',email_confirmed_at:'2026-11-01'})
- if(url==='https://api.resend.com/emails/receiving/'+mailId){fetched++;return Response.json({id:mailId,from:'Customer <customer@example.com>',to:['sales@sengguanauto.com.my'],subject:'A question',created_at:'2026-11-25T10:00:00Z',text:'Hello',html:null,message_id:'<customer-message@example.com>',attachments:[]})}
+ if(url==='https://api.resend.com/emails/receiving/'+mailId){fetched++;return Response.json({id:mailId,from:'Customer <customer@example.com>',to:['sales@sengguanauto.com.my','admin@sengguanauto.com.my'],subject:'A question',created_at:'2026-11-25T10:00:00Z',text:'Hello',html:null,message_id:'<customer-message@example.com>',attachments:[]})}
+ if(url==='https://api.resend.com/emails/receiving/attachment-mail')return Response.json({id:'attachment-mail',from:'customer@example.com',to:['sales@sengguanauto.com.my'],subject:'With image',created_at:'2026-11-25T10:00:00Z',text:'Image attached',attachments:[{id:'image',filename:'photo.jpg',content_type:'image/jpeg',size:4}]})
+ if(url==='https://api.resend.com/emails/receiving/attachment-mail/attachments/image')return Response.json({download_url:'https://files.resend.com/download',size:4})
+ if(url==='https://files.resend.com/download'){if(failDownload)throw new Error('simulated download failure');return new Response(null,{status:302,headers:{Location:'https://files.resend.com/final'}})}
+ if(url==='https://files.resend.com/final')return new Response(new Uint8Array([1,2,3,4]))
  if(url==='https://api.resend.com/emails'){const body=JSON.parse(init.body);if(failSecond&&body.to[0]==='sengguanauto.bos@hotmail.com')return new Response('unavailable',{status:503});sends.push({key:new Headers(init.headers).get('Idempotency-Key')!,body});return Response.json({id:'provider-id'})}
  throw new Error('Unexpected request '+url)
 }) as typeof fetch
@@ -73,9 +96,10 @@ test('concurrent payload collisions leave a consistent retryable outbox',async()
  assert.equal(results.filter(r=>r.status==='fulfilled').length,1)
  const row=db.prepare('SELECT * FROM mail_messages WHERE id=?').get(id) as any
  const saved=JSON.parse(String(storage.get(row.content_key)))
- assert.equal(row.subject,saved.subject)
+ const winning=JSON.parse(saved.send_payload)
+ assert.equal(row.subject,winning.subject)
  assert.equal(row.status,'sent')
- await send({...payload,text:saved.text,subject:saved.subject})
+ await send({...payload,text:winning.text,subject:winning.subject})
 })
 test('long valid notification targets use bounded idempotency keys',async()=>{
  const target='a'.repeat(64)+'@'+'b'.repeat(60)+'.'+'c'.repeat(60)+'.example.com'
@@ -83,4 +107,99 @@ test('long valid notification targets use bounded idempotency keys',async()=>{
  const {notifyMail}=await import('../server/mail.ts');await notifyMail(env,mailId)
  assert(sends.at(-1)!.key.length<=256)
 })
+test('failed attachment download still preserves the email and retry follows HTTPS redirects',async()=>{
+ const raw=JSON.stringify({type:'email.received',data:{email_id:'attachment-mail'}})
+ const run=async()=>receiveMail(new Request('https://sengguanauto.com.my/api/mail-webhook',{method:'POST',body:raw,headers:await signed(raw)}),env)
+ failDownload=true;await assert.rejects(run)
+ const pending=db.prepare('SELECT * FROM mail_messages WHERE id=?').get('attachment-mail') as any
+ assert(pending,'email must already be visible even when attachment fetch fails')
+ assert.equal(pending.status,'attachments_pending')
+ failDownload=false;await run()
+ const row=db.prepare('SELECT * FROM mail_messages WHERE id=?').get('attachment-mail') as any
+ assert.equal(row.status,'received')
+ const attachment=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/attachment-mail/attachments/image'),env,['attachment-mail','attachments','image'])
+ assert.deepEqual([...new Uint8Array(await attachment.arrayBuffer())],[1,2,3,4])
+})
+test('CC and BCC are validated, saved and passed to Resend',async()=>{
+ const payload={id:'out-32345678-1234-1234-1234-123456789abc',from:'sales@sengguanauto.com.my',to:'one@example.com, two@example.com',cc:'copy@example.com',bcc:'private@example.com',subject:'Copies',text:'Hi'}
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),env,['send'],'owner@example.com')
+ assert.deepEqual(sends.at(-1)?.body.to,['one@example.com','two@example.com'])
+ assert.deepEqual(sends.at(-1)?.body.cc,['copy@example.com']);assert.deepEqual(sends.at(-1)?.body.bcc,['private@example.com'])
+ const row=db.prepare('SELECT cc,bcc FROM mail_messages WHERE id=?').get(payload.id) as any
+ assert.deepEqual(JSON.parse(row.bcc),['private@example.com'])
+ const bad={...payload,id:'out-42345678-1234-1234-1234-123456789abc',cc:'bad\r\nBcc: attacker@example.com'}
+ await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bad)}),env,['send']))
+})
+test('history suggestions are scoped to the authenticated administrator',async()=>{
+ const request=new Request('https://sengguanauto.com.my/api/admin/mail/history')
+ const own=await (await mailApi(request,env,['history'],'owner@example.com')).json() as any
+ assert(own.addresses.includes('copy@example.com'))
+ const other=await (await mailApi(request,env,['history'],'other@example.com')).json() as any
+ assert.deepEqual(other.addresses,[])
+})
+test('sales mail only notifies app and forwarding includes the stored original attachment',async()=>{
+ const notificationTargets=db.prepare('SELECT recipient FROM mail_notifications WHERE message_id=?').all('attachment-mail') as any[]
+ assert.deepEqual(notificationTargets.map(r=>r.recipient),['sengguanauto.app@hotmail.com'])
+ const payload={id:'out-52345678-1234-1234-1234-123456789abc',from:'sales@sengguanauto.com.my',to:'forward@example.com',subject:'Fwd: With image',text:'Forwarded message',forwardId:'attachment-mail'}
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),env,['send'],'owner@example.com')
+ assert.deepEqual(sends.at(-1)?.body.attachments,[{filename:'photo.jpg',content:'AQIDBA=='}])
+})
+test('admin-only mail creates only the bos notification task',async()=>{
+ const routes=(await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/settings'),env,['settings'])).json() as any).routes
+ assert.deepEqual(routes['admin@sengguanauto.com.my'],['sengguanauto.bos@hotmail.com'])
+ assert.deepEqual(routes['sales@sengguanauto.com.my'],['sengguanauto.app@hotmail.com'])
+})
+test('address suggestions filter history and replace only the current token',async()=>{
+ const {matchingHistory,insertHistoryAddress}=await import('../shared/mail.ts')
+ assert.deepEqual(matchingHistory(['one@example.com','two@example.com'],'one@example.com, tw'),['two@example.com'])
+ assert.deepEqual(matchingHistory(['one@example.com','two@example.com'],'one@example.com, '),['two@example.com'])
+ assert.equal(insertHistoryAddress('one@example.com, tw','two@example.com'),'one@example.com, two@example.com')
+})
 test.after(()=>{globalThis.fetch=originalFetch;db.close()})
+
+test('legacy mail details expose CC and BCC as arrays',async()=>{
+ const row=db.prepare('SELECT * FROM mail_messages WHERE id=?').get(mailId) as any
+ const stored=JSON.parse(String(storage.get(row.content_key)));delete stored.cc;delete stored.bcc;storage.set(row.content_key,JSON.stringify(stored))
+ const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/'+mailId),env,[mailId]);const detail=await response.json() as any
+ assert.deepEqual(detail.cc,[]);assert.deepEqual(detail.bcc,[])
+})
+
+test('a stored attachment is downloadable even if another attachment remains unavailable',async()=>{
+ const row=db.prepare('SELECT * FROM mail_messages WHERE id=?').get(mailId) as any
+ const data=JSON.parse(String(storage.get(row.content_key)));data.attachments=[{id:'ready',filename:'ready.jpg',content_type:'image/jpeg',size:4},{id:'missing',filename:'missing.jpg',content_type:'image/jpeg',size:4}];storage.set(row.content_key,JSON.stringify(data));storage.set('mail/'+mailId+'/attachments/ready',new Uint8Array([1,2,3,4]))
+ failDownload=true
+ try{const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/'+mailId+'/attachments/ready'),env,[mailId,'attachments','ready']);assert.deepEqual([...new Uint8Array(await response.arrayBuffer())],[1,2,3,4])}finally{failDownload=false}
+})
+
+test('native inbox adapter allowlists mailboxes and paginates threaded messages',async()=>{
+ const list=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?mailbox=sales@sengguanauto.com.my'),env,['conversations']);const value=await list.json() as any
+ assert.equal(value.messages[0].id,'ib~sales~'+nativeThread);assert.equal(value.next,nativeThread);assert.equal(value.hasMore,true)
+ const detail=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/ib~sales~'+nativeThread),env,['conversations','ib~sales~'+nativeThread]);const data=await detail.json() as any
+ assert.equal(data.emails.length,2);assert.equal(data.emails[1].text,'Second message');assert.ok(data.read_at)
+ await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?mailbox=other@example.com'),env,['conversations']))
+})
+test('native sending retries one saved draft and rejects changed payload; forwarding uses native endpoint',async()=>{
+ const payload={id:'out-ffffffff-ffff-4fff-ffff-ffffffffffff',from:'sales@sengguanauto.com.my',to:'customer@example.com',cc:'copy@example.com',bcc:'hidden@example.com',subject:'Hello',text:'Hi'}
+ const send=(p:any)=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}),env,['conversations','send'],'owner@example.com')
+ const before=nativeDrafts;await send(payload);await send(payload);assert.equal(nativeDrafts,before+1);assert.equal(nativeSends.at(-1).key,'mail-inbox/'+payload.id)
+ await assert.rejects(()=>send({...payload,text:'changed'}))
+ await send({...payload,id:'out-99999999-9999-4999-9999-999999999999',forwardId:'ib~sales~'+nativeThread+'~'+nativeEmail.id})
+ assert.ok(nativeSends.at(-1).path.endsWith('/forward'));assert.deepEqual(nativeSends.at(-1).body.bcc,['hidden@example.com'])
+ await assert.rejects(()=>send({...payload,id:'out-88888888-8888-4888-8888-888888888888',replyId:'ib~admin~'+nativeThread+'~'+nativeEmail.id}))
+})
+test('signed native receipt preserves private backup and sends only sales notification with thread link',async()=>{
+ const raw=JSON.stringify({type:'inbox.email.received',data:{inbox_id:nativeThread,thread_id:nativeThread,email_id:nativeEmail.id}})
+ await receiveMail(new Request('https://sengguanauto.com.my/api/mail-webhook',{method:'POST',headers:await signed(raw),body:raw}),env)
+ const row=db.prepare('SELECT * FROM mail_messages WHERE id=?').get(nativeEmail.id) as any;assert.equal(row.mailbox,'sales@sengguanauto.com.my')
+ const notice=sends.at(-1);assert.deepEqual(notice?.body.to,['sengguanauto.app@hotmail.com']);assert.ok(notice?.body.text.includes(encodeURIComponent('ib~sales~'+nativeThread)))
+ const before=sends.length;await receiveMail(new Request('https://sengguanauto.com.my/api/mail-webhook',{method:'POST',headers:await signed(raw),body:raw}),env);assert.equal(sends.length,before)
+})
+
+test('native attachment download works without a backup row and rejects unrelated attachment IDs',async()=>{
+ nativeEmail.attachments=[{id:'native-file',filename:'native.jpg',size:3}] as any
+ const ref='ib~sales~'+nativeThread+'~'+nativeEmail.id
+ const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/'+ref+'/attachments/native-file'),env,['conversations',ref,'attachments','native-file'])
+ assert.deepEqual([...new Uint8Array(await response.arrayBuffer())],[7,8,9])
+ await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/'+ref+'/attachments/other'),env,['conversations',ref,'attachments','other']))
+ nativeEmail.attachments=[]
+})

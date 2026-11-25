@@ -1,0 +1,10 @@
+import {useId,useState} from 'react'
+import {insertHistoryAddress,matchingHistory} from '../shared/mail'
+type Props={label:string;value:string;onChange:(value:string)=>void;history:string[];onRemember:(value:string)=>void;addresses?:boolean;disabled?:boolean;required?:boolean;maxLength?:number}
+export default function MailHistoryInput({label,value,onChange,history,onRemember,addresses=true,disabled,required,maxLength=4000}:Props){
+ const id=useId(),[open,setOpen]=useState(false),[active,setActive]=useState(-1)
+ const matches=addresses?matchingHistory(history,value):history.filter(item=>item!==value&&(!value||item.toLowerCase().includes(value.toLowerCase()))).slice(0,8)
+ const visible=open&&matches.length>0&&!disabled
+ const choose=(item:string)=>{const next=addresses?insertHistoryAddress(value,item):item;onChange(next);onRemember(next);setOpen(false);setActive(-1)}
+ return <div className="mail-history-field"><label htmlFor={id}>{label}</label><input id={id} role="combobox" aria-autocomplete="list" aria-expanded={visible} aria-controls={visible?id+'-options':undefined} aria-activedescendant={visible&&active>=0?id+'-option-'+active:undefined} autoComplete="off" inputMode={addresses?'email':'text'} spellCheck={!addresses} value={value} disabled={disabled} required={required} maxLength={maxLength} onFocus={()=>setOpen(true)} onChange={e=>{onChange(e.target.value);setOpen(true);setActive(-1)}} onBlur={()=>{setOpen(false);setActive(-1);onRemember(value)}} onKeyDown={e=>{if(e.key==='Escape'){setOpen(false);setActive(-1)}if(visible&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();setActive(current=>e.key==='ArrowDown'?(current+1)%matches.length:(current+matches.length-1)%matches.length)}if(visible&&e.key==='Enter'&&active>=0){e.preventDefault();choose(matches[active])}}}/>{visible&&<ul id={id+'-options'} role="listbox" aria-label={label} className="mail-history-options">{matches.map((item,index)=><li key={item} id={id+'-option-'+index} role="option" aria-selected={active===index} onMouseDown={e=>e.preventDefault()} onMouseEnter={()=>setActive(index)} onClick={()=>choose(item)}>{item}</li>)}</ul>}</div>
+}

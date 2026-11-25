@@ -37,3 +37,15 @@ Root MX is `10 receive-apne1.forge.rmta.net`. Previous primary MX was `33 route1
 R2 Public Access was checked Disabled before actual receipt. Actual sales/admin self-addressed setup messages reached Resend and the backend inbox. Both default Hotmail recipients showed Delivered for each test, and notification content contained the matching authenticated deep link. Delivered means recipient mail server acceptance, not proof of inbox placement or reading.
 
 Unsigned webhook and unauthenticated settings requests returned 401 in production. Build, server checks, 12 existing API tests and 8 mail tests passed. HTML resource blocking and phone layout were tested with synthetic browser fixtures. Real-attachment handling and a complete logged-out OTP round trip to an inbound deep link have not been tested end to end; the login code preserves the query and unauthorized requests are rejected.
+
+## Inboxes integration — 2026-11-25
+
+User approved native Inboxes including Anthropic classification. Sales/admin native inboxes created on existing verified domain; MX unchanged. Migration0017 adds CC/BCC, per-mailbox notification routes, owner-scoped history. Migration0018 saves native send payload/draft/provider IDs for safe retries. Both migrations applied through D1 console.
+
+Default mail UI uses authenticated native threads, Inbox/Sent/Archive/Spam, oldest-first conversation messages, CC/BCC and native forwarding. New messages/replies use saved provider drafts and stable send keys. Previous mail remains accessible through Previous emails; old deep links preserve archive mode. Historical Emails are not automatically imported into native Inboxes.
+
+Keep signed email.received plus inbox.email.received/inbox.email.sent events on existing webhook. Native events archive private bodies and attachments in D1/R2 and notify inbound only. Notification routes: sales→sengguanauto.app@hotmail.com; admin→sengguanauto.bos@hotmail.com. Links point to native threads. Attachments use independent R2 objects; failed files never hide body or block ready files. Native attachment access validates inbox/thread/email membership and does not depend on backup arrival.
+
+Resend publishes30-day standard data retention. Existing private archive remains; do not remove it as part of native integration. No inbox AI agent configured.
+
+Local verification:20 mail tests,12 vehicle API tests, production build and server typecheck passed. Live deployment and attachment replay validation to be recorded after rollout.

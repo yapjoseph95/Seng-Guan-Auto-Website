@@ -420,7 +420,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
    parts.shift()
    if (!['GET','HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site')) throw new HttpError(403,'Please make changes from the admin dashboard.')
   } else if (!['GET','HEAD'].includes(request.method)) throw new HttpError(405,'Method not allowed.')
-  if(admin && parts[0]==='mail') return await mailApi(request,env,parts.slice(1))
+  if(admin && parts[0]==='mail') return await mailApi(request,env,parts.slice(1),email)
   if (admin && parts[0] === 'vehicle-template' && parts.length === 1) {
   if (request.method === 'GET') {
    const row = await env.DB.prepare('SELECT content FROM vehicle_template_settings WHERE id=1').first<{content:string}>()

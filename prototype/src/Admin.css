@@ -534,3 +534,5 @@
  .admin-compact-row select.admin-compact-status[data-status] { text-align:left; text-align-last:left; padding:0 12px 0 8px; line-height:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
  .admin-compact-row select.admin-compact-status[data-status], .inventory-admin .admin-compact-row > .admin-compact-delete { height:27.2px; min-height:27.2px; align-self:start; }
 }
+
+.admin-header > div .admin-mail-link{width:44px;min-width:44px;padding:0;justify-content:center;color:inherit;text-decoration:none}
