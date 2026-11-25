@@ -51,3 +51,11 @@ Resend publishes30-day standard data retention. Existing private archive remains
 Local verification:20 mail tests,12 vehicle API tests, production build and server typecheck passed. Live deployment and attachment replay validation to be recorded after rollout.
 
 Live verification: main3064c0c deployed successfully (db45bd2d-8dea-4d7a-a35f-dd1a2c55dcd9). Native sales→admin message and admin reply succeeded in one conversation; follow-up recipient remained correct. CC address history selection verified. Failed legacy attachment event msg_3MasVrtowLLSLHOQSocKmPEWEbH replayed with200; IMG_20261125_171251.jpg downloaded successfully. Both native inbox events showed200.
+
+## Mail usability additions — 2026-11-25
+
+All mailboxes merges two native inboxes,30 conversations per page, preserving each provider stream on timestamp ties. Opaque cursors track the last consumed thread independently per mailbox. Unread rows use blue background/indicator and bold sender.
+
+Migration0019 stores separate shared plain-text signatures for sales/admin. Compose can include/exclude the chosen sender signature. Uploads are authenticated and owner-scoped in private R2; multipart input bounded to25 MB and20 files per send. New native draft/reply/forward and legacy archive sending pass uploaded attachments to Resend. Uploading blocks draft-changing navigation and late results are checked against draft ID. Empty upload lists preserve pre-feature send idempotency payloads.
+
+The foreground UI checks a D1 change token every5 seconds, synchronizes on focus, and quietly updates rows/current conversation. Hidden tabs pause checking; overlapping checks are suppressed. Draft text/attachments are preserved and the detail is not replaced during composition. Mailbox-updated notice is announced politely. Provider429 responses retry twice with bounded Retry-After delays.

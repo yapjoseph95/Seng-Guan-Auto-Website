@@ -20,9 +20,10 @@ const db=new DatabaseSync(':memory:')
 db.exec(readFileSync(new URL('../migrations/0016_mail_center.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0017_mail_features.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0018_resend_inboxes.sql',import.meta.url),'utf8'))
+db.exec(readFileSync(new URL('../migrations/0019_mail_signatures.sql',import.meta.url),'utf8'))
 class Stmt{constructor(public sql:string,public params:unknown[]=[]){}bind(...p:unknown[]){return new Stmt(this.sql,p)}async first(){return db.prepare(this.sql).get(...this.params as any[])||null}async all(){return {results:db.prepare(this.sql).all(...this.params as any[])}}async run(){return {meta:{changes:Number(db.prepare(this.sql).run(...this.params as any[]).changes)}}}}
 const storage=new Map<string,string|Uint8Array>()
-const env={DB:{prepare:(s:string)=>new Stmt(s),batch:async(stmts:Stmt[])=>{db.exec('BEGIN');try{const result=[];for(const s of stmts)result.push(await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}},PHOTOS:{head:async(k:string)=>{const v=storage.get(k);return v?{size:typeof v==='string'?new TextEncoder().encode(v).length:v.length}:null},put:async(k:string,v:string|Uint8Array,opts?:any)=>{if(opts?.onlyIf&&storage.has(k))return null;storage.set(k,v);return {}},get:async(k:string)=>{const v=storage.get(k);return v?{json:async()=>JSON.parse(String(v)),body:v,arrayBuffer:async()=>typeof v==='string'?new TextEncoder().encode(v).buffer:(v as Uint8Array).slice().buffer}:null}},RESEND_API_KEY:'test',RESEND_WEBHOOK_SECRET:secret,SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'test',ADMIN_EMAILS:'owner@example.com'} as any
+const env={DB:{prepare:(s:string)=>new Stmt(s),batch:async(stmts:Stmt[])=>{db.exec('BEGIN');try{const result=[];for(const s of stmts)result.push(await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}},PHOTOS:{head:async(k:string)=>{const v=storage.get(k);return v?{size:typeof v==='string'?new TextEncoder().encode(v).length:v.length}:null},put:async(k:string,v:string|Uint8Array|ArrayBuffer,opts?:any)=>{if(opts?.onlyIf&&storage.has(k))return null;storage.set(k,v instanceof ArrayBuffer?new Uint8Array(v):v);return {}},get:async(k:string)=>{const v=storage.get(k);return v?{json:async()=>JSON.parse(String(v)),body:v,arrayBuffer:async()=>typeof v==='string'?new TextEncoder().encode(v).buffer:(v as Uint8Array).slice().buffer}:null}},RESEND_API_KEY:'test',RESEND_WEBHOOK_SECRET:secret,SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'test',ADMIN_EMAILS:'owner@example.com'} as any
 const originalFetch=globalThis.fetch
 const sends:{key:string;body:any}[]=[]
 let failSecond=false
@@ -30,7 +31,8 @@ let failDownload=false
 const mailId='12345678-1234-1234-1234-123456789abc'
 const nativeThread='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
 const nativeEmail={id:'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',direction:'inbound',from:'customer@example.com',to:['sales@sengguanauto.com.my'],cc:[],bcc:[],reply_to:[],subject:'Thread',text:'First message',html:null,attachments:[],read:false,received_at:'2026-11-25T10:00:00Z'}
-let nativeDrafts=0;const nativeSends:any[]=[]
+let listingPages:Record<string,any[]>|null=null
+let nativeDrafts=0;const nativeDraftPayloads:any[]=[];const nativeSends:any[]=[]
 let fetched=0
 globalThis.fetch=(async(input:any,init:any)=>{
  const url=String(input)
@@ -42,9 +44,10 @@ globalThis.fetch=(async(input:any,init:any)=>{
   if(path==='/inboxes/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa')return Response.json({email_address:'sales@sengguanauto.com.my'})
   if(path.includes('/emails/bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')&&!path.endsWith('/forward'))return Response.json(nativeEmail)
   if(path.includes('/emails?'))return Response.json({data:[nativeEmail,{...nativeEmail,id:'cccccccc-cccc-4ccc-cccc-cccccccccccc',text:'Second message'}],has_more:false})
+  if(path.includes('/threads?')&&listingPages){const parsed=new URL(url),box=decodeURIComponent(parsed.pathname.split('/')[2]),all=listingPages[box]||[],after=parsed.searchParams.get('after'),index=after?all.findIndex(t=>t.id===after)+1:0;return Response.json({data:all.slice(index,index+30),has_more:all.length>index+30})}
   if(path.includes('/threads?'))return Response.json({data:[{id:nativeThread,subject:'Thread',from:'customer@example.com',to:['sales@sengguanauto.com.my'],read:false,received_at:'2026-11-25T10:00:00Z',email_count:2}],has_more:true})
   if(init?.method==='PATCH')return Response.json({ok:true})
-  if(path.endsWith('/drafts')){nativeDrafts++;return Response.json({id:'dddddddd-dddd-4ddd-dddd-dddddddddddd'})}
+  if(path.endsWith('/drafts')){nativeDrafts++;nativeDraftPayloads.push(JSON.parse(init.body));return Response.json({id:'dddddddd-dddd-4ddd-dddd-dddddddddddd'})}
   if(path.endsWith('/send')||path.endsWith('/forward')){nativeSends.push({path,body:JSON.parse(init.body),key:init.headers['Idempotency-Key']});return Response.json({id:'eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee'})}
  }
 
@@ -214,4 +217,44 @@ test('a second native inbox delivery preserves attempted notification links and 
  assert.ok(sends.at(-1)?.body.text.includes('message='+nativeEmail.id));assert.equal(JSON.parse(String(storage.get(row.content_key))).inbox_ref,undefined)
  const updated=db.prepare('SELECT mailbox FROM mail_messages WHERE id=?').get(nativeEmail.id) as any;assert.equal(updated.mailbox,'sales@sengguanauto.com.my,admin@sengguanauto.com.my')
  await receiveMail(new Request('https://sengguanauto.com.my/api/mail-webhook',{method:'POST',headers:await signed(raw),body:raw}),env);assert.equal(sends.length,before+1)
+})
+
+test('All mailboxes merge pages without dropping or duplicating interleaved conversations',async()=>{
+ const make=(rank:number)=>({id:'10000000-0000-4000-8000-'+String(rank).padStart(12,'0'),subject:'Thread '+rank,from:'customer@example.com',to:[],read:rank%2===0,received_at:new Date(Date.parse('2026-11-25T10:00:00Z')-rank*1000).toISOString(),email_count:1})
+ listingPages={'sales@sengguanauto.com.my':Array.from({length:35},(_,i)=>make(i*2)),'admin@sengguanauto.com.my':Array.from({length:35},(_,i)=>make(i*2+1))}
+ try{let cursor='',ids:string[]=[]
+  for(let page=0;page<3;page++){const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?mailbox=&after='+encodeURIComponent(cursor)),env,['conversations']);const data=await response.json() as any;ids.push(...data.messages.map((r:any)=>r.id));cursor=data.next;assert.equal(data.hasMore,page<2)}
+  assert.equal(ids.length,70);assert.equal(new Set(ids).size,70)
+ }finally{listingPages=null}
+})
+test('mailbox signatures persist separately and reject oversized or incomplete settings',async()=>{
+ const signatures={'sales@sengguanauto.com.my':'Sales team\nSeng Guan Auto','admin@sengguanauto.com.my':'Admin team'}
+ const save=(body:any)=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/signatures',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),env,['signatures'],'owner@example.com')
+ await save(signatures);const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/signatures'),env,['signatures']);assert.deepEqual(await response.json(),signatures)
+ await assert.rejects(()=>save({...signatures,'sales@sengguanauto.com.my':'x'.repeat(4001)}));await assert.rejects(()=>save({}))
+})
+test('private attachment uploads work for new messages and replies and cannot be reused by another administrator',async()=>{
+ const form=new FormData();form.set('file',new File(['hello attachment'], 'hello.txt',{type:'text/plain'}))
+ const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/uploads',{method:'POST',body:form}),env,['conversations','uploads'],'owner@example.com');const file=await response.json() as any
+ const payload={id:'out-77777777-7777-4777-7777-777777777777',from:'sales@sengguanauto.com.my',to:'customer@example.com',subject:'With attachment',text:'Please see attached.',uploads:[file.id]}
+ const send=(body:any,owner='owner@example.com')=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),env,['conversations','send'],owner)
+ await send(payload);assert.equal(nativeDraftPayloads.at(-1).attachments[0].filename,'hello.txt');assert.equal(atob(nativeDraftPayloads.at(-1).attachments[0].content),'hello attachment')
+ await send({...payload,id:'out-66666666-6666-4666-6666-666666666666',replyId:'ib~sales~'+nativeThread+'~'+nativeEmail.id});assert.equal(nativeDraftPayloads.at(-1).reply_to_email_id,nativeEmail.id);assert.equal(nativeDraftPayloads.at(-1).attachments.length,1)
+ await assert.rejects(()=>send({...payload,id:'out-55555555-5555-4555-5555-555555555555'},'other@example.com'))
+ const empty=new FormData();empty.set('file',new File([], 'empty.txt'));await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/uploads',{method:'POST',body:empty}),env,['conversations','uploads'],'owner@example.com'))
+})
+test('mail change token advances when a new message is stored',async()=>{
+ const read=async()=>JSON.stringify(await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/changes'),env,['changes'])).json())
+ const before=await read();db.prepare("INSERT INTO mail_messages(id,direction,mailbox,sender,recipients,subject,received_at,content_key,status) VALUES('change-test','inbound','sales@sengguanauto.com.my','customer@example.com','[]','New','2026-11-25','new-key','received')").run();assert.notEqual(await read(),before)
+})
+
+test('All mailboxes cursors preserve provider ordering when activity timestamps are identical',async()=>{
+ const rows=Array.from({length:35},(_,i)=>({id:'20000000-0000-4000-8000-'+String(99-i).padStart(12,'0'),subject:'Tie '+i,from:'c@example.com',to:[],read:false,received_at:'2026-11-25T10:00:00Z',email_count:1}))
+ listingPages={'sales@sengguanauto.com.my':rows,'admin@sengguanauto.com.my':[]}
+ try{const first=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations'),env,['conversations'])).json() as any;const second=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?after='+encodeURIComponent(first.next)),env,['conversations'])).json() as any;assert.equal(first.messages[0].subject,'Tie 0');assert.equal(second.messages[0].subject,'Tie 30');assert.equal(new Set([...first.messages,...second.messages].map(r=>r.id)).size,35)}finally{listingPages=null}
+})
+test('pre-attachment native send identifiers remain safe to retry',async()=>{
+ const id='out-44444444-4444-4444-4444-444444444444',payload={box:'sales@sengguanauto.com.my',to:['c@example.com'],cc:[],bcc:[],subject:'Old send',text:'Original',reply:null,forward:null}
+ db.prepare('INSERT INTO mail_native_sends(id,payload,created_at,provider_id) VALUES(?,?,?,?)').run(id,JSON.stringify(payload),new Date().toISOString(),'existing-provider-id')
+ const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,from:payload.box,to:payload.to,subject:payload.subject,text:payload.text,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.equal((await response.json() as any).status,'sent')
 })

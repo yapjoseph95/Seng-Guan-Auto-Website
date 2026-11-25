@@ -2,7 +2,7 @@ import {HttpError,json,limitedText,type Env} from './auth'
 import {mailboxes,defaultNotificationRoutes,splitAddresses} from '../shared/mail'
 export {mailboxes} from '../shared/mail'
 const site='https://sengguanauto.com.my'
-async function keyHash(value:string){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('')}
+export async function keyHash(value:string){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('')}
 const validEmail=(v:string)=>v.length<=254&&/^[^\s<>@,;]+@[^\s<>@,;]+\.[^\s<>@,;]+$/.test(v)
 export function mailAddress(value:unknown) {if(typeof value!=='string'||!mailboxes.some(m=>m===value))throw new HttpError(400,'Invalid company mailbox.');return value}
 export function notificationRecipients(value:unknown):string[] {
@@ -26,7 +26,11 @@ type Message={id:string;direction:'inbound'|'outbound';mailbox:string;sender:str
 export async function resend<T>(env:Env,path:string,options:RequestInit={}) {
  if(!env.RESEND_API_KEY)throw new HttpError(503,'Mail service is not connected yet.')
  let response:Response
- try{response=await fetch('https://api.resend.com'+path,{...options,headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json',...options.headers},signal:AbortSignal.timeout(20000)})}catch{throw new HttpError(503,'Mail provider is temporarily unavailable. Please retry.')}
+ try{for(let attempt=0;;attempt++){
+  response=await fetch('https://api.resend.com'+path,{...options,headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json',...options.headers},signal:AbortSignal.timeout(20000)})
+  if(response.status!==429||attempt>=2)break
+  const delay=Math.max(1000,Math.min(3000,(Number(response.headers.get('retry-after'))||1)*1000));await response.body?.cancel();await new Promise(resolve=>setTimeout(resolve,delay))
+ }}catch{throw new HttpError(503,'Mail provider is temporarily unavailable. Please retry.')}
  if(!response.ok){await response.body?.cancel();throw new HttpError(response.status===429?429:502,'Mail provider could not complete the request. Please retry.')}
  return await response.json() as T
 }
@@ -157,6 +161,11 @@ export async function receiveMail(request:Request,env:Env) {
 export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
  const url=new URL(request.url),action=parts[0]||''
  if(action==='conversations')return (await import('./mail-inboxes')).inboxApi(request,env,parts.slice(1),owner)
+ if(action==='changes'&&request.method==='GET')return json(await env.DB.prepare('SELECT COUNT(*) AS count,MAX(created_at) AS latest FROM mail_messages').first())
+ if(action==='signatures'){
+  if(request.method==='GET'){const rows=await env.DB.prepare('SELECT mailbox,signature FROM mail_signatures').all<{mailbox:string;signature:string}>();return json(Object.fromEntries(rows.results.map(r=>[r.mailbox,r.signature])))}
+  if(request.method==='PUT'){const value=await input(request);const signatures=mailboxes.map(box=>{const text=value[box];if(typeof text!=='string'||text.length>4000)throw new HttpError(400,'Signatures may contain up to 4,000 characters.');return env.DB.prepare('UPDATE mail_signatures SET signature=? WHERE mailbox=?').bind(text,box)});await env.DB.batch(signatures);return json({ok:true})}
+ }
  if(action==='settings') {
   if(request.method==='GET')return json({...await settings(env),connected:!!env.RESEND_API_KEY,receiving:!!env.RESEND_WEBHOOK_SECRET,mailboxes})
   if(request.method==='PUT'){const value=await input(request);if(typeof value.enabled!=='boolean')throw new HttpError(400,'Invalid notification setting.');const routes=notificationRoutes(value.routes);await env.DB.prepare('UPDATE mail_settings SET enabled=?,routes=? WHERE id=1').bind(value.enabled?1:0,JSON.stringify(routes)).run();await remember(env,owner,'address',[...new Set(Object.values(routes).flat())]);return json(await settings(env))}
@@ -185,7 +194,9 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
   const forwardId=typeof value.forwardId==='string'&&value.forwardId?value.forwardId:null
   if(!subject||subject.length>250||/[\r\n]/.test(subject)||!text.trim()||text.length>50000||!/^out-[0-9a-f-]{36}$/.test(id)||replyId&&forwardId)throw new HttpError(400,'Check recipient, subject and message.')
   if(!env.RESEND_API_KEY)throw new HttpError(503,'Mail service is not connected yet.')
-  const payload=JSON.stringify({from,to,cc,bcc,subject,text,replyId,forwardId})
+  const uploads=value.uploads===undefined?[]:value.uploads
+  if(!Array.isArray(uploads)||uploads.length>20)throw new HttpError(400,'Use no more than 20 attachments.')
+  const payload=JSON.stringify({from,to,cc,bcc,subject,text,replyId,forwardId,...uploads.length?{uploads}:{}})
   let row=await env.DB.prepare('SELECT * FROM mail_messages WHERE id=?').bind(id).first<Message>()
   const same=(row:Message,stored:Content)=>stored.send_payload?stored.send_payload===payload:row.mailbox===from&&row.recipients===JSON.stringify(to)&&row.subject===subject&&stored.text===text&&JSON.stringify(stored.cc||[])===JSON.stringify(cc)&&JSON.stringify(stored.bcc||[])===JSON.stringify(bcc)&&!forwardId&&row.reply_id===replyId
   if(row){const stored=await content(env,row);if(!same(row,stored))throw new HttpError(409,'Use a new send identifier for a different email.');if(row.status==='sent')return json({id,status:'sent'});if(Date.now()-Date.parse(row.created_at)>23*3600000)throw new HttpError(409,'Please review delivery before resending this older email.')}
@@ -193,6 +204,7 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
    let messageId:string|undefined;let attachments:Attachment[]=[]
    if(replyId){const original=await message(env,replyId);if(original.direction!=='inbound'||!original.mailbox.split(',').includes(from))throw new HttpError(400,'Reply mailbox does not match.');messageId=(await content(env,original)).message_id}
    if(forwardId){const original=await message(env,forwardId);if(original.direction!=='inbound')throw new HttpError(400,'Only received emails can be forwarded.');attachments=(await storeAttachments(env,original)).attachments}
+   const uploaded=await (await import('./mail-inboxes')).loadMailUploads(env,owner,uploads);attachments.push(...uploaded.stored)
    const key=`mail/${id}/content.json`
    await env.PHOTOS.put(key,JSON.stringify({text,html:null,message_id:messageId,attachments,cc,bcc,forward_id:forwardId,send_payload:payload}),{onlyIf:{etagDoesNotMatch:'*'}})
    const savedObject=await env.PHOTOS.get(key)
