@@ -224,6 +224,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Get directions": ["Get directions","Dapatkan arah","获取路线"],
   "Showroom hours": ["Showroom hours","Waktu operasi bilik pameran","展厅营业时间"],
   "Plan a visit.": ["Plan a visit.","Rancang lawatan.","安排到访。"],
+  "We may have different opening hours or be closed on public and school holidays. Please call ahead to confirm.": ["We may have different opening hours or be closed on public and school holidays. Please call ahead to confirm.","Waktu operasi mungkin berubah atau kami mungkin tutup pada cuti umum dan cuti sekolah. Sila hubungi kami sebelum berkunjung.","公共假期及学校假期期间，营业时间可能调整，也可能休息。到访前请先致电确认。"],
   "Please confirm opening hours with the team before travelling.": ["Please confirm opening hours with the team before travelling.","Sahkan waktu operasi dengan pasukan kami sebelum bertolak.","出发前请向团队确认营业时间。"],
   "Company No. 202301019072 (1512994-A)": ["Company No. 202301019072 (1512994-A)","No. Syarikat 202301019072 (1512994-A)","公司注册号 202301019072 (1512994-A)"],
   "Showroom directions": ["Showroom directions","Arah ke bilik pameran","展厅导航"],

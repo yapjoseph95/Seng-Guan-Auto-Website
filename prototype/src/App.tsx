@@ -35,6 +35,8 @@ gsap.registerPlugin(ScrollTrigger, useGSAP)
 type RouteState = { variant: string; page: PageId }
 
 const isOfficialSite = import.meta.env.VITE_OFFICIAL_SITE === 'true'
+const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`
+const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
 const publicPaths: Record<PageId, string> = { home: '/', cars: '/cars', finance: '/financing', about: '/about', faq: '/faq', contact: '/contact' }
 
 const InventoryContext = createContext<Vehicle[]>(fallbackVehicles)
@@ -351,7 +353,7 @@ function App() {
           showNotice(t('{name} marked for review in this session.', { name: variant.name }))
         }}
       />}
-      <dialog className="whatsapp-name-dialog" ref={whatsappDialog} aria-labelledby="whatsapp-name-title" onCancel={(event) => { event.preventDefault(); closeWhatsappDialog() }}>
+      <dialog className="site-choice-dialog whatsapp-name-dialog" ref={whatsappDialog} aria-labelledby="whatsapp-name-title" onCancel={(event) => { event.preventDefault(); closeWhatsappDialog() }}>
         <form onSubmit={(event) => {
           event.preventDefault()
           const name = whatsappName.trim()
@@ -365,7 +367,7 @@ function App() {
           <h2 id="whatsapp-name-title">{t('Before we chat')}</h2>
           <label htmlFor="whatsapp-name">{t('Your name')}</label>
           <input id="whatsapp-name" name="name" type="text" autoComplete="name" required maxLength={100} value={whatsappName} onChange={(event) => setWhatsappName(event.target.value)} />
-          <div className="whatsapp-name-actions">
+          <div className="site-choice-actions whatsapp-name-actions">
             <button type="button" className="button button--plain" onClick={closeWhatsappDialog}>{t('取消')}</button>
             <button type="submit" className="button button--whatsapp" disabled={!whatsappName.trim()}><WhatsAppGlyph />{t('Continue to WhatsApp')}</button>
           </div>
@@ -973,8 +975,6 @@ function FinanceTeaser({ goToPage }: { goToPage: (page: PageId) => void }) {
 
 function StoryTeaser({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
   const { t } = useLocale()
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`
-  const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <section className={`section story-teaser${variant.id === 'night-shift' ? ' nightshift-proof' : ''}`}>
       <div className="story-photo"><ProgressiveImage src={showroom} preview={showroomPreview} alt={t("Seng Guan Auto's dealership in Banting")} width="1072" height="603" /></div>
@@ -1429,7 +1429,7 @@ function FaqPage({ variant }: { variant: Direction }) {
   return (
     <div className={`content-page content-page--faq content-page--${variant.id}`}>
       <PageIntro eyebrow={t("Questions before a visit")} title={t("Clear answers for your next step.")} description={t("Some details depend on the car or finance provider. Use the live listing and ask the team to confirm the specifics.")} />
-      <div className="faq-page-layout"><aside className="faq-category-list"><span>{t("On this page")}</span>{categories.map((category) => <a key={category} href={`#faq-${category.toLowerCase()}`}>{t(category)}</a>)}<a href="#faq-contact">{t("Contact the team")}</a></aside>
+      <div className="faq-page-layout"><aside className="faq-category-list"><span>{t("On this page")}</span>{categories.map((category) => <a className="button button--plain" key={category} href={`#faq-${category.toLowerCase()}`}>{t(category)}</a>)}<a className="button button--plain" href="#faq-contact">{t("Contact the team")}</a></aside>
         <div className="faq-groups">{categories.map((category) => <section key={category} id={`faq-${category.toLowerCase()}`} className="faq-group"><h2>{t(category)}</h2>{faqItems.filter((item) => item.category === category).map((item) => {
           const index = faqItems.indexOf(item)
           const expanded = open === index
@@ -1444,7 +1444,7 @@ function FaqPage({ variant }: { variant: Direction }) {
 
 function ContactPage({ variant }: { variant: Direction }) {
   const { t } = useLocale()
-  const mapUrl = `https://maps.google.com/?q=${encodeURIComponent(contact.address)}`
+  const directionsDialog = useRef<HTMLDialogElement>(null)
   return (
     <div className={`content-page content-page--contact content-page--${variant.id}`}>
       <PageIntro eyebrow={t("Come by or get in touch")} title={t("Let’s talk about your next car.")} description={t("Ask about a car, arrange a visit, or speak with the Seng Guan Auto team.")} />
@@ -1454,9 +1454,17 @@ function ContactPage({ variant }: { variant: Direction }) {
           <a className="contact-method" href={contact.whatsapp} target="_blank" rel="noreferrer"><span className="contact-method-icon"><MessageCircle size={19} aria-hidden="true" /></span><span><small>{t("Message on WhatsApp")}</small><strong>{t("Ask about a vehicle or visit")}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
           <a className="contact-method" href={`mailto:${contact.email}`}><span className="contact-method-icon"><Mail size={19} aria-hidden="true" /></span><span><small>{t("Email the team")}</small><strong>{contact.email}</strong></span><ArrowUpRight size={17} aria-hidden="true" /></a>
         </div>
-        <section className="address-panel"><div className="address-map"><ProgressiveImage src={showroom} preview={showroomPreview} alt={t("Seng Guan Auto showroom frontage")} width="1072" height="603" /><a href={mapUrl} target="_blank" rel="noreferrer" className="map-label"><MapPin size={17} aria-hidden="true" />{t("Open map")} <ArrowUpRight size={14} aria-hidden="true" /></a></div><div className="address-copy"><p className="section-label">Seng Guan Auto Sdn. Bhd.</p><h2>{t("Find us in Banting.")}</h2><p>{contact.address}</p><a className="text-link" href={mapUrl} target="_blank" rel="noreferrer">{t("Get directions")} <ArrowUpRight size={15} aria-hidden="true" /></a></div></section>
+        <section className="address-panel"><div className="address-map"><ProgressiveImage src={showroom} preview={showroomPreview} alt={t("Seng Guan Auto showroom frontage")} width="1072" height="603" /></div><div className="address-copy"><p className="section-label">Seng Guan Auto Sdn. Bhd.</p><h2>{t("Find us in Banting.")}</h2><p>{contact.address}</p><button type="button" className="button button--primary" aria-haspopup="dialog" onClick={() => directionsDialog.current?.showModal()}>{t("Get directions")} <ArrowUpRight size={15} aria-hidden="true" /></button></div></section>
       </div>
-      <section className="hours-section"><div><p className="section-label">{t("Showroom hours")}</p><h2>{t("Plan a visit.")}</h2></div><dl>{contact.hours.map(([day, hours]) => <div key={day}><dt>{t(day)}</dt><dd>{t(hours)}</dd></div>)}</dl><p className="hours-note">{t("Please confirm opening hours with the team before travelling.")}</p></section>
+      <dialog ref={directionsDialog} className="site-choice-dialog" aria-labelledby="directions-title">
+        <h2 id="directions-title">{t("Get directions")}</h2>
+        <div className="site-choice-actions">
+          <a className="button button--plain" href={googleMapsUrl} target="_blank" rel="noreferrer" onClick={() => directionsDialog.current?.close()}><MapPin size={17} aria-hidden="true" />Google Maps</a>
+          <a className="button button--plain" href={wazeUrl} target="_blank" rel="noreferrer" onClick={() => directionsDialog.current?.close()}><Navigation size={17} aria-hidden="true" />Waze</a>
+          <form method="dialog"><button className="button button--plain">{t("Close")}</button></form>
+        </div>
+      </dialog>
+      <section className="hours-section"><div><p className="section-label">{t("Showroom hours")}</p><h2>{t("Plan a visit.")}</h2></div><dl>{contact.hours.map(([day, hours]) => <div key={day}><dt>{t(day)}</dt><dd>{t(hours)}</dd></div>)}</dl><p className="hours-note">{t("We may have different opening hours or be closed on public and school holidays. Please call ahead to confirm.")}</p></section>
     </div>
   )
 }
@@ -1464,8 +1472,6 @@ function ContactPage({ variant }: { variant: Direction }) {
 function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page: PageId) => void }) {
   const { t } = useLocale()
   const brandLogo = variant.id === 'greenlight' ? darkLogo : logo
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contact.address)}`
-  const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(contact.address)}&navigate=yes`
   return (
     <footer className={`site-footer site-footer--${variant.id}`}>
       <p className="footer-slogan">{t("Your trusted partner in quality used cars since 1995.")}</p>
@@ -1489,10 +1495,10 @@ function SiteFooter({ variant, goToPage }: { variant: Direction; goToPage: (page
           <strong>{t("Get in touch")}</strong>
           <a href={contact.phoneHref}><Phone size={16} aria-hidden="true" /> {contact.phone}</a>
           <a href={`mailto:${contact.email}`}><Mail size={16} aria-hidden="true" /> {contact.email}</a>
-          <div className="footer-hours"><Clock size={16} aria-hidden="true" /><div>{contact.hours.map(([day, hours]) => <span key={day}><b>{t(day)}:</b> {t(hours)}</span>)}</div></div>
+          <div className="footer-hours"><Clock size={16} aria-hidden="true" /><div>{contact.hours.map(([day, hours]) => <span key={day}><b>{t(day)}:</b> {t(hours)}</span>)}<p className="footer-hours-note">{t("We may have different opening hours or be closed on public and school holidays. Please call ahead to confirm.")}</p></div></div>
         </div>
       </div>
-      <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span><a href={contact.inventory} target="_blank" rel="noreferrer">{t("Live inventory on Carlist")} <ArrowUpRight size={14} aria-hidden="true" /></a></div>
+      <div className="footer-bottom"><span>© {new Date().getFullYear()} Seng Guan Auto Sdn. Bhd.</span></div>
     </footer>
   )
 }

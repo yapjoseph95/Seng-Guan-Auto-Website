@@ -149,7 +149,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   width: 100%; min-height: 630px; padding: 76px max(30px, calc((100% - 1320px) / 2));
   display: flex; align-items: center; color: #fff; background: transparent;
 }
-.showroom-image { position: absolute; z-index: -1; inset: 0 0 0 auto; width: min(72%, 1050px); overflow: hidden; }
+.showroom-image { position: absolute; z-index: -1; inset: 0 0 0 auto; width: min(72%, 1050px); overflow: hidden; mask-image: linear-gradient(to right, transparent, black 18%); }
 .showroom-image::after { position: absolute; inset: 0; content: ""; background: linear-gradient(90deg, #0c0e10 0%, rgb(12 14 16 / 90%) 10%, rgb(12 14 16 / 35%) 49%, rgb(12 14 16 / 15%) 100%), linear-gradient(0deg, rgb(12 14 16 / 78%), transparent 45%); }
 .showroom-image::after { z-index: 1; }
 .showroom-image .showroom-photo { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; filter: saturate(.78) contrast(1.12); opacity: 0; transform: scale(1.06); transition: opacity 900ms ease-in-out; will-change: transform, opacity; }
@@ -209,7 +209,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 @media (max-width: 680px) {
   html[data-scroll-snap="sections"] { scroll-padding-top: 72px; }
   .prototype-app[data-variant="greenlight"] .hero--showroom { min-height: 650px; padding: 50px 24px 120px; align-items: flex-start; }
-  .prototype-app[data-variant="greenlight"] .showroom-image { inset: auto 0 0; width: 100%; height: 55%; }
+  .prototype-app[data-variant="greenlight"] .showroom-image { inset: auto 0 0; width: 100%; height: 55%; mask-image: linear-gradient(to bottom, transparent, black 26%); }
   .prototype-app[data-variant="greenlight"] .showroom-image::after { background: linear-gradient(180deg, #0c0e10 0%, rgb(12 14 16 / 72%) 28%, rgb(12 14 16 / 10%) 100%); }
   .featured-showcase { grid-template-columns: 1fr; }
   .featured-showcase-copy { padding: 30px 24px 30px 0; }
@@ -444,7 +444,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .story-photo { height: 335px; overflow: hidden; }
 .story-copy h2 { max-width: 8ch; margin: 0 0 16px; }
 .story-copy p:not(.section-label) { max-width: 48ch; color: var(--muted); line-height: 1.7; }
-.story-directions { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.story-directions { margin-block-start: 16px; display: flex; flex-wrap: wrap; gap: 8px 24px; }
 .prototype-app[data-variant="greenlight"] .story-directions .button { min-height: 48px; border-radius: 6px; font-size: 13px; font-weight: 800; }
 .prototype-app[data-variant="greenlight"] .story-directions .button--plain { color: #f5f5f3; background: #171a1d; border-color: #41464b; }
 .prototype-app[data-variant="greenlight"] .story-directions .button--plain:hover { color: #fff; background: #22262a; border-color: #e6322b; }
@@ -527,8 +527,9 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .calculator-fields label span { color: var(--muted); font-size: 10px; font-weight: 500; }
 .calculator-fields input { width: 100%; min-height: 48px; padding: 0 12px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: calc(var(--radius) / 2); font-size: 15px; font-variant-numeric: tabular-nums; }
 .calculate-button { margin-top: 22px; }
-.calculator-disclaimer { margin: 15px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.calculator-disclaimer { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .field-error { margin: 14px 0 0; padding: 12px; color: #8b201d; background: #fff1ef; border: 1px solid #dfa6a2; font-size: 12px; line-height: 1.5; }
+.calculator-panel > .calculator-disclaimer { margin-block-start: 16px; }
 .estimate-result { margin-top: 21px; padding: 18px 20px; color: var(--ink); background: color-mix(in srgb, var(--accent) 24%, var(--paper)); border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--line)); }
 .estimate-result span { display: block; color: var(--muted); font-size: 11px; }
 .estimate-result strong { display: block; margin: 4px 0 3px; color: var(--brand); font-size: 34px; font-variant-numeric: tabular-nums; }
@@ -623,7 +624,6 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .address-panel { overflow: hidden; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
 .address-map { position: relative; height: 245px; }
 .address-map img { filter: saturate(.78); }
-.map-label { position: absolute; right: 12px; bottom: 12px; min-height: 40px; padding: 0 11px; display: flex; align-items: center; gap: 7px; color: var(--ink); background: var(--paper); border-radius: calc(var(--radius) / 2); font-size: 11px; font-weight: 800; text-decoration: none; box-shadow: var(--shadow); }
 .address-copy { padding: 22px 24px 26px; }
 .address-copy h2 { margin: 0 0 8px; font-family: var(--display); font-size: 33px; }
 .address-copy > p:not(.section-label) { max-width: 50ch; margin-bottom: 11px; color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -659,9 +659,9 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .footer-hours { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .footer-hours > svg { margin-top: 2px; color: var(--brand); flex: none; }
 .footer-hours > div { display: grid; gap: 4px; }
+.footer-hours .footer-hours-note { margin: 6px 0 0; max-width: 36ch; }
 .footer-slogan { max-width: 60ch; margin: 0 auto 30px; color: var(--ink); font-size: clamp(17px, 2vw, 24px); font-weight: 500; line-height: 1.45; text-align: center; }
 .footer-bottom { padding-top: 14px; display: flex; justify-content: space-between; gap: 20px; color: var(--muted); border-top: 1px solid var(--line); font-size: 10px; }
-.footer-bottom a { display: inline-flex; align-items: center; gap: 5px; color: var(--brand); text-decoration: none; }
 
 .prototype-dock { position: fixed; z-index: 80; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); width: min(700px, calc(100% - 32px)); color: #f5f5f2; background: #171b1c; border: 1px solid #394143; border-radius: 12px; box-shadow: 0 15px 50px rgb(0 0 0 / 32%); transform: translateX(-50%); }
 .dock-main { min-height: 57px; padding: 7px; display: flex; align-items: center; gap: 7px; }
@@ -894,7 +894,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .faq-page-layout { grid-template-columns: 1fr; gap: 25px; }
   .faq-category-list { position: static; flex-direction: row; overflow-x: auto; align-items: center; gap: 8px; padding-bottom: 7px; }
   .faq-category-list > span { display: none; }
-  .faq-category-list a { min-width: max-content; min-height: 40px; padding: 0 12px; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; }
+  .faq-category-list a { min-width: max-content; min-height: 40px; padding: 0 12px; }
   .faq-contact { align-items: flex-start; flex-direction: column; padding: 22px 18px; }
   .faq-answer { padding-right: 20px; }
   .contact-layout { grid-template-columns: 1fr; gap: 23px; }
@@ -1155,10 +1155,10 @@ html[data-scroll-snap="sections"] { scroll-padding-top: var(--site-header-height
  .prototype-app .vehicle-gallery .vehicle-gallery-edge:is(:hover,:active):not(:focus-visible) svg { background:rgb(12 14 16 / 76%); }
 }
 
-.whatsapp-name-dialog { width: min(420px, calc(100% - 32px)); padding: 24px; color: #f6f6f3; background: #171a1d; border: 1px solid #41464b; border-radius: 8px; font-family: "DM Sans Variable", sans-serif; }
-.whatsapp-name-dialog::backdrop { background: rgb(0 0 0 / 78%); backdrop-filter: blur(5px); }
-.whatsapp-name-dialog h2 { margin: 0 0 20px; font-size: 22px; }
+.site-choice-dialog { width: min(420px, calc(100% - 32px)); padding: 24px; color: #f6f6f3; background: #171a1d; border: 1px solid #41464b; border-radius: 8px; font-family: "DM Sans Variable", sans-serif; }
+.site-choice-dialog::backdrop { background: rgb(0 0 0 / 78%); backdrop-filter: blur(5px); }
+.site-choice-dialog h2 { margin: 0 0 20px; font-size: 22px; }
 .whatsapp-name-dialog label { display: block; margin-bottom: 8px; }
 .whatsapp-name-dialog input { width: 100%; min-height: 48px; padding: 10px 12px; color: #fff; background: #20242a; border: 1px solid #41464b; border-radius: 6px; font-size: 16px; }
-.whatsapp-name-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.site-choice-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
 .whatsapp-name-actions button:disabled { opacity: .5; cursor: not-allowed; }
