@@ -318,7 +318,7 @@ test('rich mail HTML preserves formatting and only own branding images, strippin
  const safe=sanitizeMailHtml('<p onclick="bad()" style="text-align:center;font-size:24px;background:url(https://evil.test)"><strong>Hello</strong><em>world</em></p><script>alert(1)</script><img src="'+src+'" onerror="bad()"><img src="https://evil.test/tracker"><svg><script>bad</script></svg>')
  assert.match(safe,/text-align:center;font-size:24px/);assert.match(safe,/<strong>Hello<\/strong>/);assert.match(safe,new RegExp(src));assert.doesNotMatch(safe,/onclick|onerror|evil|script|svg|background/)
  const {composeMailHtml}=await import('../shared/mail-html');const result=composeMailHtml('<p>Answer</p><p>---------- Original message ----------</p><p>Previous</p>','Answer','<p><img src="'+src+'"></p>','','<p>Header</p>')
- assert.ok(result.indexOf('Header')<result.indexOf('Answer'));assert.ok(result.indexOf(src)<result.indexOf('Original message'))
+ assert.match(result,/background-color:#111315;color:#ffffff/);assert.match(sanitizeMailHtml(result),/background-color:#111315;color:#ffffff;padding:24px/);assert.ok(result.indexOf('Header')<result.indexOf('Answer'));assert.ok(result.indexOf(src)<result.indexOf('Original message'))
 })
 test('mailbox rich signatures and headers persist atomically with their plain signature alternative',async()=>{
  const config=Object.fromEntries(['sales','admin'].map(name=>[name+'@sengguanauto.com.my',{signatureHtml:'<p><strong>'+name+'</strong></p>',signatureText:name+' team',headerHtml:'<p style="text-align:center">Seng Guan Auto</p>',headerEnabled:true}]))
