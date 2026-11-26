@@ -41,7 +41,7 @@ export default function AdminResetPassword({token,invitation}:{token:string|null
       {error&&<p className="login-error" role="alert">{t(error)}</p>}
       <button className="login-submit" disabled={busy}>{t('Save new password')}</button>
      </form>}
-    {(finished||expired)&&<a href="/admin">{t('Back to administrator sign-in')}</a>}
+    {(finished||expired)&&<a className="login-submit" href="/admin">{t('Back to administrator sign-in')}</a>}
   </div></section>
  </main>
 }
