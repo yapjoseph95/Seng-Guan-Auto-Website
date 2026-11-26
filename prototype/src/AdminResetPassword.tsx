@@ -2,7 +2,7 @@ import {useState,type FormEvent} from 'react'
 import {useLocale,LanguageSelect} from './locale'
 import './AdminLogin.css'
 
-export default function AdminResetPassword({token}:{token:string|null}){
+export default function AdminResetPassword({token,invitation}:{token:string|null;invitation:boolean}){
  const {t}=useLocale()
  const [password,setPassword]=useState('')
  const [confirmation,setConfirmation]=useState('')
@@ -32,9 +32,9 @@ export default function AdminResetPassword({token}:{token:string|null}){
  return <main className="admin-login admin-login--reset">
   <LanguageSelect />
   <section className="login-panel" aria-labelledby="reset-password-title"><div className="login-card">
-   <h2 id="reset-password-title">{t('Reset administrator password')}</h2>
-   {finished?<p role="status">{t('Password updated. Sign in with your new password and email code.')}</p>
-    :expired?<p role="alert">{t('This reset link has expired. Request a new one.')}</p>
+   <h2 id="reset-password-title">{t(invitation?'Set your administrator password':'Reset administrator password')}</h2>
+   {finished?<p role="status">{t(invitation?'Password set. Sign in with your password and email code.':'Password updated. Sign in with your new password and email code.')}</p>
+    :expired?<p role="alert">{t(invitation?'This invitation has expired. Ask the administrator for a new link.':'This link has expired. Ask the administrator for a new one.')}</p>
     :<form onSubmit={submit}>
       <label>{t('New password')}<div className="login-input"><input type="password" autoComplete="new-password" required minLength={8} maxLength={512} value={password} disabled={busy} onChange={event=>setPassword(event.target.value)}/></div></label>
       <label>{t('Confirm new password')}<div className="login-input"><input type="password" autoComplete="new-password" required minLength={8} maxLength={512} value={confirmation} disabled={busy} onChange={event=>setConfirmation(event.target.value)}/></div></label>

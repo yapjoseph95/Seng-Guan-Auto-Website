@@ -239,16 +239,17 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
 test('only active operator requests extend a session and expiry blocks token refresh',async()=>{
  const now=Math.floor(Date.now()/1000),setActivity=sql.prepare('UPDATE admin_idle_sessions SET last_activity=? WHERE id=?')
  const readActivity=()=>sql.prepare('SELECT last_activity FROM admin_idle_sessions WHERE id=?').get('test-session')?.last_activity
- setActivity.run(now-60,'test-session')
+ const stillActive=now-24*60*60, expired=now-2*24*60*60
+ setActivity.run(stillActive,'test-session')
  try{
   assert.equal((await call('/api/admin/session')).status,200)
-  assert.equal(readActivity(),now-60)
+  assert.equal(readActivity(),stillActive)
   assert.equal((await call('/api/auth/activity','POST')).status,200)
   assert.ok(Number(readActivity())>=now)
-  setActivity.run(now-14400,'test-session')
+  setActivity.run(expired,'test-session')
   assert.equal((await call('/api/admin/session')).status,401)
   assert.equal((await call('/api/auth/activity','POST')).status,401)
-  assert.equal(readActivity(),now-14400)
+  assert.equal(readActivity(),expired)
   const refresh=await onRequest({request:new Request(origin+'/api/auth/refresh',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_refresh=refresh-secret; __Host-sga_idle=test-session'}}),env} as any)
   assert.equal(refresh.status,401)
  }finally{setActivity.run(now,'test-session')}

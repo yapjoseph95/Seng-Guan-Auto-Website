@@ -22,7 +22,7 @@ export async function limitedText(request: Request, limit: number) {
  const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length}
  return new TextDecoder().decode(bytes)
 }
-const idleTimeout=4*60*60
+const idleTimeout=2*24*60*60
 const idleCookie='__Host-sga_idle'
 const loginChallengeCookie='__Host-sga_login'
 const loginChallengeAge=600
