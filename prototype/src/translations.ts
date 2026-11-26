@@ -276,6 +276,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "验证码已发送至 {email}。请输入邮件中的 6 位数字。": ["A code was sent to {email}. Enter the six digits from the email.","Kod dihantar ke {email}. Masukkan enam digit dalam e-mel itu.","验证码已发送至 {email}。请输入邮件中的 6 位数字。"],
   "邮箱或密码不正确。": ["Incorrect email or password.","E-mel atau kata laluan tidak betul.","邮箱或密码不正确。"],
   "登录验证已过期，请重新输入邮箱和密码。": ["This sign-in attempt expired. Enter your email and password again.","Cubaan log masuk telah tamat. Masukkan semula e-mel dan kata laluan.","登录验证已过期，请重新输入邮箱和密码。"],
+  "Remember my email": ["Remember my email","Ingat e-mel saya","记住我的邮箱"],
   "管理员邮箱": ["Administrator email","E-mel pentadbir","管理员邮箱"],
   "邮箱验证码": ["Email verification code","Kod pengesahan e-mel","邮箱验证码"],
   "修改邮箱": ["Change email","Tukar e-mel","修改邮箱"],

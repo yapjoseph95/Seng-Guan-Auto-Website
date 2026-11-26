@@ -12,12 +12,18 @@ async function auth(path:string,data?:unknown) {
  if(!r.ok)throw Object.assign(new Error(result.error||'登录失败，请稍后重试。'),{status:r.status})
  return result
 }
+const rememberedEmailKey='sga-admin-remembered-email'
+function readRememberedEmail(){
+ try{return localStorage.getItem(rememberedEmailKey)}
+ catch{return null}
+}
 export default function AdminLogin() {
   const { t } = useLocale()
  const [checking,setChecking]=useState(true)
  const [signedIn,setSignedIn]=useState(false)
  const [step,setStep]=useState<'email'|'code'>('email')
- const [email,setEmail]=useState('')
+ const [email,setEmail]=useState(()=>readRememberedEmail()??'')
+ const [rememberEmail,setRememberEmail]=useState(()=>readRememberedEmail()!=='')
  const [code,setCode]=useState('')
  const [password,setPassword]=useState('')
  const [busy,setBusy]=useState(false)
@@ -70,7 +76,13 @@ export default function AdminLogin() {
   e.preventDefault()
   if(step==='email'){await send();return}
   setBusy(true);setError('')
-  try{await auth('verify-code',{code});setSignedIn(true)}
+  try{
+   const session=await auth('verify-code',{code})
+   if(rememberEmail){
+    try{localStorage.setItem(rememberedEmailKey,session.email)}catch{/* Login still works if storage is unavailable. */}
+   }
+   setSignedIn(true)
+  }
   catch(error){showLoginError(error)}
   finally{setBusy(false)}
  }
@@ -87,6 +99,17 @@ export default function AdminLogin() {
    {checking?<LoaderCircle className="login-spin" size={26}/>:<form onSubmit={submit}>
     {step==='email'?<><label>{t("管理员邮箱")}<div className="login-input"><Mail size={18}/><input autoComplete="username" type="email" required maxLength={254} placeholder="you@example.com" value={email} disabled={busy} onChange={e=>setEmail(e.target.value)}/></div></label><label>{t("密码")}<div className="login-input"><LockKeyhole size={18}/><input type="password" autoComplete="current-password" required maxLength={512} value={password} disabled={busy} onChange={e=>setPassword(e.target.value)}/></div></label></>:<label>{t("邮箱验证码")}<input className="login-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required placeholder="000000" value={code} disabled={busy} onChange={e=>setCode(e.target.value.replace(/\D/g,''))}/></label>}
     {error&&<p className="login-error" role="alert">{t(error)}</p>}
+    {step==='email'&&<label className="login-remember-email">
+     <input type="checkbox" checked={rememberEmail} disabled={busy} onChange={event=>{
+      const checked=event.target.checked
+      setRememberEmail(checked)
+      try{
+       if(checked)localStorage.removeItem(rememberedEmailKey)
+       else localStorage.setItem(rememberedEmailKey,'')
+      }catch{/* The preference still applies to this sign-in. */}
+     }}/>
+     {t('Remember my email')}
+    </label>}
     <button className="login-submit" disabled={busy}>{busy?<LoaderCircle className="login-spin" size={18}/>:<>{t(step==='email'?'发送验证码':'验证并进入后台')}<ArrowRight size={18}/></>}</button>
     {step==='code'&&<div className="login-resend"><button type="button" disabled={busy||cooldown>0} onClick={()=>void send(true)}>{cooldown>0?t('{seconds} 秒后可重发',{seconds:cooldown}):t('重新发送验证码')}</button><button type="button" disabled={busy} onClick={()=>{setStep('email');setCode('');setPassword('');setError('')}}>{t("修改邮箱")}</button></div>}
    </form>}
