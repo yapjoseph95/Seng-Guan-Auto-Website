@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "check:server": "tsc -p tsconfig.server.json",
     "test:api": "tsx --test tests/vehicle-api.test.ts",
-    "test:mail": "tsx --test tests/mail.test.ts"
+    "test:mail": "tsx --test tests/mail*.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
