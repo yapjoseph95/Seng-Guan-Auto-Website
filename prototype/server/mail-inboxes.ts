@@ -10,6 +10,32 @@ const root=(box:string)=>'/inboxes/'+encodeURIComponent(mailAddress(box))
 export function inboxMessage(box:string,thread:string,e:InboxEmail){return {id:inboxRef(box,thread,e.id),thread_id:inboxRef(box,thread),direction:e.direction,mailbox:box,sender:e.from,recipients:JSON.stringify(e.to),subject:e.subject||'(No subject)',received_at:e.received_at,read_at:e.read?e.received_at:null,status:'received',text:e.text,html:e.html,cc:e.cc||[],bcc:e.bcc||[],reply_to:e.reply_to,attachments:e.attachments.map(a=>({...a,filename:a.filename||'attachment',size:a.size||0})),notifications:[]}}
 export async function inboxApi(request:Request,env:Env,parts:string[],owner:string){
  const url=new URL(request.url),action=parts[0]||''
+ if(action==='unread'&&request.method==='GET'){
+  let count=0
+  for(const box of ['sales@sengguanauto.com.my','admin@sengguanauto.com.my']){
+   const query=new URLSearchParams({folders:'inbox',read:'false',limit:'100'})
+   for(;;){
+    const page=await resend<{data:Pick<Thread,'id'|'email_count'>[];has_more:boolean}>(env,root(box)+'/threads?'+query)
+    for(const thread of page.data){
+     if(thread.email_count===1){count++;continue}
+     const emailQuery=new URLSearchParams({limit:'100'})
+     for(;;){
+      const emails=await resend<{data:Pick<InboxEmail,'id'|'direction'|'read'>[];has_more:boolean}>(env,root(box)+'/threads/'+uuid(thread.id)+'/emails?'+emailQuery)
+      count+=emails.data.filter(email=>email.direction==='inbound'&&!email.read).length
+      if(!emails.has_more)break
+      const nextEmail=emails.data.at(-1)?.id
+      if(!nextEmail||nextEmail===emailQuery.get('after'))throw new HttpError(502,'Unable to count unread messages.')
+      emailQuery.set('after',nextEmail)
+     }
+    }
+    if(!page.has_more)break
+    const next=page.data.at(-1)?.id
+    if(!next||next===query.get('after'))throw new HttpError(502,'Unable to count unread messages.')
+    query.set('after',next)
+   }
+  }
+  return json({count})
+ }
  if(!action&&request.method==='GET'){
   const selected=url.searchParams.get('mailbox')||'',folder=url.searchParams.get('folder')||'inbox',after=url.searchParams.get('after')||''
   if(!['inbox','sent','archive','spam','trash'].includes(folder))throw new HttpError(400,'Invalid folder.')

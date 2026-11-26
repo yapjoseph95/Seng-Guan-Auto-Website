@@ -418,9 +418,9 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   const admin = parts[0] === 'admin'
   let email = ''
   if (admin) {
-   email = await administrator(request,env)
    parts.shift()
    if (!['GET','HEAD'].includes(request.method) && (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site')) throw new HttpError(403,'Please make changes from the admin dashboard.')
+   email = await administrator(request,env)
   } else if (!['GET','HEAD'].includes(request.method)) throw new HttpError(405,'Method not allowed.')
   if(admin && parts[0]==='mail') return await mailApi(request,env,parts.slice(1),email)
   if (admin && parts[0] === 'vehicle-template' && parts.length === 1) {

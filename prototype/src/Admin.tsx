@@ -1,3 +1,4 @@
+import { mailApi } from './mail-api'
 import { transitionView } from './transitions'
 import { canonicalVehicleMake, vehicleMakeKey, vehicleMakeOptions } from '../shared/vehicle-makes'
 import { formatPublicationDate } from './vehicle-date'
@@ -287,9 +288,18 @@ export default function Admin() {
  const [notice,setNotice]=useState('')
  const [query,setQuery]=useState('')
  const [filter,setFilter]=useState('all')
- const [sortBy,setSortBy]=useState<'created_at'|'updated_at'|'availability'>('created_at')
- const [ascending,setAscending]=useState(false)
- const [compact,setCompact]=useState(() => { try { return localStorage.getItem('sga-admin-layout') === 'compact' } catch { return false } })
+ const [sortBy,setSortBy]=useState<'created_at'|'updated_at'|'availability'>(() => {
+  try {
+   const saved=localStorage.getItem('sga-admin-sort')
+   if(saved==='updated_at'||saved==='availability')return saved
+  } catch { /* Use the default if storage is unavailable. */ }
+  return 'created_at'
+ })
+ const [ascending,setAscending]=useState(() => {
+  try { return localStorage.getItem('sga-admin-sort-direction')==='asc' } catch { return false }
+ })
+ const [compact,setCompact]=useState(() => { try { return localStorage.getItem('sga-admin-layout') !== 'cards' } catch { return true } })
+ const [unreadMail,setUnreadMail]=useState(0)
  const [selected,setSelected]=useState<string[]>([])
  const [allSelectedKey,setAllSelectedKey]=useState('')
  const [bulkStatus,setBulkStatus]=useState<VehicleStatus>('available')
@@ -350,6 +360,37 @@ export default function Admin() {
  const loading=sessionLoading || (pages.loading && vehicles.length===0)
  const refresh=async()=>{pages.reload()}
  const refreshCounts=async()=>{try{const result=await api<{counts:Record<string,number>}>('vehicles?limit=1');pages.setCounts(result.counts)}catch{/* The next listing refresh retries the counts. */}}
+ useEffect(()=>{
+  try {
+   localStorage.setItem('sga-admin-sort',sortBy)
+   localStorage.setItem('sga-admin-sort-direction',ascending?'asc':'desc')
+  } catch { /* Sorting still works for this session. */ }
+ },[sortBy,ascending])
+ useEffect(()=>{
+  if(!email)return
+  const controller=new AbortController()
+  let pending=false
+  const refreshUnread=async()=>{
+   if(document.hidden||pending)return
+   pending=true
+   try {
+    const {count}=await mailApi<{count:number}>('/conversations/unread',{signal:controller.signal})
+    if(!controller.signal.aborted)setUnreadMail(count)
+   } catch { /* Keep the last count during transient failures. */ }
+   finally { pending=false }
+  }
+  void refreshUnread()
+  const timer=window.setInterval(refreshUnread,60000)
+  window.addEventListener('focus',refreshUnread)
+  document.addEventListener('visibilitychange',refreshUnread)
+  return()=>{
+   controller.abort()
+   window.clearInterval(timer)
+   window.removeEventListener('focus',refreshUnread)
+   document.removeEventListener('visibilitychange',refreshUnread)
+  }
+ },[email])
+ const mailLinkLabel=unreadMail?t('Mail center, {count} unread emails',{count:unreadMail}):t('Mail center')
  useEffect(()=>{api<{email:string}>('session').then(s=>setEmail(s.email)).catch(e=>setError(e.message)).finally(()=>setSessionLoading(false))},[])
  useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue=''}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn)},[dirty])
  useEffect(()=>{if(error&&!edit&&!confirmDelete)messageRef.current?.focus()},[error,edit,confirmDelete])
@@ -579,7 +620,7 @@ export default function Admin() {
  const makes = vehicleMakeOptions(vehicles.map(vehicle => vehicle.make),true)
  const visible = vehicles
  return <div className="inventory-admin">
-  <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a className="language-select admin-mail-link" href="/admin?section=mail" aria-label={t("Mail center")} title={t("Mail center")}><Mail size={19} aria-hidden="true"/></a><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
+  <header className="admin-header" inert={Boolean(edit||confirmDelete)}><a href="/admin" aria-label={t("车辆管理首页")}><img src={logo} alt="Seng Guan Auto"/></a><span>{t("车辆管理后台")}</span><div><LanguageSelect /><a className="language-select admin-mail-link" href="/admin?section=mail" aria-label={mailLinkLabel} title={mailLinkLabel}><Mail size={19} aria-hidden="true"/>{unreadMail>0&&<span className="admin-mail-unread" aria-hidden="true">{unreadMail}</span>}</a><a href="/" target="_blank" rel="noreferrer">{t("查看网站 ↗")}</a><button onClick={()=>{void fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'}).then(()=>window.location.assign('/admin'))}}><LogOut size={17}/>{t("退出")}</button></div></header>
   <main className="admin-main" inert={Boolean(edit||confirmDelete)}>
    <div className="admin-title"><div><p>{t("YOUR SHOWROOM, UP TO DATE")}</p><h1>{t("车辆管理")}</h1><span>{email||t('安全登录')}{t("· 更新资料，发布到官网")}</span></div><div className="admin-title-actions"><DropdownMenu.Root>
     <DropdownMenu.Trigger asChild><button type="button" disabled={loading||!email||!!busy}><Settings size={17} aria-hidden="true"/>{t('Settings')}<ChevronDown size={14} aria-hidden="true"/></button></DropdownMenu.Trigger>

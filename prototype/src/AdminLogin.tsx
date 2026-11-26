@@ -1,6 +1,6 @@
 import { useLocale, LanguageSelect } from './locale'
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, LoaderCircle, Mail, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
 import logo from './assets/logo-dark.svg'
 import Admin from './Admin'
 import AdminMail from './AdminMail'
@@ -19,6 +19,7 @@ export default function AdminLogin() {
  const [step,setStep]=useState<'email'|'code'>('email')
  const [email,setEmail]=useState('')
  const [code,setCode]=useState('')
+ const [password,setPassword]=useState('')
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState('')
  const [cooldown,setCooldown]=useState(0)
@@ -26,13 +27,33 @@ export default function AdminLogin() {
   let active=true
   const check=async()=>{try{await auth('session');if(active)setSignedIn(true)}catch{try{await auth('refresh',{});await auth('session');if(active)setSignedIn(true)}catch{/* Show the sign-in form. */}}finally{if(active)setChecking(false)}}
   void check()
-  const expired=()=>{setSignedIn(false);setStep('email');setCode('');setError('登录已过期，请重新验证邮箱。')}
+  const expired=()=>{setSignedIn(false);setStep('email');setCode('');setPassword('');setError('登录已过期，请重新登录。')}
   window.addEventListener('admin-session-expired',expired)
   return()=>{active=false;window.removeEventListener('admin-session-expired',expired)}
  },[])
+ useEffect(()=>{
+  if(!signedIn)return
+  const controller=new AbortController()
+  let lastReport=0
+  const activity=async(event:Event)=>{
+   if(!event.isTrusted||document.hidden||Date.now()-lastReport<30000)return
+   lastReport=Date.now()
+   try {
+    const response=await fetch('/api/auth/activity',{method:'POST',credentials:'same-origin',signal:controller.signal})
+    if(response.status===401&&!controller.signal.aborted)window.dispatchEvent(new Event('admin-session-expired'))
+    if(!response.ok)lastReport=0
+   } catch { lastReport=0 }
+  }
+  const events=['pointerdown','keydown','wheel'] as const
+  for(const name of events)window.addEventListener(name,activity,{passive:true})
+  return()=>{
+   controller.abort()
+   for(const name of events)window.removeEventListener(name,activity)
+  }
+ },[signedIn])
  useEffect(()=>{if(!cooldown)return;const timer=window.setTimeout(()=>setCooldown(s=>s-1),1000);return()=>window.clearTimeout(timer)},[cooldown])
  const send=async()=>{setBusy(true);setError('');try{await auth('request-code',{email:email.trim().toLowerCase()});setStep('code');setCode('');setCooldown(60)}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
- const submit=async(e:FormEvent)=>{e.preventDefault();if(step==='email'){await send();return}setBusy(true);setError('');try{await auth('verify-code',{email:email.trim().toLowerCase(),code});setSignedIn(true)}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ const submit=async(e:FormEvent)=>{e.preventDefault();if(step==='email'){await send();return}setBusy(true);setError('');try{await auth('verify-code',{email:email.trim().toLowerCase(),code,password});setSignedIn(true)}catch(e){setError((e as Error).message)}finally{setPassword('');setBusy(false)}}
  if(signedIn)return new URLSearchParams(window.location.search).get('section')==='mail'?<AdminMail/>:<Admin/>
  return <main className="admin-login">
   <LanguageSelect />
@@ -42,12 +63,12 @@ export default function AdminLogin() {
    <div className="login-security"><ShieldCheck size={18}/>{t("仅限授权管理员")}</div>
    <p className="login-eyebrow">{t("SENG GUAN AUTO / ADMIN")}</p>
    <h2 id="login-heading">{t(checking?'正在验证登录…':step==='email'?'欢迎回来。':'查收你的邮箱。')}</h2>
-   <p className="login-intro">{checking?t('请稍候。'):step==='email'?t('使用已授权的邮箱，获取一次性登录验证码。无需记住密码。'):t('如果邮箱已获授权，验证码将发送至 {email}。请在下方输入邮件中的 6 位数字。',{email})}</p>
+   <p className="login-intro">{checking?t('请稍候。'):step==='email'?t('使用已授权的邮箱，获取一次性登录验证码。'):t('如果邮箱已获授权，验证码将发送至 {email}。请在下方输入密码和邮件中的 6 位数字。',{email})}</p>
    {checking?<LoaderCircle className="login-spin" size={26}/>:<form onSubmit={submit}>
-    {step==='email'?<label>{t("管理员邮箱")}<div className="login-input"><Mail size={18}/><input autoComplete="email" type="email" required maxLength={254} placeholder="you@example.com" value={email} disabled={busy} onChange={e=>setEmail(e.target.value)}/></div></label>:<label>{t("邮箱验证码")}<input className="login-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required placeholder="000000" value={code} disabled={busy} onChange={e=>setCode(e.target.value.replace(/\D/g,''))}/></label>}
+    {step==='email'?<label>{t("管理员邮箱")}<div className="login-input"><Mail size={18}/><input autoComplete="username" type="email" required maxLength={254} placeholder="you@example.com" value={email} disabled={busy} onChange={e=>setEmail(e.target.value)}/></div></label>:<><input type="email" autoComplete="username" value={email} readOnly hidden/><label>{t("密码")}<div className="login-input"><LockKeyhole size={18}/><input type="password" autoComplete="current-password" required maxLength={512} value={password} disabled={busy} onChange={e=>setPassword(e.target.value)}/></div></label><label>{t("邮箱验证码")}<input className="login-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required placeholder="000000" value={code} disabled={busy} onChange={e=>setCode(e.target.value.replace(/\D/g,''))}/></label></>}
     {error&&<p className="login-error" role="alert">{t(error)}</p>}
     <button className="login-submit" disabled={busy}>{busy?<LoaderCircle className="login-spin" size={18}/>:<>{t(step==='email'?'发送验证码':'验证并进入后台')}<ArrowRight size={18}/></>}</button>
-    {step==='code'&&<div className="login-resend"><button type="button" disabled={busy||cooldown>0} onClick={()=>void send()}>{cooldown>0?t('{seconds} 秒后可重发',{seconds:cooldown}):t('重新发送验证码')}</button><button type="button" disabled={busy} onClick={()=>{setStep('email');setCode('');setError('')}}>{t("修改邮箱")}</button></div>}
+    {step==='code'&&<div className="login-resend"><button type="button" disabled={busy||cooldown>0} onClick={()=>void send()}>{cooldown>0?t('{seconds} 秒后可重发',{seconds:cooldown}):t('重新发送验证码')}</button><button type="button" disabled={busy} onClick={()=>{setStep('email');setCode('');setPassword('');setError('')}}>{t("修改邮箱")}</button></div>}
    </form>}
    <p className="login-help">{t("验证码只用于本次登录。没有收到邮件？请检查垃圾邮件，或稍后重试。")}</p>
    <footer><ShieldCheck size={15}/>{t("你的管理会话受到安全保护")}</footer>

@@ -23,6 +23,8 @@ sql.exec(readFileSync(new URL('../migrations/0010_watermark_default_position.sql
 sql.exec(readFileSync(new URL('../migrations/0013_vehicle_templates.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0014_vehicle_listing_updates.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0015_vehicle_discount_price.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0023_admin_idle_sessions.sql',import.meta.url),'utf8'))
+sql.prepare('INSERT INTO admin_idle_sessions VALUES(?,?,?)').run('test-session','admin@example.test',Math.floor(Date.now()/1000))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
 assert.equal(sql.prepare("SELECT position FROM photos WHERE id='existing-photo' AND vehicle_id='existing' AND object_key='old/key'").get()?.position,3)
@@ -66,6 +68,7 @@ globalThis.fetch=async(input,options)=>{
  const data=options?.body?JSON.parse(String(options.body)):{}
  if(url.endsWith('/otp')){assert.equal(data.create_user,false);sent.push(data.email);return Response.json({})}
  if(url.endsWith('/verify'))return data.email==='admin@example.test'&&data.token==='123456'?Response.json({access_token:'valid',refresh_token:'refresh-secret',expires_in:3600,user:users.valid}):Response.json({error:'invalid otp'},{status:400})
+ if(url.endsWith('grant_type=password'))return data.email==='admin@example.test'&&data.password==='test-admin-password'?Response.json({access_token:'password-session',user:users.valid}):Response.json({error:'invalid password'},{status:400})
  if(url.includes('/token?'))return data.refresh_token==='refresh-secret'?Response.json({access_token:'valid',refresh_token:'refresh-secret',expires_in:3600,user:users.valid}):Response.json({error:'invalid refresh'},{status:401})
  if(url.includes('/logout?'))return Response.json({})
  throw Error('Unexpected provider endpoint '+url)
@@ -74,7 +77,7 @@ const token='valid'
 const origin='https://sengguanauto.test'
 async function call(path:string,method='GET',data?:unknown, auth=true,requestOrigin=origin){
  const headers:Record<string,string>={Origin:requestOrigin}
- if(auth)headers.Cookie='__Host-sga_access='+token
+ if(auth)headers.Cookie='__Host-sga_access='+token+'; __Host-sga_idle=test-session'
  let body:BodyInit|undefined
  if(data instanceof FormData){const initial=new Request(origin+path,{method,body:data});headers['Content-Type']=initial.headers.get('content-type')!;const buffer=await initial.arrayBuffer();headers['Content-Length']=String(buffer.byteLength);body=buffer}
  else if(data!==undefined){headers['Content-Type']='application/json';body=JSON.stringify(data)}
@@ -130,7 +133,7 @@ test('paged vehicle listings search and sort the whole inventory while keeping f
 test('authorized vehicle lifecycle, drafts and photos stay private, validation and same-origin enforcement',async()=>{
  assert.equal((await call('/api/admin/vehicles','GET',undefined,false)).status,401)
  for(const token of ['forged','expired','other','unverified']) {
-  const denied=await onRequest({request:new Request(origin+'/api/admin/session',{headers:{Cookie:'__Host-sga_access='+token}}),env} as any)
+  const denied=await onRequest({request:new Request(origin+'/api/admin/session',{headers:{Cookie:'__Host-sga_access='+token+'; __Host-sga_idle=test-session'}}),env} as any)
   assert.equal(denied.status,token==='other'||token==='unverified'?403:401)
  }
  assert.equal((await call('/api/admin/session')).status,200)
@@ -205,17 +208,38 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.deepEqual(sent,['admin@example.test'])
  assert.equal((await call('/api/auth/verify-code','POST',{email:'admin@example.test',code:'000000'},false)).status,400)
  assert.equal((await call('/api/auth/verify-code','POST',{email:'admin@example.test',code:'123456'},false,'https://attacker.test')).status,403)
- const verified=await call('/api/auth/verify-code','POST',{email:'admin@example.test',code:'123456'},false)
+ assert.equal((await call('/api/auth/verify-code','POST',{email:'admin@example.test',code:'123456'},false)).status,400)
+ assert.equal((await call('/api/auth/verify-code','POST',{email:'admin@example.test',code:'123456',password:'wrong'},false)).status,400)
+ assert.equal((await call('/api/auth/verify-code','POST',{email:'admin@example.test',code:'000000',password:'test-admin-password'},false)).status,400)
+ const verified=await call('/api/auth/verify-code','POST',{email:'admin@example.test',code:'123456',password:'test-admin-password'},false)
  assert.equal(verified.status,200)
  assert.deepEqual(await verified.json(),{email:'admin@example.test'})
- const cookies=verified.headers.getSetCookie();assert.equal(cookies.length,2)
+ const cookies=verified.headers.getSetCookie();assert.equal(cookies.length,3);assert.ok(cookies.every(cookie=>!cookie.includes('password-session')))
  for(const cookie of cookies){assert(cookie.includes('HttpOnly'));assert(cookie.includes('Secure'));assert(cookie.includes('SameSite=Lax'));assert(cookie.includes('Path=/'))}
- const refreshed=await onRequest({request:new Request(origin+'/api/auth/refresh',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_refresh=refresh-secret'}}),env} as any)
+ const sessionCookie=cookies.find(cookie=>cookie.startsWith('__Host-sga_idle='))!.split(';')[0]
+ const refreshed=await onRequest({request:new Request(origin+'/api/auth/refresh',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_refresh=refresh-secret; '+sessionCookie}}),env} as any)
  assert.equal(refreshed.status,200)
  assert(!JSON.stringify(await refreshed.json()).includes('refresh-secret'))
- const logout=await call('/api/auth/logout','POST',{},true);assert.equal(logout.status,200);assert(logout.headers.getSetCookie().every(c=>c.includes('Max-Age=0')))
+ const logout=await onRequest({request:new Request(origin+'/api/auth/logout',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_access=valid; '+sessionCookie}}),env} as any);assert.equal(logout.status,200);assert(logout.headers.getSetCookie().every(c=>c.includes('Max-Age=0')))
  for(let i=0;i<5;i++)assert.equal((await call('/api/auth/request-code','POST',{email:'admin@example.test'},false)).status,200)
  assert.equal((await call('/api/auth/request-code','POST',{email:'admin@example.test'},false)).status,429)
+})
+test('only active operator requests extend a session and expiry blocks token refresh',async()=>{
+ const now=Math.floor(Date.now()/1000),setActivity=sql.prepare('UPDATE admin_idle_sessions SET last_activity=? WHERE id=?')
+ const readActivity=()=>sql.prepare('SELECT last_activity FROM admin_idle_sessions WHERE id=?').get('test-session')?.last_activity
+ setActivity.run(now-60,'test-session')
+ try{
+  assert.equal((await call('/api/admin/session')).status,200)
+  assert.equal(readActivity(),now-60)
+  assert.equal((await call('/api/auth/activity','POST')).status,200)
+  assert.ok(Number(readActivity())>=now)
+  setActivity.run(now-14400,'test-session')
+  assert.equal((await call('/api/admin/session')).status,401)
+  assert.equal((await call('/api/auth/activity','POST')).status,401)
+  assert.equal(readActivity(),now-14400)
+  const refresh=await onRequest({request:new Request(origin+'/api/auth/refresh',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_refresh=refresh-secret; __Host-sga_idle=test-session'}}),env} as any)
+  assert.equal(refresh.status,401)
+ }finally{setActivity.run(now,'test-session')}
 })
 test.after(()=>{globalThis.fetch=originalFetch})
 

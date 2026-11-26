@@ -229,6 +229,23 @@ test('a second native inbox delivery preserves attempted notification links and 
  await receiveMail(new Request('https://sengguanauto.com.my/api/mail-webhook',{method:'POST',headers:await signed(raw),body:raw}),env);assert.equal(sends.length,before+1)
 })
 
+test('unread count includes messages in both inboxes and traverses thread pages',async()=>{
+ const sales='sales@sengguanauto.com.my', admin='admin@sengguanauto.com.my'
+ listingPages={
+  [sales]:Array.from({length:31},(_,i)=>({id:'thread-'+i,email_count:1})),
+  [admin]:[{id:nativeThread,email_count:2}],
+ }
+ const before=nativeRequests.length
+ try{
+  const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/unread'),env,['conversations','unread'])
+  assert.deepEqual(await response.json(),{count:33})
+  const threads=nativeRequests.slice(before).filter(request=>request.path.includes('/threads?'))
+  assert.equal(threads.length,3)
+  assert.ok(threads.every(({path})=>path.includes('folders=inbox&read=false')))
+  assert.ok(threads[1].path.includes('after=thread-29'))
+ }finally{listingPages=null}
+})
+
 test('All mailboxes merge pages without dropping or duplicating interleaved conversations',async()=>{
  const make=(rank:number)=>({id:'10000000-0000-4000-8000-'+String(rank).padStart(12,'0'),subject:'Thread '+rank,from:'customer@example.com',to:[],read:rank%2===0,received_at:new Date(Date.parse('2026-11-25T10:00:00Z')-rank*1000).toISOString(),email_count:1})
  listingPages={'sales@sengguanauto.com.my':Array.from({length:35},(_,i)=>make(i*2)),'admin@sengguanauto.com.my':Array.from({length:35},(_,i)=>make(i*2+1))}

@@ -22,24 +22,37 @@ export async function limitedText(request: Request, limit: number) {
  const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length}
  return new TextDecoder().decode(bytes)
 }
+const idleTimeout=4*60*60
+const idleCookie='__Host-sga_idle'
+const nowSeconds=()=>Math.floor(Date.now()/1000)
+async function activeSession(request:Request,env:Env){
+ const id=cookie(request,idleCookie)
+ if(!id)throw new HttpError(401,'请重新登录。')
+ const session=await env.DB.prepare('SELECT email FROM admin_idle_sessions WHERE id=? AND last_activity>?').bind(id,nowSeconds()-idleTimeout).first<{email:string}>()
+ if(!session)throw new HttpError(401,'请重新登录。')
+ return session
+}
 export async function administrator(request: Request, env: Env) {
  const base=configured(env)
  const token=cookie(request,'__Host-sga_access')
  if(!token)throw new HttpError(401,'请先登录后台。')
+ const session=await activeSession(request,env)
  let response: Response
  try { response=await fetch(base+'/auth/v1/user',{headers:{apikey:env.SUPABASE_ANON_KEY,Authorization:'Bearer '+token}}) } catch { throw new HttpError(503,'登录服务暂时无法连接，请稍后重试。') }
  if(!response.ok)throw new HttpError(response.status>=500?503:401,'登录已过期，请重新验证邮箱。')
  const user=await response.json() as {email?:string;email_confirmed_at?:string}
  if(!user.email || !user.email_confirmed_at || !allowed(user.email,env)) throw new HttpError(403,'此邮箱没有后台管理权限。')
- return user.email.toLowerCase()
+ if(user.email.toLowerCase()!==session.email)throw new HttpError(401,'请重新登录。')
+ return session.email
 }
 export function sameOrigin(request: Request) {
  if(request.headers.get('Origin')!==new URL(request.url).origin || request.headers.get('Sec-Fetch-Site')==='cross-site')throw new HttpError(403,'请在本站完成此操作。')
 }
-function sessionCookies(access:string,refresh:string,maxAge:number) {
+function sessionCookies(access:string,refresh:string,maxAge:number,id?:string) {
  const headers=new Headers()
  headers.append('Set-Cookie',`__Host-sga_access=${encodeURIComponent(access)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${Math.min(maxAge,3600)}`)
  headers.append('Set-Cookie',`__Host-sga_refresh=${encodeURIComponent(refresh)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${refresh?604800:0}`)
+ if(id!==undefined)headers.append('Set-Cookie',`${idleCookie}=${id}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${id?604800:0}`)
  return headers
 }
 async function rateLimit(env: Env,request:Request,key:string,limit:number) {
@@ -57,24 +70,35 @@ export async function authentication(request: Request,env: Env,action:string) {
  if(request.method!=='POST')throw new HttpError(405,'Method not allowed.')
  sameOrigin(request)
  const headers={apikey:env.SUPABASE_ANON_KEY,'Content-Type':'application/json'}
+ if(action==='activity'){
+  const id=cookie(request,idleCookie),now=nowSeconds()
+  if(!id)throw new HttpError(401,'请重新登录。')
+  const session=await env.DB.prepare('UPDATE admin_idle_sessions SET last_activity=MAX(last_activity,?) WHERE id=? AND last_activity>? RETURNING email').bind(now,id,now-idleTimeout).first<{email:string}>()
+  if(!session||!allowed(session.email,env))throw new HttpError(401,'请重新登录。')
+  return json({ok:true})
+ }
  if(action==='logout') {
+  const id=cookie(request,idleCookie)
+  if(id)await env.DB.prepare('DELETE FROM admin_idle_sessions WHERE id=?').bind(id).run()
   const token=cookie(request,'__Host-sga_access')
   if(token)await fetch(base+'/auth/v1/logout?scope=local',{method:'POST',headers:{...headers,Authorization:'Bearer '+token}}).catch(()=>{})
-  return json({ok:true},200,sessionCookies('','',0))
+  return json({ok:true},200,sessionCookies('','',0,''))
  }
  if(action==='refresh') {
+  const session=await activeSession(request,env)
   const refresh=cookie(request,'__Host-sga_refresh');if(!refresh)throw new HttpError(401,'请重新登录。')
   const r=await fetch(base+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers,body:JSON.stringify({refresh_token:refresh})})
-  if(!r.ok)return json({error:'请重新登录。'},401,sessionCookies('','',0))
+  if(!r.ok)return json({error:'请重新登录。'},401,sessionCookies('','',0,''))
   const data=await r.json() as {access_token:string;refresh_token:string;expires_in:number;user:{email:string;email_confirmed_at:string}}
-  if(!data.user?.email_confirmed_at||!allowed(data.user.email,env))return json({error:'此邮箱没有后台管理权限。'},403,sessionCookies('','',0))
-  return json({email:data.user.email},200,sessionCookies(data.access_token,data.refresh_token,data.expires_in))
+  if(!data.user?.email_confirmed_at||!allowed(data.user.email,env))return json({error:'此邮箱没有后台管理权限。'},403,sessionCookies('','',0,''))
+  if(data.user.email.toLowerCase()!==session.email)throw new HttpError(401,'请重新登录。')
+  return json({email:data.user.email},200,sessionCookies(data.access_token,data.refresh_token,data.expires_in,cookie(request,idleCookie)))
  }
  if(!['request-code','verify-code'].includes(action))throw new HttpError(404,'Not found.')
  if(!request.headers.get('Content-Type')?.includes('application/json'))throw new HttpError(415,'Invalid request.')
  if(Number(request.headers.get('Content-Length'))>2048)throw new HttpError(413,'Request too large.')
  const text=await limitedText(request,2048)
- let input:{email?:string;code?:string};try{input=JSON.parse(text)}catch{throw new HttpError(400,'请输入有效邮箱。')}
+ let input:{email?:string;code?:string;password?:string};try{input=JSON.parse(text)}catch{throw new HttpError(400,'请输入有效邮箱。')}
  const email=typeof input.email==='string'?input.email.trim().toLowerCase():''
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)throw new HttpError(400,'请输入有效邮箱。')
  const ip=request.headers.get('CF-Connecting-IP')||'unknown'
@@ -86,10 +110,26 @@ export async function authentication(request: Request,env: Env,action:string) {
   if(!r.ok)throw new HttpError(r.status===429?429:503,r.status===429?'验证码发送过于频繁，请稍后重试。':'验证码暂时无法发送，请稍后重试。')
   return json({ok:true})
  }
- if(!allowed(email,env)||!/^\d{6}$/.test(String(input.code||'')))throw new HttpError(400,'邮箱或验证码不正确。')
+ if(!allowed(email,env)||typeof input.password!=='string'||!input.password||input.password.length>512||!/^[0-9]{6}$/.test(String(input.code||'')))throw new HttpError(400,'邮箱、密码或验证码不正确。')
+ await rateLimit(env,request,'verify:email:'+email,12)
+ const passwordResponse=await fetch(base+'/auth/v1/token?grant_type=password',{method:'POST',headers,body:JSON.stringify({email,password:input.password})})
+ if(passwordResponse.status===429)throw new HttpError(429,'尝试次数太多，请稍后再试。')
+ if(passwordResponse.status>=500)throw new HttpError(503,'登录服务暂时无法连接，请稍后重试。')
+ if(!passwordResponse.ok)throw new HttpError(400,'邮箱、密码或验证码不正确。')
+ const passwordSession=await passwordResponse.json() as {access_token:string;user?:{email?:string;email_confirmed_at?:string}}
+ if(!passwordSession.access_token||passwordSession.user?.email?.toLowerCase()!==email||!passwordSession.user.email_confirmed_at)throw new HttpError(400,'邮箱、密码或验证码不正确。')
+ // The password grant only verifies the password. Never send its tokens to the browser.
+ const revoke=await fetch(base+'/auth/v1/logout?scope=local',{method:'POST',headers:{...headers,Authorization:'Bearer '+passwordSession.access_token}})
+ if(!revoke.ok)throw new HttpError(503,'登录服务暂时无法连接，请稍后重试。')
  const r=await fetch(base+'/auth/v1/verify',{method:'POST',headers,body:JSON.stringify({email,token:input.code,type:'email'})})
  if(!r.ok)throw new HttpError(400,'验证码不正确或已过期，请重新获取。')
  const data=await r.json() as {access_token:string;refresh_token:string;expires_in:number;user:{email:string;email_confirmed_at:string}}
  if(!data.user?.email_confirmed_at||!allowed(data.user.email,env))throw new HttpError(403,'此邮箱没有后台管理权限。')
- return json({email:data.user.email},200,sessionCookies(data.access_token,data.refresh_token,data.expires_in))
+ if(data.user.email.toLowerCase()!==email)throw new HttpError(403,'此邮箱没有后台管理权限。')
+ const id=crypto.randomUUID(),now=nowSeconds()
+ await env.DB.batch([
+  env.DB.prepare('DELETE FROM admin_idle_sessions WHERE last_activity<=? OR id=?').bind(now-idleTimeout,cookie(request,idleCookie)),
+  env.DB.prepare('INSERT INTO admin_idle_sessions(id,email,last_activity) VALUES(?,?,?)').bind(id,email,now),
+ ])
+ return json({email:data.user.email},200,sessionCookies(data.access_token,data.refresh_token,data.expires_in,id))
 }
