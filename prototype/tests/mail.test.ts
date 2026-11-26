@@ -366,6 +366,9 @@ test('mailbox footer settings persist and older clients preserve them when omitt
 test('logo header has compact vertical padding without sacrificing horizontal spacing',async()=>{
  const {composeMailHtml}=await import('../shared/mail-html');const {sanitizeMailHtml}=await import('../server/mail-formatting')
  const html=sanitizeMailHtml(composeMailHtml('<p>Message</p>','Message','','','<p><img src="https://sengguanauto.com.my/api/mail-assets/11111111-1111-4111-8111-111111111111"></p>'))
+ assert.match(html,/^<div class="mail-header"/)
+ assert.match(html,/<\/div><div style="padding-left:24px;padding-right:24px;padding-bottom:24px">/)
+ assert.match((await import('../server/mail-formatting')).outboundMailHtml(html,'Message'),/<body style="margin:0;padding:0">/)
  assert.match(html,/padding-top:8px;padding-bottom:8px;padding-left:24px;padding-right:24px/)
  assert.equal(sanitizeMailHtml(html),html)
 })

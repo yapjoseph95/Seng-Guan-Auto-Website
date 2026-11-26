@@ -33,7 +33,8 @@ export function outboundMailHtml(html:string,text:string){
  const body=html||plainMailHtml(text.replace(/\r\n?/g,'\n'))
  const logoSelectors=mailBrandingClasses.filter(name=>body.includes(`<div class="${name}"`)).map(name=>`.${name} img`).join(',')
  const mobileLogos=logoSelectors ? `<style>@media screen and (max-width:480px){${logoSelectors}{max-width:120px!important;height:auto!important}}</style>` : ''
- return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;700&amp;display=swap">${mobileLogos}</head><body><div style="font-family:'Google Sans',Arial,Helvetica,sans-serif">${body}</div></body></html>`
+ const bodyStyle=body.startsWith(`<div class="${mailHeaderClass}"`) ? ' style="margin:0;padding:0"' : ''
+ return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;700&amp;display=swap">${mobileLogos}</head><body${bodyStyle}><div style="font-family:'Google Sans',Arial,Helvetica,sans-serif">${body}</div></body></html>`
 }
 export async function formattingApi(request:Request,env:Env,parts:string[]){
  if(parts[0]==='images'&&request.method==='POST'){

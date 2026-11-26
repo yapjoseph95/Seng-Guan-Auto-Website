@@ -1,4 +1,4 @@
-import {plainMailHtml,composeMailHtml,mailBodyFontSize,safeMailStyle,mailImagePattern,type MailBrandingMap} from '../shared/mail-html'
+import {plainMailHtml,composeMailHtml,mailBodyFontSize,mailHeaderClass,safeMailStyle,mailImagePattern,type MailBrandingMap} from '../shared/mail-html'
 import AdminSettingsDialog from './AdminSettingsDialog'
 import {mailRowPositions,animateMailRows} from './mail-list-motion'
 import {mailApi as api} from './mail-api'
@@ -23,6 +23,7 @@ type Preferences={enabled:boolean;routes:Record<string,string[]>;connected:boole
 export function isolatedMailHtml(html:string) {
  const template=document.createElement('template')
  template.innerHTML=html
+ const flushHeader=template.content.querySelector('div')?.firstElementChild?.className===mailHeaderClass
  const allowed=new Set(['P','BR','DIV','SPAN','TABLE','THEAD','TBODY','TFOOT','TR','TD','TH','B','STRONG','I','EM','U','UL','OL','LI','BLOCKQUOTE','H1','H2','H3','H4','HR','PRE','CODE','A','IMG'])
  const escape=(s:string)=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
  const clean=(node:Node):string=>{
@@ -35,7 +36,7 @@ export function isolatedMailHtml(html:string) {
   if(tag==='img'){const src=node.getAttribute('src')||'';return mailImagePattern.test(src)?`<img src="${src}" width="${Math.min(600,Math.max(24,Number(node.getAttribute('width'))||200))}" style="max-width:100%;height:auto">`:''}
   return `<${tag}${style?' style="'+style+'"':''}>${children}</${tag}>`
  }
- return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://sengguanauto.com.my/api/mail-assets/; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'"><meta name="referrer" content="no-referrer"><style>body{font:16px/1.5 system-ui,sans-serif;color:#20252a;overflow-wrap:anywhere;padding:16px}p{margin:0;padding:0;line-height:1.5;min-height:1.5em}table{max-width:100%;border-collapse:collapse}td,th{padding:4px}pre{white-space:pre-wrap}blockquote{border-left:3px solid #ddd;padding-left:12px;margin-left:0}</style></head><body>${[...template.content.childNodes].map(clean).join('')}</body></html>`
+ return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https://sengguanauto.com.my/api/mail-assets/; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'"><meta name="referrer" content="no-referrer"><style>body{font:16px/1.5 system-ui,sans-serif;color:#20252a;overflow-wrap:anywhere;margin:0;padding:${flushHeader?0:24}px}p{margin:0;padding:0;line-height:1.5;min-height:1.5em}table{max-width:100%;border-collapse:collapse}td,th{padding:4px}pre{white-space:pre-wrap}blockquote{border-left:3px solid #ddd;padding-left:12px;margin-left:0}</style></head><body>${[...template.content.childNodes].map(clean).join('')}</body></html>`
 }
 export default function AdminMail(){
  const {language,locale}=useLocale()

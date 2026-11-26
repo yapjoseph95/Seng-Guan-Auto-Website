@@ -20,5 +20,6 @@ export function composeMailHtml(bodyHtml:string,body:string,signatureHtml:string
  const header=headerHtml?`<div class="${mailHeaderClass}" style="background-color:#111315;color:#ffffff;padding-top:8px;padding-bottom:8px;padding-left:24px;padding-right:24px;font-size:16px">${headerHtml}</div>`:''
  const bodyStyle=`padding-left:24px;padding-right:24px;font-size:${mailBodyFontSize}px;line-height:1.5${headerHtml?';padding-top:27px':''}`
  const footer=footerHtml?`<div class="${mailFooterClass}" style="border-top:1px solid #d9dde1;padding-top:16px;color:#697178;font-size:12px;line-height:1.5">${footerHtml}</div>`:''
- return `<div style="padding:24px">${header}<div style="${bodyStyle}">${html}</div>${footer}</div>`
+ const contentPadding=headerHtml?'padding-left:24px;padding-right:24px;padding-bottom:24px':'padding:24px'
+ return `${header}<div style="${contentPadding}"><div style="${bodyStyle}">${html}</div>${footer}</div>`
 }
