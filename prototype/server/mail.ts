@@ -1,3 +1,4 @@
+import {sanitizeMailHtml} from './mail-formatting'
 import {HttpError,json,limitedText,type Env} from './auth'
 import {mailboxes,defaultNotificationRoutes,splitAddresses} from '../shared/mail'
 export {mailboxes} from '../shared/mail'
@@ -160,12 +161,13 @@ export async function receiveMail(request:Request,env:Env) {
 }
 export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
  const url=new URL(request.url),action=parts[0]||''
+ if(action==='formatting')return (await import('./mail-formatting')).formattingApi(request,env,parts.slice(1))
  if(action==='drafts')return (await import('./mail-drafts')).draftsApi(request,env,parts.slice(1),owner)
  if(action==='conversations')return (await import('./mail-inboxes')).inboxApi(request,env,parts.slice(1),owner)
  if(action==='changes'&&request.method==='GET')return json(url.searchParams.get('drafts')==='1'?await env.DB.prepare('SELECT COUNT(*) AS count,MAX(updated_at) AS latest FROM mail_saved_drafts WHERE owner=? AND deleted_at IS NULL').bind(owner).first():await env.DB.prepare('SELECT COUNT(*) AS count,MAX(created_at) AS latest FROM mail_messages').first())
  if(action==='signatures'){
   if(request.method==='GET'){const rows=await env.DB.prepare('SELECT mailbox,signature FROM mail_signatures').all<{mailbox:string;signature:string}>();return json(Object.fromEntries(rows.results.map(r=>[r.mailbox,r.signature])))}
-  if(request.method==='PUT'){const value=await input(request);const signatures=mailboxes.map(box=>{const text=value[box];if(typeof text!=='string'||text.length>4000)throw new HttpError(400,'Signatures may contain up to 4,000 characters.');return env.DB.prepare('UPDATE mail_signatures SET signature=? WHERE mailbox=?').bind(text,box)});await env.DB.batch(signatures);return json({ok:true})}
+  if(request.method==='PUT'){const value=await input(request);const signatures=mailboxes.map(box=>{const text=value[box];if(typeof text!=='string'||text.length>4000)throw new HttpError(400,'Signatures may contain up to 4,000 characters.');return [env.DB.prepare('UPDATE mail_signatures SET signature=? WHERE mailbox=?').bind(text,box),env.DB.prepare("UPDATE mail_branding SET signature_html='' WHERE mailbox=?").bind(box)]});await env.DB.batch(signatures.flat());return json({ok:true})}
  }
  if(action==='settings') {
   if(request.method==='GET')return json({...await settings(env),connected:!!env.RESEND_API_KEY,receiving:!!env.RESEND_WEBHOOK_SECRET,mailboxes})
@@ -185,11 +187,12 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
   }
  }
  if(action==='send'&&request.method==='POST') {
-  const value=await input(request),from=mailAddress(value.from)
+  const value=await input(request,500000),from=mailAddress(value.from)
   const to=addressList(value.to,true),cc=addressList(value.cc),bcc=addressList(value.bcc)
   if(to.length+cc.length+bcc.length>50)throw new HttpError(400,'Use no more than 50 recipients in total.')
   const subject=typeof value.subject==='string'?value.subject.trim():''
   const text=typeof value.text==='string'?value.text:''
+  const html=value.html===undefined?'':sanitizeMailHtml(value.html)
   const id=typeof value.id==='string'?value.id:''
   const replyId=typeof value.replyId==='string'&&value.replyId?value.replyId:null
   const forwardId=typeof value.forwardId==='string'&&value.forwardId?value.forwardId:null
@@ -197,7 +200,7 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
   if(!env.RESEND_API_KEY)throw new HttpError(503,'Mail service is not connected yet.')
   const uploads=value.uploads===undefined?[]:value.uploads
   if(!Array.isArray(uploads)||uploads.length>20)throw new HttpError(400,'Use no more than 20 attachments.')
-  const payload=JSON.stringify({from,to,cc,bcc,subject,text,replyId,forwardId,...uploads.length?{uploads}:{}})
+  const payload=JSON.stringify({from,to,cc,bcc,subject,text,replyId,forwardId,...html?{html}:{},...uploads.length?{uploads}:{}})
   let row=await env.DB.prepare('SELECT * FROM mail_messages WHERE id=?').bind(id).first<Message>()
   const same=(row:Message,stored:Content)=>stored.send_payload?stored.send_payload===payload:row.mailbox===from&&row.recipients===JSON.stringify(to)&&row.subject===subject&&stored.text===text&&JSON.stringify(stored.cc||[])===JSON.stringify(cc)&&JSON.stringify(stored.bcc||[])===JSON.stringify(bcc)&&!forwardId&&row.reply_id===replyId
   if(row){const stored=await content(env,row);if(!same(row,stored))throw new HttpError(409,'Use a new send identifier for a different email.');if(row.status==='sent')return json({id,status:'sent'});if(Date.now()-Date.parse(row.created_at)>23*3600000)throw new HttpError(409,'Please review delivery before resending this older email.')}
@@ -207,7 +210,7 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
    if(forwardId){const original=await message(env,forwardId);if(original.direction!=='inbound')throw new HttpError(400,'Only received emails can be forwarded.');attachments=(await storeAttachments(env,original)).attachments}
    const uploaded=await (await import('./mail-inboxes')).loadMailUploads(env,owner,uploads);attachments.push(...uploaded.stored)
    const key=`mail/${id}/content.json`
-   await env.PHOTOS.put(key,JSON.stringify({text,html:null,message_id:messageId,attachments,cc,bcc,forward_id:forwardId,send_payload:payload}),{onlyIf:{etagDoesNotMatch:'*'}})
+   await env.PHOTOS.put(key,JSON.stringify({text,html:html||null,message_id:messageId,attachments,cc,bcc,forward_id:forwardId,send_payload:payload}),{onlyIf:{etagDoesNotMatch:'*'}})
    const savedObject=await env.PHOTOS.get(key)
    const saved=await savedObject?.json<Content>()
    if(!saved||saved.send_payload!==payload)throw new HttpError(409,'A different email already uses this send identifier.')
@@ -225,7 +228,7 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
    let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192))
    attachments.push({filename:file.filename,content:btoa(binary)})
   }
-  const provider=await resend<{id:string}>(env,'/emails',{method:'POST',headers:{'Idempotency-Key':'mail-send/'+id},body:JSON.stringify({from:`Seng Guan Auto <${from}>`,to,cc,bcc,subject,text,reply_to:from,...attachments.length?{attachments}:{},...row.reply_id&&stored.message_id?{headers:{'In-Reply-To':stored.message_id,References:stored.message_id}}:{}})})
+  const provider=await resend<{id:string}>(env,'/emails',{method:'POST',headers:{'Idempotency-Key':'mail-send/'+id},body:JSON.stringify({from:`Seng Guan Auto <${from}>`,to,cc,bcc,subject,text,...stored.html?{html:stored.html}:{},reply_to:from,...attachments.length?{attachments}:{},...row.reply_id&&stored.message_id?{headers:{'In-Reply-To':stored.message_id,References:stored.message_id}}:{}})})
   await env.DB.prepare("UPDATE mail_messages SET status='sent',provider_id=? WHERE id=?").bind(provider.id,id).run()
   // History is useful but must never turn an accepted send into a reported failure.
   await remember(env,owner,'address',[...new Set([...to,...cc,...bcc])]).catch(()=>{})

@@ -69,3 +69,13 @@ The foreground UI checks a D1 change token every5 seconds, synchronizes on focus
 - Replies include editable original-message quotes. Signatures are inserted before the quote. Status messages use floating toasts.
 - Native attachments remain limited to 25 MB combined by Resend; up to 50 files are supported. Optional browser-side photo compression reduces JPEG/PNG/WebP copies to a maximum 2400px edge. Original local files are unchanged.
 - Validation: 32 mail tests, 12 vehicle API tests, production build and server typecheck pass. Draft send cleanup uses version checks so newer edits cannot be silently discarded.
+
+## Rich messages, signatures and headers (26 November 2026)
+
+Settings groups Email header, Signatures and Notifications. Message/signature/header editing uses a shared lazy-loaded Tiptap editor with bold, italic, alignment and font size. Branding editors support image upload and insertion of the existing company logo adapted for light email backgrounds. Each mailbox has separate header and signature settings; existing plain signatures remain available.
+
+Migration `0021_mail_branding.sql` is additive. Branding saves validate both mailbox configurations and update the HTML/plain signature atomically. Settings and sending wait for the signature and branding loads, preventing slow-startup overwrites. Drafts retain `bodyHtml`, and native drafts/forwards plus legacy sends carry HTML and text alternatives with deterministic sanitized retry payloads.
+
+Branding images are raster-only, capped at 2 MB after browser preparation, and served by unguessable public `/api/mail-assets/<id>` URLs isolated from private attachment/vehicle storage. Only those image URLs and a restricted tag/style allowlist survive server-side parsing. Incoming remote images and active content remain blocked by the sandboxed mail preview. Email clients may ask recipients to enable images.
+
+Validation: 39 mail tests, frontend build, server typecheck and Pages Functions bundle. Tests cover rich-format sanitization, atomic signature settings, bounded/public branding images, private-attachment isolation, HTML delivery, draft HTML and compatibility with older plain-signature clients.

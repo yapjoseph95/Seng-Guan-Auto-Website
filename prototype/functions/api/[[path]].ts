@@ -1,3 +1,4 @@
+import {mailBrandImage} from '../../server/mail-formatting'
 /// <reference types="@cloudflare/workers-types" />
 import { mailApi, receiveMail } from '../../server/mail'
 import { canonicalVehicleMake, officialVehicleMake } from '../../shared/vehicle-makes'
@@ -411,6 +412,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
  try {
   const url = new URL(request.url)
   const parts = url.pathname.replace(/^\/api\//,'').split('/').filter(Boolean)
+  if(parts[0] === 'mail-assets' && parts.length===2) return await mailBrandImage(request,env,parts[1])
   if(parts[0] === 'mail-webhook' && parts.length===1) return await receiveMail(request,env)
   if(parts[0] === 'auth') return await authentication(request,env,parts[1]||'')
   const admin = parts[0] === 'admin'

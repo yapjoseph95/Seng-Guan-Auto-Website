@@ -1,3 +1,4 @@
+import {sanitizeMailHtml} from './mail-formatting'
 import {HttpError,json,type Env} from './auth'
 import {resend,input,addressList,mailAddress,remember,bytesFromDownload,keyHash} from './mail'
 export type InboxEmail={id:string;direction:'inbound'|'outbound';from:string;to:string[];cc:string[];bcc:string[];reply_to:string[];subject:string|null;text:string|null;html:string|null;attachments:{id:string;filename:string|null;size:number|null}[];read:boolean;received_at:string;message_id?:string}
@@ -38,8 +39,9 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   return json({id,filename:file.name,size:file.size})
  }
  if(action==='send'&&request.method==='POST'){
-  const value=await input(request),box=mailAddress(value.from),to=addressList(value.to,true),cc=addressList(value.cc),bcc=addressList(value.bcc)
+  const value=await input(request,500000),box=mailAddress(value.from),to=addressList(value.to,true),cc=addressList(value.cc),bcc=addressList(value.bcc)
   const subject=typeof value.subject==='string'?value.subject.trim():'',text=typeof value.text==='string'?value.text:''
+  const html=value.html===undefined?'':sanitizeMailHtml(value.html)
   const id=typeof value.id==='string'?value.id:''
   if(!/^out-[0-9a-f-]{36}$/.test(id)||!subject||subject.length>250||/[\r\n]/.test(subject)||(!text.trim()&&!value.forwardId)||text.length>50000||to.length+cc.length+bcc.length>50)throw new HttpError(400,'Check recipients, subject and message.')
   const reply=typeof value.replyId==='string'&&value.replyId?parseInboxRef(value.replyId):null,forward=typeof value.forwardId==='string'&&value.forwardId?parseInboxRef(value.forwardId):null
@@ -47,7 +49,7 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   const uploads=value.uploads===undefined?[]:value.uploads
   if(!Array.isArray(uploads)||uploads.length>50||new Set(uploads).size!==uploads.length)throw new HttpError(400,'Use no more than 50 attachments.')
   uploads.forEach(uuid)
-  const payload=JSON.stringify({box,to,cc,bcc,subject,text,reply,forward,...uploads.length?{uploads}:{}})
+  const payload=JSON.stringify({box,to,cc,bcc,subject,text,reply,forward,...html?{html}:{},...uploads.length?{uploads}:{}})
   await env.DB.prepare('INSERT OR IGNORE INTO mail_native_sends(id,payload,created_at) VALUES(?,?,?)').bind(id,payload,new Date().toISOString()).run()
   let state=await env.DB.prepare('SELECT * FROM mail_native_sends WHERE id=?').bind(id).first<{payload:string;created_at:string;draft_id:string|null;provider_id:string|null}>()
   if(!state||state.payload!==payload)throw new HttpError(409,'Use a new send identifier for a different email.')
@@ -55,10 +57,10 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   if(Date.now()-Date.parse(state.created_at)>23*3600000)throw new HttpError(409,'Please review delivery before retrying this older email.')
   const {files:attachments}=await loadMailUploads(env,owner,uploads)
   let path:string,body:Record<string,unknown>
-  if(forward){path=root(box)+`/threads/${forward.thread}/emails/${forward.email}/forward`;body={to,cc,bcc,subject,text,attachments}}
+  if(forward){path=root(box)+`/threads/${forward.thread}/emails/${forward.email}/forward`;body={to,cc,bcc,subject,text,attachments,...html?{html}:{}}}
   else {
    if(!state.draft_id){
-    const draft=await resend<{id:string}>(env,root(box)+'/drafts',{method:'POST',body:JSON.stringify({to,cc,bcc,subject,text,attachments,...reply?{thread_id:reply.thread,reply_to_email_id:reply.email}:{}})})
+    const draft=await resend<{id:string}>(env,root(box)+'/drafts',{method:'POST',body:JSON.stringify({to,cc,bcc,subject,text,attachments,...html?{html}:{},...reply?{thread_id:reply.thread,reply_to_email_id:reply.email}:{}})})
     await env.DB.prepare('UPDATE mail_native_sends SET draft_id=? WHERE id=? AND draft_id IS NULL').bind(uuid(draft.id),id).run()
     state=await env.DB.prepare('SELECT * FROM mail_native_sends WHERE id=?').bind(id).first<typeof state>()
    }

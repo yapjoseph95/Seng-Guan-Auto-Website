@@ -22,6 +22,7 @@ db.exec(readFileSync(new URL('../migrations/0017_mail_features.sql',import.meta.
 db.exec(readFileSync(new URL('../migrations/0018_resend_inboxes.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0019_mail_signatures.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0020_mail_drafts.sql',import.meta.url),'utf8'))
+db.exec(readFileSync(new URL('../migrations/0021_mail_branding.sql',import.meta.url),'utf8'))
 class Stmt{constructor(public sql:string,public params:unknown[]=[]){}bind(...p:unknown[]){return new Stmt(this.sql,p)}async first(){return db.prepare(this.sql).get(...this.params as any[])||null}async all(){return {results:db.prepare(this.sql).all(...this.params as any[])}}async run(){return {meta:{changes:Number(db.prepare(this.sql).run(...this.params as any[]).changes)}}}}
 const storage=new Map<string,string|Uint8Array>()
 const env={DB:{prepare:(s:string)=>new Stmt(s),batch:async(stmts:Stmt[])=>{db.exec('BEGIN');try{const result=[];for(const s of stmts)result.push(await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}},PHOTOS:{head:async(k:string)=>{const v=storage.get(k);return v?{size:typeof v==='string'?new TextEncoder().encode(v).length:v.length}:null},put:async(k:string,v:string|Uint8Array|ArrayBuffer,opts?:any)=>{if(opts?.onlyIf&&storage.has(k))return null;storage.set(k,v instanceof ArrayBuffer?new Uint8Array(v):v);return {}},get:async(k:string)=>{const v=storage.get(k);return v?{json:async()=>JSON.parse(String(v)),body:v,arrayBuffer:async()=>typeof v==='string'?new TextEncoder().encode(v).buffer:(v as Uint8Array).slice().buffer}:null}},RESEND_API_KEY:'test',RESEND_WEBHOOK_SECRET:secret,SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'test',ADMIN_EMAILS:'owner@example.com'} as any
@@ -278,11 +279,11 @@ test('delete moves a conversation to recoverable Trash and Trash remains browsab
  await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?mailbox=sales@sengguanauto.com.my&folder=trash'),env,['conversations']);assert.ok(nativeRequests.at(-1).path.includes('folders=trash'))
 })
 test('saved drafts keep partial recipients, attachments and send identifiers private, detect conflicts and support delete/restore',async()=>{
- const id='draft-33333333-3333-4333-8333-333333333333',payload={id,from:'sales@sengguanauto.com.my',to:'partial@',cc:'',bcc:'',subject:'Work in progress',body:'Draft body',replyId:'',forwardId:'',includeSignature:true,uploads:[],sendId:'out-22222222-2222-4222-8222-222222222222',retryPayload:''}
+ const id='draft-33333333-3333-4333-8333-333333333333',payload={id,from:'sales@sengguanauto.com.my',to:'partial@',cc:'',bcc:'',subject:'Work in progress',body:'Draft body',bodyHtml:'<p><strong>Draft body</strong></p>',replyId:'',forwardId:'',includeSignature:true,uploads:[],sendId:'out-22222222-2222-4222-8222-222222222222',retryPayload:''}
  const save=(p:any)=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}),env,['drafts'],'owner@example.com')
  const first=await (await save(payload)).json() as any
  const get=(owner='owner@example.com')=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts/'+id),env,['drafts',id],owner)
- assert.equal((await (await get()).json() as any).to,'partial@');await assert.rejects(()=>get('other@example.com'))
+ assert.equal((await (await get()).json() as any).to,'partial@');assert.equal((await (await get()).json() as any).bodyHtml,payload.bodyHtml);await assert.rejects(()=>get('other@example.com'))
  const second=await (await save({...payload,body:'Edited draft',updatedAt:first.updatedAt})).json() as any;assert.notEqual(second.updatedAt,first.updatedAt)
  await assert.rejects(()=>save({...payload,body:'Stale overwrite',updatedAt:first.updatedAt}))
  const list=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts?q=Edited'),env,['drafts'],'owner@example.com')).json() as any;assert.equal(list.messages.length,1)
@@ -309,4 +310,40 @@ test('a saved forward checks its exact source message rather than a newer thread
  const detail=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/'+ref),env,['conversations',ref])).json() as any
  assert.equal(detail.id,ref);assert.equal(detail.text,nativeEmail.text)
  assert.ok(nativeRequests.at(-1).path.endsWith('/emails/'+nativeEmail.id))
+})
+
+test('rich mail HTML preserves formatting and only own branding images, stripping active content and unsafe styles',async()=>{
+ const {sanitizeMailHtml}=await import('../server/mail-formatting')
+ const src='https://sengguanauto.com.my/api/mail-assets/11111111-1111-4111-8111-111111111111'
+ const safe=sanitizeMailHtml('<p onclick="bad()" style="text-align:center;font-size:24px;background:url(https://evil.test)"><strong>Hello</strong><em>world</em></p><script>alert(1)</script><img src="'+src+'" onerror="bad()"><img src="https://evil.test/tracker"><svg><script>bad</script></svg>')
+ assert.match(safe,/text-align:center;font-size:24px/);assert.match(safe,/<strong>Hello<\/strong>/);assert.match(safe,new RegExp(src));assert.doesNotMatch(safe,/onclick|onerror|evil|script|svg|background/)
+ const {composeMailHtml}=await import('../shared/mail-html');const result=composeMailHtml('<p>Answer</p><p>---------- Original message ----------</p><p>Previous</p>','Answer','<p><img src="'+src+'"></p>','','<p>Header</p>')
+ assert.ok(result.indexOf('Header')<result.indexOf('Answer'));assert.ok(result.indexOf(src)<result.indexOf('Original message'))
+})
+test('mailbox rich signatures and headers persist atomically with their plain signature alternative',async()=>{
+ const config=Object.fromEntries(['sales','admin'].map(name=>[name+'@sengguanauto.com.my',{signatureHtml:'<p><strong>'+name+'</strong></p>',signatureText:name+' team',headerHtml:'<p style="text-align:center">Seng Guan Auto</p>',headerEnabled:true}]))
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)}),env,['formatting'],'owner@example.com')
+ const saved=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting'),env,['formatting'],'owner@example.com')).json() as any
+ assert.equal(saved['sales@sengguanauto.com.my'].headerEnabled,true);assert.match(saved['admin@sengguanauto.com.my'].signatureHtml,/<strong>admin/)
+ const plain=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/signatures'),env,['signatures'])).json() as any;assert.equal(plain['sales@sengguanauto.com.my'],'sales team')
+ await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({...config,'admin@sengguanauto.com.my':{...config['admin@sengguanauto.com.my'],signatureText:'x'.repeat(4001)}})}),env,['formatting'],'owner@example.com'))
+})
+test('branding image uploads expose only bounded raster branding assets, never private attachments',async()=>{
+ const png=new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0,0])
+ const saved=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting/images',{method:'POST',body:png}),env,['formatting','images'],'owner@example.com')).json() as any
+ const publicImage=await onRequest({request:new Request(saved.url),env} as any);assert.equal(publicImage.status,200);assert.equal(publicImage.headers.get('Content-Type'),'image/png')
+ await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting/images',{method:'POST',body:'<svg>not a raster</svg>'}),env,['formatting','images'],'owner@example.com'))
+ const missing=await onRequest({request:new Request('https://sengguanauto.com.my/api/mail-assets/'+nativeEmail.id),env} as any);assert.equal(missing.status,404)
+})
+test('HTML delivery keeps plain text and preserves native and legacy idempotency behavior',async()=>{
+ const html='<p style="text-align:right;font-size:20px"><strong>Formatted</strong></p>'
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-20202020-2020-4020-8020-202020202020',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich native',text:'Formatted',html,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.equal(nativeDraftPayloads.at(-1).html,html);assert.equal(nativeDraftPayloads.at(-1).text,'Formatted')
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-21212121-2121-4121-8121-212121212121',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich legacy',text:'Formatted',html,uploads:[]})}),env,['send'],'owner@example.com');assert.equal(sends.at(-1).body.html,html)
+})
+
+test('older plain-signature clients clear the old HTML signature without losing header settings',async()=>{
+ const signature={'sales@sengguanauto.com.my':'Updated plain sales','admin@sengguanauto.com.my':'Updated plain admin'}
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/signatures',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(signature)}),env,['signatures'])
+ const value=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting'),env,['formatting'])).json() as any
+ assert.equal(value['sales@sengguanauto.com.my'].signatureHtml,'');assert.equal(value['sales@sengguanauto.com.my'].headerEnabled,true)
 })

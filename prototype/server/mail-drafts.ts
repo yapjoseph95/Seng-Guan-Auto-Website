@@ -12,9 +12,9 @@ export async function draftsApi(request:Request,env:Env,parts:string[],owner:str
  }
  if(!id&&request.method==='POST'){
   const value=await input(request,1500000),key=draftId(String(value.id||'')),from=mailAddress(value.from)
-  const fields=['to','cc','bcc','subject','body','replyId','forwardId','sendId','retryPayload'] as const
+  const fields=['to','cc','bcc','subject','body','bodyHtml','replyId','forwardId','sendId','retryPayload'] as const
   const payload:Record<string,unknown>={from,includeSignature:value.includeSignature!==false}
-  for(const field of fields){const text=value[field]??'';const max=field==='body'?50000:field==='retryPayload'?300000:field==='subject'?250:4000;if(typeof text!=='string'||text.length>max)throw new HttpError(400,'Draft contains an invalid field.');payload[field]=text}
+  for(const field of fields){const text=value[field]??'';const max=field==='bodyHtml'?200000:field==='body'?50000:field==='retryPayload'?600000:field==='subject'?250:4000;if(typeof text!=='string'||text.length>max)throw new HttpError(400,'Draft contains an invalid field.');payload[field]=text}
   if(!/^out-[0-9a-f-]{36}$/.test(String(payload.sendId)))throw new HttpError(400,'Invalid draft send identifier.')
   if(!Array.isArray(value.uploads)||value.uploads.length>50||value.uploads.some(v=>typeof v!=='string'||! /^[0-9a-f-]{36}$/.test(v)))throw new HttpError(400,'Invalid draft attachments.')
   payload.uploads=value.uploads
