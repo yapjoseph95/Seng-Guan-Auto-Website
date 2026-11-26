@@ -24,6 +24,11 @@ export async function limitedText(request: Request, limit: number) {
 }
 const idleTimeout=4*60*60
 const idleCookie='__Host-sga_idle'
+const loginChallengeCookie='__Host-sga_login'
+const loginChallengeAge=600
+function loginChallengeHeader(id:string){
+ return `${loginChallengeCookie}=${id}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${id?loginChallengeAge:0}`
+}
 const nowSeconds=()=>Math.floor(Date.now()/1000)
 async function activeSession(request:Request,env:Env){
  const id=cookie(request,idleCookie)
@@ -86,7 +91,11 @@ export async function authentication(request: Request,env: Env,action:string) {
   if(updated.status===401||updated.status===403)throw new HttpError(401,'This reset link has expired. Request a new one.')
   if(updated.status===429||updated.status>=500)throw new HttpError(503,'Password reset is temporarily unavailable. Try again.')
   if(!updated.ok)throw new HttpError(400,'Choose a different password and try again.')
-  await env.DB.prepare('DELETE FROM admin_idle_sessions WHERE email=?').bind(user.email.toLowerCase()).run()
+  const email=user.email.toLowerCase()
+  await env.DB.batch([
+   env.DB.prepare('DELETE FROM admin_idle_sessions WHERE email=?').bind(email),
+   env.DB.prepare('DELETE FROM admin_login_challenges WHERE email=?').bind(email),
+  ])
   return json({ok:true},200,sessionCookies('','',0,''))
  }
  if(action==='activity'){
@@ -113,42 +122,59 @@ export async function authentication(request: Request,env: Env,action:string) {
   if(data.user.email.toLowerCase()!==session.email)throw new HttpError(401,'请重新登录。')
   return json({email:data.user.email},200,sessionCookies(data.access_token,data.refresh_token,data.expires_in,cookie(request,idleCookie)))
  }
- if(!['request-code','verify-code'].includes(action))throw new HttpError(404,'Not found.')
+ if(!['request-code','resend-code','verify-code'].includes(action))throw new HttpError(404,'Not found.')
  if(!request.headers.get('Content-Type')?.includes('application/json'))throw new HttpError(415,'Invalid request.')
- if(Number(request.headers.get('Content-Length'))>2048)throw new HttpError(413,'Request too large.')
- const text=await limitedText(request,2048)
- let input:{email?:string;code?:string;password?:string};try{input=JSON.parse(text)}catch{throw new HttpError(400,'请输入有效邮箱。')}
- const email=typeof input.email==='string'?input.email.trim().toLowerCase():''
- if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)throw new HttpError(400,'请输入有效邮箱。')
+ let input:{email?:string;code?:string;password?:string}
+ try{input=JSON.parse(await limitedText(request,4096))||{}}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid request.')}
  const ip=request.headers.get('CF-Connecting-IP')||'unknown'
- await rateLimit(env,request,action+':ip:'+ip,action==='request-code'?10:25)
- if(action==='request-code') {
-  if(!allowed(email,env))return json({ok:true})
+ await rateLimit(env,request,action+':ip:'+ip,action==='verify-code'?25:10)
+ const challengeId=cookie(request,loginChallengeCookie)
+ const sendCode=async(email:string)=>{
   await rateLimit(env,request,'send:email:'+email,6)
-  const r=await fetch(base+'/auth/v1/otp',{method:'POST',headers,body:JSON.stringify({email,create_user:false})})
-  if(!r.ok)throw new HttpError(r.status===429?429:503,r.status===429?'验证码发送过于频繁，请稍后重试。':'验证码暂时无法发送，请稍后重试。')
-  return json({ok:true})
+  const response=await fetch(base+'/auth/v1/otp',{method:'POST',headers,body:JSON.stringify({email,create_user:false})})
+  if(!response.ok)throw new HttpError(response.status===429?429:503,response.status===429?'验证码发送过于频繁，请稍后重试。':'验证码暂时无法发送，请稍后重试。')
  }
- if(!allowed(email,env)||typeof input.password!=='string'||!input.password||input.password.length>512||!/^[0-9]{6}$/.test(String(input.code||'')))throw new HttpError(400,'邮箱、密码或验证码不正确。')
+ if(action==='request-code'){
+  const email=typeof input.email==='string'?input.email.trim().toLowerCase():''
+  const invalidCredentials='邮箱或密码不正确。'
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||typeof input.password!=='string'||!input.password||input.password.length>512)throw new HttpError(400,invalidCredentials)
+  await rateLimit(env,request,'password:email:'+email,10)
+  if(!allowed(email,env))throw new HttpError(400,invalidCredentials)
+  const passwordResponse=await fetch(base+'/auth/v1/token?grant_type=password',{method:'POST',headers,body:JSON.stringify({email,password:input.password})})
+  if(passwordResponse.status===429)throw new HttpError(429,'尝试次数太多，请稍后再试。')
+  if(passwordResponse.status>=500)throw new HttpError(503,'登录服务暂时无法连接，请稍后重试。')
+  if(!passwordResponse.ok)throw new HttpError(400,invalidCredentials)
+  const passwordSession=await passwordResponse.json() as {access_token:string;user?:{email?:string;email_confirmed_at?:string}}
+  if(!passwordSession.access_token||passwordSession.user?.email?.toLowerCase()!==email||!passwordSession.user.email_confirmed_at)throw new HttpError(400,invalidCredentials)
+  const revoke=await fetch(base+'/auth/v1/logout?scope=local',{method:'POST',headers:{...headers,Authorization:'Bearer '+passwordSession.access_token}})
+  if(!revoke.ok)throw new HttpError(503,'登录服务暂时无法连接，请稍后重试。')
+  await sendCode(email)
+  const id=crypto.randomUUID(),created=nowSeconds()
+  await env.DB.batch([
+   env.DB.prepare('DELETE FROM admin_login_challenges WHERE expires_at<=? OR id=?').bind(created,challengeId),
+   env.DB.prepare('INSERT INTO admin_login_challenges(id,email,expires_at) VALUES(?,?,?)').bind(id,email,created+loginChallengeAge),
+  ])
+  return json({ok:true},200,{'Set-Cookie':loginChallengeHeader(id)})
+ }
+ const challenge=challengeId?await env.DB.prepare('SELECT email FROM admin_login_challenges WHERE id=? AND expires_at>?').bind(challengeId,nowSeconds()).first<{email:string}>():null
+ if(!challenge||!allowed(challenge.email,env))throw new HttpError(401,'登录验证已过期，请重新输入邮箱和密码。')
+ const {email}=challenge
+ if(action==='resend-code'){await sendCode(email);return json({ok:true})}
+ if(typeof input.code!=='string'||!/^[0-9]{6}$/.test(input.code))throw new HttpError(400,'验证码不正确或已过期，请重新获取。')
  await rateLimit(env,request,'verify:email:'+email,12)
- const passwordResponse=await fetch(base+'/auth/v1/token?grant_type=password',{method:'POST',headers,body:JSON.stringify({email,password:input.password})})
- if(passwordResponse.status===429)throw new HttpError(429,'尝试次数太多，请稍后再试。')
- if(passwordResponse.status>=500)throw new HttpError(503,'登录服务暂时无法连接，请稍后重试。')
- if(!passwordResponse.ok)throw new HttpError(400,'邮箱、密码或验证码不正确。')
- const passwordSession=await passwordResponse.json() as {access_token:string;user?:{email?:string;email_confirmed_at?:string}}
- if(!passwordSession.access_token||passwordSession.user?.email?.toLowerCase()!==email||!passwordSession.user.email_confirmed_at)throw new HttpError(400,'邮箱、密码或验证码不正确。')
- // The password grant only verifies the password. Never send its tokens to the browser.
- const revoke=await fetch(base+'/auth/v1/logout?scope=local',{method:'POST',headers:{...headers,Authorization:'Bearer '+passwordSession.access_token}})
- if(!revoke.ok)throw new HttpError(503,'登录服务暂时无法连接，请稍后重试。')
  const r=await fetch(base+'/auth/v1/verify',{method:'POST',headers,body:JSON.stringify({email,token:input.code,type:'email'})})
  if(!r.ok)throw new HttpError(400,'验证码不正确或已过期，请重新获取。')
  const data=await r.json() as {access_token:string;refresh_token:string;expires_in:number;user:{email:string;email_confirmed_at:string}}
  if(!data.user?.email_confirmed_at||!allowed(data.user.email,env))throw new HttpError(403,'此邮箱没有后台管理权限。')
  if(data.user.email.toLowerCase()!==email)throw new HttpError(403,'此邮箱没有后台管理权限。')
+ const consumed=await env.DB.prepare('DELETE FROM admin_login_challenges WHERE id=? AND expires_at>? RETURNING id').bind(challengeId,nowSeconds()).first()
+ if(!consumed)throw new HttpError(401,'登录验证已过期，请重新输入邮箱和密码。')
  const id=crypto.randomUUID(),now=nowSeconds()
  await env.DB.batch([
   env.DB.prepare('DELETE FROM admin_idle_sessions WHERE last_activity<=? OR id=?').bind(now-idleTimeout,cookie(request,idleCookie)),
   env.DB.prepare('INSERT INTO admin_idle_sessions(id,email,last_activity) VALUES(?,?,?)').bind(id,email,now),
  ])
- return json({email:data.user.email},200,sessionCookies(data.access_token,data.refresh_token,data.expires_in,id))
+ const cookies=sessionCookies(data.access_token,data.refresh_token,data.expires_in,id)
+ cookies.append('Set-Cookie',loginChallengeHeader(''))
+ return json({email:data.user.email},200,cookies)
 }
