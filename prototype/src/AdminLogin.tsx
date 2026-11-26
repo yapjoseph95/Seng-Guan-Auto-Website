@@ -1,9 +1,10 @@
 import { useLocale, LanguageSelect } from './locale'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ArrowLeft, ArrowRight, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
 import logo from './assets/logo-dark.svg'
 import Admin from './Admin'
 import AdminMail from './AdminMail'
+import AdminTurnstile from './AdminTurnstile'
 import './AdminLogin.css'
 async function auth(path:string,data?:unknown) {
  const r=await fetch('/api/auth/'+path,{method:data===undefined?'GET':'POST',credentials:'same-origin',headers:data===undefined?{}:{'Content-Type':'application/json'},body:data===undefined?undefined:JSON.stringify(data)})
@@ -28,6 +29,17 @@ export default function AdminLogin() {
  const [password,setPassword]=useState('')
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState('')
+ const [turnstileToken,setTurnstileToken]=useState('')
+ const [turnstileVersion,setTurnstileVersion]=useState(0)
+ const [turnstileError,setTurnstileError]=useState(false)
+ const receiveTurnstileToken=useCallback((token:string)=>{
+  setTurnstileToken(token)
+  if(token)setTurnstileError(false)
+ },[])
+ const failTurnstile=useCallback(()=>{
+  setTurnstileToken('')
+  setTurnstileError(true)
+ },[])
  const [cooldown,setCooldown]=useState(0)
  useEffect(()=>{
   let active=true
@@ -67,14 +79,17 @@ export default function AdminLogin() {
  const send=async(resend=false)=>{
   setBusy(true);setError('')
   try{
-   await auth(resend?'resend-code':'request-code',resend?{}:{email:email.trim().toLowerCase(),password})
+   await auth(resend?'resend-code':'request-code',resend?{}:{email:email.trim().toLowerCase(),password,turnstileToken})
    setStep('code');setCode('');setCooldown(60)
   }catch(error){showLoginError(error)}
-  finally{setPassword('');setBusy(false)}
+  finally{
+   if(!resend){setTurnstileToken('');setTurnstileVersion(value=>value+1)}
+   setPassword('');setBusy(false)
+  }
  }
  const submit=async(e:FormEvent)=>{
   e.preventDefault()
-  if(step==='email'){await send();return}
+  if(step==='email'){if(turnstileToken)await send();return}
   setBusy(true);setError('')
   try{
    const session=await auth('verify-code',{code})
@@ -110,7 +125,11 @@ export default function AdminLogin() {
      }}/>
      {t('Remember my email')}
     </label>}
-    <button className="login-submit" disabled={busy}>{busy?<LoaderCircle className="login-spin" size={18}/>:<>{t(step==='email'?'发送验证码':'验证并进入后台')}<ArrowRight size={18}/></>}</button>
+    {step==='email'&&<>
+     <AdminTurnstile key={turnstileVersion} onToken={receiveTurnstileToken} onError={failTurnstile}/>
+     {turnstileError&&<p className="login-error" role="alert">{t('Human verification could not load. Refresh the page to try again.')}</p>}
+    </>}
+    <button className="login-submit" disabled={busy||(step==='email'&&!turnstileToken)}>{busy?<LoaderCircle className="login-spin" size={18}/>:<>{t(step==='email'?'发送验证码':'验证并进入后台')}<ArrowRight size={18}/></>}</button>
     {step==='code'&&<div className="login-resend"><button type="button" disabled={busy||cooldown>0} onClick={()=>void send(true)}>{cooldown>0?t('{seconds} 秒后可重发',{seconds:cooldown}):t('重新发送验证码')}</button><button type="button" disabled={busy} onClick={()=>{setStep('email');setCode('');setPassword('');setError('')}}>{t("修改邮箱")}</button></div>}
    </form>}
    <p className="login-help">{t("验证码只用于本次登录。没有收到邮件？请检查垃圾邮件，或稍后重试。")}</p>

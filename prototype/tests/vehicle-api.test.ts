@@ -58,13 +58,20 @@ const env={DB:{prepare:(query:string)=>new Statement(query),batch:async(stmts:St
   return photo?{body:photo.bytes,arrayBuffer:async()=>photo.bytes.slice().buffer}:null
  },
  delete:async(keys:string|string[])=>{for(const key of Array.isArray(keys)?keys:[keys])objects.delete(key)},
-},IMAGE_RESIZER:{fetch:async(_url:string,init:{body:BodyInit})=>new Response(init.body,{headers:{'Content-Type':'image/jpeg'}})},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
+},IMAGE_RESIZER:{fetch:async(_url:string,init:{body:BodyInit})=>new Response(init.body,{headers:{'Content-Type':'image/jpeg'}})},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',TURNSTILE_SECRET:'test-turnstile-secret',ADMIN_EMAILS:'admin@example.test'}
 const users:Record<string,unknown>={valid:{email:'admin@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},other:{email:'other@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},unverified:{email:'admin@example.test'}}
 const sent:string[]=[]
 const passwordUpdates:string[]=[]
 const originalFetch=globalThis.fetch
 globalThis.fetch=async(input,options)=>{
- const url=String(input);assert(url.startsWith(env.SUPABASE_URL+'/auth/v1/'))
+ const url=String(input)
+ if(url==='https://challenges.cloudflare.com/turnstile/v0/siteverify'){
+  const fields=new URLSearchParams(String(options?.body))
+  assert.equal(fields.get('secret'),env.TURNSTILE_SECRET)
+  const token=fields.get('response')
+  return Response.json({success:token!=='invalid',action:token==='wrong-action'?'contact':'admin_login',hostname:token==='wrong-host'?'other.test':'sengguanauto.test'})
+ }
+ assert(url.startsWith(env.SUPABASE_URL+'/auth/v1/'))
  const h=new Headers(options?.headers);assert.equal(h.get('apikey'),env.SUPABASE_ANON_KEY)
  if(url.endsWith('/user')){const user=users[h.get('Authorization')?.replace('Bearer ','')||''];if(user&&options?.method==='PUT')passwordUpdates.push(JSON.parse(String(options.body)).password);return user?Response.json(user):Response.json({error:'invalid token'},{status:401})}
  const data=options?.body?JSON.parse(String(options.body)):{}
@@ -204,7 +211,7 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.equal((await call('/api/admin/vehicles/'+draft.id,'DELETE')).status,200)
  assert.equal(objects.size,0)
  assert.equal((await call('/api/admin/vehicles/'+draft.id)).status,404)
- const login={email:'admin@example.test',password:'test-admin-password'}
+ const login={email:'admin@example.test',password:'test-admin-password',turnstileToken:'valid-turnstile'}
  const unknown=await call('/api/auth/request-code','POST',{...login,email:'outsider@example.test'},false)
  const wrong=await call('/api/auth/request-code','POST',{...login,password:'wrong'},false)
  assert.equal(unknown.status,400);assert.equal(wrong.status,400)
@@ -235,6 +242,14 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  const logout=await onRequest({request:new Request(origin+'/api/auth/logout',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_access=valid; '+sessionCookie}}),env} as any);assert.equal(logout.status,200);assert(logout.headers.getSetCookie().every(c=>c.includes('Max-Age=0')))
  for(let i=0;i<5;i++)assert.equal((await call('/api/auth/request-code','POST',login,false)).status,200)
  assert.equal((await call('/api/auth/request-code','POST',login,false)).status,429)
+})
+test('sign-in rejects missing and invalid Turnstile tokens before sending email',async()=>{
+ const previous=sent.length
+ for(const turnstileToken of [undefined,'invalid','wrong-action','wrong-host']){
+  const request=new Request(origin+'/api/auth/request-code',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','CF-Connecting-IP':'192.0.2.1'},body:JSON.stringify({email:'admin@example.test',password:'test-admin-password',turnstileToken})})
+  assert.equal((await onRequest({request,env} as any)).status,403)
+ }
+ assert.equal(sent.length,previous)
 })
 test('only active operator requests extend a session and expiry blocks token refresh',async()=>{
  const now=Math.floor(Date.now()/1000),setActivity=sql.prepare('UPDATE admin_idle_sessions SET last_activity=? WHERE id=?')

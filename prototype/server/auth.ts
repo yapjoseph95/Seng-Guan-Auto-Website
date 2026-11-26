@@ -1,4 +1,5 @@
-export type Env = Cloudflare.Env
+import {adminTurnstileAction} from '../shared/admin-turnstile'
+export type Env = Cloudflare.Env & {TURNSTILE_SECRET?:string}
 export class HttpError extends Error { constructor(public status: number, message: string) { super(message) } }
 export function json(data: unknown, status = 200, extra: HeadersInit = {}) {
  const headers = new Headers(extra); headers.set('Cache-Control','no-store'); headers.set('X-Content-Type-Options','nosniff')
@@ -69,6 +70,22 @@ async function rateLimit(env: Env,request:Request,key:string,limit:number) {
  await env.DB.prepare('DELETE FROM auth_limits WHERE window_start < ?').bind(now-86400).run()
  void request
 }
+async function verifyLoginTurnstile(request:Request,env:Env,token:unknown){
+ const invalid='请完成人机验证后再试。'
+ if(typeof token!=='string'||!token||token.length>2048)throw new HttpError(403,invalid)
+ if(!env.TURNSTILE_SECRET)throw new HttpError(503,'人机验证暂时不可用，请稍后重试。')
+ const fields=new URLSearchParams({secret:env.TURNSTILE_SECRET,response:token})
+ const ip=request.headers.get('CF-Connecting-IP')
+ if(ip)fields.set('remoteip',ip)
+ let result:{success?:boolean;action?:string;hostname?:string}
+ try{
+  const response=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',body:fields,signal:AbortSignal.timeout(10000)})
+  if(!response.ok)throw new Error()
+  result=await response.json()
+ }catch{throw new HttpError(503,'人机验证暂时不可用，请稍后重试。')}
+ const hostname=new URL(request.url).hostname
+ if(result?.success!==true||result.action!==adminTurnstileAction||result.hostname!==hostname)throw new HttpError(403,invalid)
+}
 export async function authentication(request: Request,env: Env,action:string) {
  const base=configured(env)
  if(action==='session'&&request.method==='GET')return json({email:await administrator(request,env)})
@@ -124,8 +141,8 @@ export async function authentication(request: Request,env: Env,action:string) {
  }
  if(!['request-code','resend-code','verify-code'].includes(action))throw new HttpError(404,'Not found.')
  if(!request.headers.get('Content-Type')?.includes('application/json'))throw new HttpError(415,'Invalid request.')
- let input:{email?:string;code?:string;password?:string}
- try{input=JSON.parse(await limitedText(request,4096))||{}}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid request.')}
+ let input:{email?:string;code?:string;password?:string;turnstileToken?:string}
+ try{input=JSON.parse(await limitedText(request,8192))||{}}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid request.')}
  const ip=request.headers.get('CF-Connecting-IP')||'unknown'
  await rateLimit(env,request,action+':ip:'+ip,action==='verify-code'?25:10)
  const challengeId=cookie(request,loginChallengeCookie)
@@ -138,6 +155,7 @@ export async function authentication(request: Request,env: Env,action:string) {
   const email=typeof input.email==='string'?input.email.trim().toLowerCase():''
   const invalidCredentials='邮箱或密码不正确。'
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||typeof input.password!=='string'||!input.password||input.password.length>512)throw new HttpError(400,invalidCredentials)
+  await verifyLoginTurnstile(request,env,input.turnstileToken)
   await rateLimit(env,request,'password:email:'+email,10)
   if(!allowed(email,env))throw new HttpError(400,invalidCredentials)
   const passwordResponse=await fetch(base+'/auth/v1/token?grant_type=password',{method:'POST',headers,body:JSON.stringify({email,password:input.password})})

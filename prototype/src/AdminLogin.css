@@ -9,3 +9,5 @@
 .login-card form > .login-remember-email{flex-direction:row;align-items:center;min-height:24px;margin-block-start:16px}
 .login-remember-email input{width:16px;height:16px;flex:none;accent-color:#e6322b}
 .login-remember-email + .login-submit{margin-block-start:16px}
+
+.login-turnstile{margin-block-start:16px;min-height:65px}
