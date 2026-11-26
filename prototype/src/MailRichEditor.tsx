@@ -19,10 +19,17 @@ const MailImage=Image.extend({
   return {...this.parent?.(),Backspace:()=>adjacentImage('nodeBefore'),Delete:()=>adjacentImage('nodeAfter')}
  }
 })
-export default function MailRichEditor({label,value,onChange,disabled=false,images=false,onUploadingChange,minimal=false,dark=false,defaultFontSize=16}:{label:string;value:string;onChange:(html:string,text:string)=>void;disabled?:boolean;images?:boolean;onUploadingChange?:(busy:boolean)=>void;minimal?:boolean;dark?:boolean;defaultFontSize?:number}){
+export default function MailRichEditor({label,value,onChange,disabled=false,images=false,onUploadingChange,minimal=false,dark=false,defaultFontSize=16,focusEndOnFirstEntry=false}:{label:string;value:string;onChange:(html:string,text:string)=>void;disabled?:boolean;images?:boolean;onUploadingChange?:(busy:boolean)=>void;minimal?:boolean;dark?:boolean;defaultFontSize?:number;focusEndOnFirstEntry?:boolean}){
  const {language}=useLocale(),l=(en:string,zh:string,ms:string)=>language==='zh'?zh:language==='ms'?ms:en
  const id=useId(),input=useRef<HTMLInputElement>(null),uploadLock=useRef(false),[uploading,setUploading]=useState(false),[revision,setRevision]=useState(0)
- const editor=useEditor({extensions:[StarterKit.configure({link:false,codeBlock:false,code:false,horizontalRule:false,heading:false}),TextAlign.configure({types:['paragraph']}),TextStyle,FontSize,MailImage.configure({inline:true,allowBase64:false})],content:value,editable:!disabled,immediatelyRender:false,editorProps:{attributes:{role:'textbox','aria-label':label,'aria-multiline':'true',id,style:`font-size:${defaultFontSize}px`},transformPastedHTML:html=>{const template=document.createElement('template');template.innerHTML=html;template.content.querySelectorAll('img').forEach(img=>{if(!img.src.startsWith('https://sengguanauto.com.my/api/mail-assets/'))img.remove()});return template.innerHTML}},onUpdate:({editor})=>onChange(editor.getHTML(),editor.getText({blockSeparator:'\n'})),onSelectionUpdate:()=>setRevision(v=>v+1),onTransaction:()=>setRevision(v=>v+1)})
+ const hasEntered=useRef(false)
+ const editor=useEditor({extensions:[StarterKit.configure({link:false,codeBlock:false,code:false,horizontalRule:false,heading:false}),TextAlign.configure({types:['paragraph']}),TextStyle,FontSize,MailImage.configure({inline:true,allowBase64:false})],content:value,editable:!disabled,immediatelyRender:false,editorProps:{attributes:{role:'textbox','aria-label':label,'aria-multiline':'true',id,style:`font-size:${defaultFontSize}px`},transformPastedHTML:html=>{const template=document.createElement('template');template.innerHTML=html;template.content.querySelectorAll('img').forEach(img=>{if(!img.src.startsWith('https://sengguanauto.com.my/api/mail-assets/'))img.remove()});return template.innerHTML}},onUpdate:({editor})=>onChange(editor.getHTML(),editor.getText({blockSeparator:'\n'})),onFocus:({editor})=>{
+  if(hasEntered.current)return
+  hasEntered.current=true
+  if(focusEndOnFirstEntry)requestAnimationFrame(()=>{
+   if(!editor.isDestroyed&&editor.isFocused)editor.commands.focus('end',{scrollIntoView:false})
+  })
+ },onSelectionUpdate:()=>setRevision(v=>v+1),onTransaction:()=>setRevision(v=>v+1)})
  useEffect(()=>{if(editor&&value!==editor.getHTML())editor.commands.setContent(value,{emitUpdate:false})},[editor,value])
  useEffect(()=>{editor?.setEditable(!disabled&&!uploading)},[editor,disabled,uploading])
  const upload=async(file:File)=>{
