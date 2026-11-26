@@ -370,13 +370,16 @@ test('logo header has compact vertical padding without sacrificing horizontal sp
  assert.equal(sanitizeMailHtml(html),html)
 })
 
-test('outgoing email keeps a line of space above the 24px body and scales only footer images on small screens',async()=>{
+test('outgoing email keeps a line of space above the 18px body and scales only footer images on small screens',async()=>{
  const {composeMailHtml}=await import('../shared/mail-html')
  const {sanitizeMailHtml,outboundMailHtml}=await import('../server/mail-formatting')
  const logo='<p><img width="210" src="https://sengguanauto.com.my/api/mail-assets/11111111-1111-4111-8111-111111111111"></p>'
- const body=sanitizeMailHtml(composeMailHtml('<p>Message</p>','Message','<p>Signature</p>','Signature',logo,logo))
- assert.match(body,/<div style="padding-left:24px;padding-right:24px;font-size:24px;line-height:1.5;padding-top:36px">.*Message.*Signature.*<\/div><div class="mail-footer"/)
- assert.match(sanitizeMailHtml(composeMailHtml('','Message','','','','')),/font-size:24px;line-height:1.5">/)
+ const body=sanitizeMailHtml(composeMailHtml('<p>Message</p>','Message','<p><span style="font-size:22px">Signature</span></p>','Signature',logo+'<p><span style="font-size:20px">Header</span></p>',logo+'<p><span style="font-size:14px">Footer</span></p>'))
+ assert.match(body,/<div style="padding-left:24px;padding-right:24px;font-size:18px;line-height:1.5;padding-top:27px">.*Message.*Signature.*<\/div><div class="mail-footer"/)
+ assert.match(sanitizeMailHtml(composeMailHtml('','Message','','','','')),/font-size:18px;line-height:1.5">/)
+ assert.match(body,/<div style="font-size:16px"><p[^>]*><span style="font-size:22px">Signature/)
+ assert.match(body,/<span style="font-size:20px">Header/)
+ assert.match(body,/<span style="font-size:14px">Footer/)
  assert.match(outboundMailHtml(body,'Message'),/@media screen and \(max-width:480px\)\{\.mail-footer img\{max-width:120px!important/)
  assert.equal((body.match(/width="210"/g)||[]).length,2)
  assert.equal(sanitizeMailHtml('<div class="arbitrary">Text</div>'),'<div>Text</div>')
