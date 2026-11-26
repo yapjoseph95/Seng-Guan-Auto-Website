@@ -59,3 +59,12 @@ All mailboxes merges two native inboxes,30 conversations per page, preserving ea
 Migration0019 stores separate shared plain-text signatures for sales/admin. Compose can include/exclude the chosen sender signature. Uploads are authenticated and owner-scoped in private R2; multipart input bounded to25 MB and20 files per send. New native draft/reply/forward and legacy archive sending pass uploaded attachments to Resend. Uploading blocks draft-changing navigation and late results are checked against draft ID. Empty upload lists preserve pre-feature send idempotency payloads.
 
 The foreground UI checks a D1 change token every5 seconds, synchronizes on focus, and quietly updates rows/current conversation. Hidden tabs pause checking; overlapping checks are suppressed. Draft text/attachments are preserved and the detail is not replaced during composition. Mailbox-updated notice is announced politely. Provider429 responses retry twice with bounded Retry-After delays.
+
+## Search, drafts and organization (26 November 2026)
+
+- Native search supports all mailboxes, all folders or the current folder, and inbox-specific categories. Resend search indexing may take about a minute after delivery. Previous-email search covers stored subject, sender and recipient metadata.
+- Categories use native Inboxes labels; deleting a conversation moves it to recoverable Trash. Restore it using Move conversation → Inbox.
+- Saved drafts are private to the signed-in administrator, stored in D1 with owner checks and version conflicts to protect edits from other windows. Migration `0020_mail_drafts.sql` adds their table. Drafts automatically save after editing pauses and can also be saved manually. Attachments reference private owner-scoped uploads.
+- Replies include editable original-message quotes. Signatures are inserted before the quote. Status messages use floating toasts.
+- Native attachments remain limited to 25 MB combined by Resend; up to 50 files are supported. Optional browser-side photo compression reduces JPEG/PNG/WebP copies to a maximum 2400px edge. Original local files are unchanged.
+- Validation: 32 mail tests, 12 vehicle API tests, production build and server typecheck pass. Draft send cleanup uses version checks so newer edits cannot be silently discarded.

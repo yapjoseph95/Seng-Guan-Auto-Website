@@ -34,7 +34,7 @@ export async function resend<T>(env:Env,path:string,options:RequestInit={}) {
  if(!response.ok){await response.body?.cancel();throw new HttpError(response.status===429?429:502,'Mail provider could not complete the request. Please retry.')}
  return await response.json() as T
 }
-export async function input(request:Request) {if(!request.headers.get('content-type')?.includes('application/json'))throw new HttpError(415,'Expected JSON.');try{return JSON.parse(await limitedText(request,100000)) as Record<string,unknown>}catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'Invalid request.')}}
+export async function input(request:Request,limit=100000) {if(!request.headers.get('content-type')?.includes('application/json'))throw new HttpError(415,'Expected JSON.');try{return JSON.parse(await limitedText(request,limit)) as Record<string,unknown>}catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'Invalid request.')}}
 async function content(env:Env,row:Message) {const object=await env.PHOTOS.get(row.content_key);if(!object)throw new HttpError(503,'Email content is temporarily unavailable.');const data=await object.json<Content>();if(row.direction==='inbound')for(const a of data.attachments){if(a.key)continue;const key=`mail/${row.id}/attachments/${encodeURIComponent(a.id)}`;const saved=await env.PHOTOS.head(key);if(saved){a.key=key;a.size=saved.size}}return data}
 async function message(env:Env,id:string) {const row=await env.DB.prepare('SELECT * FROM mail_messages WHERE id=?').bind(id).first<Message>();if(!row)throw new HttpError(404,'Email not found.');return row}
 export function addressList(value:unknown,required=false):string[] {
@@ -160,8 +160,10 @@ export async function receiveMail(request:Request,env:Env) {
 }
 export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
  const url=new URL(request.url),action=parts[0]||''
+ if(action==='categories')return (await import('./mail-categories')).categoriesApi(request,env)
+ if(action==='drafts')return (await import('./mail-drafts')).draftsApi(request,env,parts.slice(1),owner)
  if(action==='conversations')return (await import('./mail-inboxes')).inboxApi(request,env,parts.slice(1),owner)
- if(action==='changes'&&request.method==='GET')return json(await env.DB.prepare('SELECT COUNT(*) AS count,MAX(created_at) AS latest FROM mail_messages').first())
+ if(action==='changes'&&request.method==='GET')return json(url.searchParams.get('drafts')==='1'?await env.DB.prepare('SELECT COUNT(*) AS count,MAX(updated_at) AS latest FROM mail_saved_drafts WHERE owner=? AND deleted_at IS NULL').bind(owner).first():await env.DB.prepare('SELECT COUNT(*) AS count,MAX(created_at) AS latest FROM mail_messages').first())
  if(action==='signatures'){
   if(request.method==='GET'){const rows=await env.DB.prepare('SELECT mailbox,signature FROM mail_signatures').all<{mailbox:string;signature:string}>();return json(Object.fromEntries(rows.results.map(r=>[r.mailbox,r.signature])))}
   if(request.method==='PUT'){const value=await input(request);const signatures=mailboxes.map(box=>{const text=value[box];if(typeof text!=='string'||text.length>4000)throw new HttpError(400,'Signatures may contain up to 4,000 characters.');return env.DB.prepare('UPDATE mail_signatures SET signature=? WHERE mailbox=?').bind(text,box)});await env.DB.batch(signatures);return json({ok:true})}
@@ -235,7 +237,8 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
   const direction=url.searchParams.get('folder')==='sent'?'outbound':'inbound'
   const mailbox=url.searchParams.get('mailbox');if(mailbox)mailAddress(mailbox)
   const offset=Number(url.searchParams.get('offset')||0);if(!Number.isSafeInteger(offset)||offset<0||offset>100000)throw new HttpError(400,'Invalid page.')
-  const rows=await env.DB.prepare('SELECT id,direction,mailbox,sender,recipients,subject,received_at,read_at,status FROM mail_messages WHERE direction=?'+(mailbox?' AND instr(mailbox,?)>0':'')+' ORDER BY received_at DESC,id DESC LIMIT 31 OFFSET ?').bind(direction,...mailbox?[mailbox]:[],offset).all()
+  const search=(url.searchParams.get('q')||'').trim();if(search.length>256)throw new HttpError(400,'Search is too long.')
+  const rows=await env.DB.prepare('SELECT id,direction,mailbox,sender,recipients,subject,received_at,read_at,status FROM mail_messages WHERE direction=? AND (?=\'\' OR instr(lower(sender||subject||recipients),lower(?))>0)'+(mailbox?' AND instr(mailbox,?)>0':'')+' ORDER BY received_at DESC,id DESC LIMIT 31 OFFSET ?').bind(direction,search,search,...mailbox?[mailbox]:[],offset).all()
   return json({messages:rows.results.slice(0,30),hasMore:rows.results.length>30})
  }
  if(action&&/^[a-zA-Z0-9-]{1,100}$/.test(action)) {

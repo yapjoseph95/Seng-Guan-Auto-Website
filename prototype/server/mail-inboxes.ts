@@ -1,7 +1,7 @@
 import {HttpError,json,type Env} from './auth'
 import {resend,input,addressList,mailAddress,remember,bytesFromDownload,keyHash} from './mail'
 export type InboxEmail={id:string;direction:'inbound'|'outbound';from:string;to:string[];cc:string[];bcc:string[];reply_to:string[];subject:string|null;text:string|null;html:string|null;attachments:{id:string;filename:string|null;size:number|null}[];read:boolean;received_at:string;message_id?:string}
-type Thread={id:string;subject:string|null;from:string|null;to:string[];read:boolean;received_at:string;email_count:number}
+type Thread={id:string;subject:string|null;from:string|null;to:string[];read:boolean;received_at:string;email_count:number;labels?:{id:string;name:string;color:string}[]}
 const uuid=(v:unknown):string=>{if(typeof v!=='string'||! /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(v))throw new HttpError(400,'Invalid conversation identifier.');return v}
 export const inboxRef=(box:string,thread:string,email?:string)=>['ib',box.split('@')[0],thread,...email?[email]:[]].join('~')
 export function parseInboxRef(value:string){const [prefix,name,thread,email,...rest]=value.split('~');if(prefix!=='ib'||!['sales','admin'].includes(name)||rest.length)throw new HttpError(400,'Invalid conversation.');return {box:mailAddress(name+'@sengguanauto.com.my'),thread:uuid(thread),email:email?uuid(email):undefined}}
@@ -11,15 +11,19 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
  const url=new URL(request.url),action=parts[0]||''
  if(!action&&request.method==='GET'){
   const selected=url.searchParams.get('mailbox')||'',folder=url.searchParams.get('folder')||'inbox',after=url.searchParams.get('after')||''
-  if(!['inbox','sent','archive','spam'].includes(folder))throw new HttpError(400,'Invalid folder.')
+  if(!['inbox','sent','archive','spam','trash'].includes(folder))throw new HttpError(400,'Invalid folder.')
+  const search=(url.searchParams.get('q')||'').trim(),category=url.searchParams.get('category')||''
+  if(search.length>256||search.split(/\s+/).filter(Boolean).length>32)throw new HttpError(400,'Use up to 256 characters and 32 search words.')
+  let categoryBox='',categoryId=''
+  if(category){const [name,id]=category.split('~');categoryBox=mailAddress(name+'@sengguanauto.com.my');categoryId=uuid(id)}
   const boxes=selected?[mailAddress(selected)]:['sales@sengguanauto.com.my','admin@sengguanauto.com.my']
   let cursors:Record<string,string>={}
   if(after){if(selected)cursors[selected]=uuid(after);else{try{if(after.length>512)throw new Error();const value=JSON.parse(atob(after));for(const box of boxes)cursors[box]=value[box]?uuid(value[box]):''}catch{throw new HttpError(400,'Invalid mailbox page.')}}}
   const pages:{box:string;data:Thread[];has_more:boolean}[]=[]
-  for(const box of boxes){const query=new URLSearchParams({folders:folder,limit:'30'});if(cursors[box])query.set('after',cursors[box]);const page=await resend<{data:Thread[];has_more:boolean}>(env,root(box)+'/threads?'+query);pages.push({box,...page})}
+  for(const box of boxes){if(categoryBox&&categoryBox!==box)continue;const query=new URLSearchParams({folders:search&&url.searchParams.get('scope')!=='folder'?'inbox,sent,archive,spam,trash':folder,limit:'30'});if(search)query.set('query',search);if(categoryId)query.set('labels',categoryId);if(cursors[box])query.set('after',cursors[box]);const page=await resend<{data:Thread[];has_more:boolean}>(env,root(box)+'/threads'+(search?'/search':'')+'?'+query);pages.push({box,...page})}
   const merged=pages.flatMap(page=>page.data.map(t=>({box:page.box,t}))).sort((a,b)=>Date.parse(b.t.received_at)-Date.parse(a.t.received_at)||a.box.localeCompare(b.box)).slice(0,30)
   for(const {box,t} of merged)cursors[box]=t.id
-  return json({messages:merged.map(({box,t})=>({id:inboxRef(box,t.id),direction:folder==='sent'?'outbound':'inbound',mailbox:box,sender:t.from||box,recipients:JSON.stringify(t.to),subject:t.subject||'(No subject)',received_at:t.received_at,read_at:t.read?t.received_at:null,status:'received',email_count:t.email_count})),hasMore:pages.some(p=>p.has_more||p.data.length>merged.filter(v=>v.box===p.box).length),next:selected?cursors[selected]||'':btoa(JSON.stringify(cursors))})
+  return json({messages:merged.map(({box,t})=>({id:inboxRef(box,t.id),direction:folder==='sent'?'outbound':'inbound',mailbox:box,sender:t.from||box,recipients:JSON.stringify(t.to),subject:t.subject||'(No subject)',received_at:t.received_at,read_at:t.read?t.received_at:null,status:'received',email_count:t.email_count,labels:t.labels||[]})),hasMore:pages.some(p=>p.has_more||p.data.length>merged.filter(v=>v.box===p.box).length),next:selected?cursors[selected]||'':btoa(JSON.stringify(cursors))})
  }
  if(action==='uploads'&&request.method==='POST'){
   if(!owner)throw new HttpError(403,'Administrator sign-in required.')
@@ -43,7 +47,7 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   const reply=typeof value.replyId==='string'&&value.replyId?parseInboxRef(value.replyId):null,forward=typeof value.forwardId==='string'&&value.forwardId?parseInboxRef(value.forwardId):null
   if(reply&&forward||(reply||forward)&&((reply||forward)!.box!==box||!(reply||forward)!.email))throw new HttpError(400,'The source mailbox does not match.')
   const uploads=value.uploads===undefined?[]:value.uploads
-  if(!Array.isArray(uploads)||uploads.length>20||new Set(uploads).size!==uploads.length)throw new HttpError(400,'Use no more than 20 attachments.')
+  if(!Array.isArray(uploads)||uploads.length>50||new Set(uploads).size!==uploads.length)throw new HttpError(400,'Use no more than 50 attachments.')
   uploads.forEach(uuid)
   const payload=JSON.stringify({box,to,cc,bcc,subject,text,reply,forward,...uploads.length?{uploads}:{}})
   await env.DB.prepare('INSERT OR IGNORE INTO mail_native_sends(id,payload,created_at) VALUES(?,?,?)').bind(id,payload,new Date().toISOString()).run()
@@ -79,24 +83,26 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   if(!saved)throw new HttpError(503,'Attachment is temporarily unavailable.')
   return new Response(saved.body,{headers:{'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename="attachment"; filename*=UTF-8''${encodeURIComponent((file.filename||'attachment').replace(/[\r\n]/g,'_'))}`,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})
  }
+ if(request.method==='DELETE')return json(await resend(env,path,{method:'PATCH',body:JSON.stringify({folder:'trash'})}))
  if(request.method==='PATCH'){
   const value=await input(request)
-  if(!['inbox','archive','spam'].includes(String(value.folder)))throw new HttpError(400,'Invalid folder.')
+  if(Array.isArray(value.labels)){if(value.labels.length>100)throw new HttpError(400,'Too many categories.');value.labels.forEach(uuid);return json(await resend(env,path+'/labels',{method:'PUT',body:JSON.stringify({labels:value.labels})}))}
+  if(!['inbox','archive','spam','trash'].includes(String(value.folder)))throw new HttpError(400,'Invalid folder.')
   return json(await resend(env,path,{method:'PATCH',body:JSON.stringify({folder:value.folder})}))
  }
  if(request.method==='GET'){
   const query=new URLSearchParams({limit:'100'}),after=url.searchParams.get('after');if(after)query.set('after',uuid(after))
   const result=await resend<{data:InboxEmail[];has_more:boolean}>(env,path+'/emails?'+query)
-  if(!after)await resend(env,path,{method:'PATCH',body:JSON.stringify({read:true})})
+  const summary=await resend<{labels:{id:string;name:string;color:string}[];folder:string}>(env,path,{method:'PATCH',body:JSON.stringify({read:true})})
   const data=result.data.map(e=>inboxMessage(ref.box,ref.thread,after?e:{...e,read:true}));const latest=data.at(-1)
   if(!latest)throw new HttpError(404,'Conversation is empty.')
-  return json({...latest,thread_id:inboxRef(ref.box,ref.thread),emails:data,hasMore:result.has_more,next:result.data.at(-1)?.id||''})
+  return json({...latest,labels:summary.labels||[],folder:summary.folder,thread_id:inboxRef(ref.box,ref.thread),emails:data,hasMore:result.has_more,next:result.data.at(-1)?.id||''})
  }
  throw new HttpError(405,'Method not allowed.')
 }
 
 export async function loadMailUploads(env:Env,owner:string,uploads:unknown){
- if(!Array.isArray(uploads)||uploads.length>20||new Set(uploads).size!==uploads.length)throw new HttpError(400,'Use no more than 20 attachments.')
+ if(!Array.isArray(uploads)||uploads.length>50||new Set(uploads).size!==uploads.length)throw new HttpError(400,'Use no more than 50 attachments.')
  uploads.forEach(uuid)
  const ownerHash=await keyHash(owner)
  const attachments:{filename:string;content_type:string;content:string}[]=[];let total=0

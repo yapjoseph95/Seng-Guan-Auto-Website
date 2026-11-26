@@ -21,6 +21,7 @@ db.exec(readFileSync(new URL('../migrations/0016_mail_center.sql',import.meta.ur
 db.exec(readFileSync(new URL('../migrations/0017_mail_features.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0018_resend_inboxes.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0019_mail_signatures.sql',import.meta.url),'utf8'))
+db.exec(readFileSync(new URL('../migrations/0020_mail_drafts.sql',import.meta.url),'utf8'))
 class Stmt{constructor(public sql:string,public params:unknown[]=[]){}bind(...p:unknown[]){return new Stmt(this.sql,p)}async first(){return db.prepare(this.sql).get(...this.params as any[])||null}async all(){return {results:db.prepare(this.sql).all(...this.params as any[])}}async run(){return {meta:{changes:Number(db.prepare(this.sql).run(...this.params as any[]).changes)}}}}
 const storage=new Map<string,string|Uint8Array>()
 const env={DB:{prepare:(s:string)=>new Stmt(s),batch:async(stmts:Stmt[])=>{db.exec('BEGIN');try{const result=[];for(const s of stmts)result.push(await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}},PHOTOS:{head:async(k:string)=>{const v=storage.get(k);return v?{size:typeof v==='string'?new TextEncoder().encode(v).length:v.length}:null},put:async(k:string,v:string|Uint8Array|ArrayBuffer,opts?:any)=>{if(opts?.onlyIf&&storage.has(k))return null;storage.set(k,v instanceof ArrayBuffer?new Uint8Array(v):v);return {}},get:async(k:string)=>{const v=storage.get(k);return v?{json:async()=>JSON.parse(String(v)),body:v,arrayBuffer:async()=>typeof v==='string'?new TextEncoder().encode(v).buffer:(v as Uint8Array).slice().buffer}:null}},RESEND_API_KEY:'test',RESEND_WEBHOOK_SECRET:secret,SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'test',ADMIN_EMAILS:'owner@example.com'} as any
@@ -31,6 +32,7 @@ let failDownload=false
 const mailId='12345678-1234-1234-1234-123456789abc'
 const nativeThread='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
 const nativeEmail={id:'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',direction:'inbound',from:'customer@example.com',to:['sales@sengguanauto.com.my'],cc:[],bcc:[],reply_to:[],subject:'Thread',text:'First message',html:null,attachments:[],read:false,received_at:'2026-11-25T10:00:00Z'}
+const nativeRequests:any[]=[];const nativeLabels:Record<string,any[]>={}
 let listingPages:Record<string,any[]>|null=null
 let nativeDrafts=0;const nativeDraftPayloads:any[]=[];const nativeSends:any[]=[]
 let fetched=0
@@ -40,6 +42,12 @@ globalThis.fetch=(async(input:any,init:any)=>{
  if(url==='https://files.example.com/final')return new Response(new Uint8Array([7,8,9]))
  if(url.startsWith('https://api.resend.com/inboxes/')){
   const path=url.slice('https://api.resend.com'.length)
+  nativeRequests.push({path,method:init?.method||'GET',body:init?.body?JSON.parse(init.body):null})
+  const box=decodeURIComponent(new URL(url).pathname.split('/')[2])
+  if(path.endsWith('/labels')&&!path.includes('/threads/')){if(init?.method==='POST'){const label={id:'12341234-1234-4234-8234-123412341234',...JSON.parse(init.body)};(nativeLabels[box]??=[]).push(label);return Response.json({id:label.id})}return Response.json({data:nativeLabels[box]||[]})}
+  if(/\/labels\/[0-9a-f-]+$/.test(path)){const id=path.split('/').at(-1);nativeLabels[box]=(nativeLabels[box]||[]).filter(c=>c.id!==id);return Response.json({id,deleted:true})}
+  if(path.includes('/threads/search?'))return Response.json({data:[],has_more:false})
+  if(path.endsWith('/labels')&&init?.method==='PUT')return Response.json({data:[]})
   if(path==='/inboxes/cccccccc-cccc-4ccc-cccc-cccccccccccc')return Response.json({email_address:'admin@sengguanauto.com.my'})
   if(path==='/inboxes/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa')return Response.json({email_address:'sales@sengguanauto.com.my'})
   if(path.includes('/emails/bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')&&!path.endsWith('/forward'))return Response.json(nativeEmail)
@@ -257,4 +265,40 @@ test('pre-attachment native send identifiers remain safe to retry',async()=>{
  const id='out-44444444-4444-4444-4444-444444444444',payload={box:'sales@sengguanauto.com.my',to:['c@example.com'],cc:[],bcc:[],subject:'Old send',text:'Original',reply:null,forward:null}
  db.prepare('INSERT INTO mail_native_sends(id,payload,created_at,provider_id) VALUES(?,?,?,?)').run(id,JSON.stringify(payload),new Date().toISOString(),'existing-provider-id')
  const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,from:payload.box,to:payload.to,subject:payload.subject,text:payload.text,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.equal((await response.json() as any).status,'sent')
+})
+
+test('search forwards text, scope and category to native search across mailboxes',async()=>{
+ const id='12341234-1234-4234-8234-123412341234'
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?q=invoice&scope=all&category=sales~'+id),env,['conversations'])
+ const request=nativeRequests.at(-1);assert.ok(request.path.includes('/threads/search?'));const url=new URL('https://api.resend.com'+request.path);assert.equal(url.searchParams.get('query'),'invoice');assert.equal(url.searchParams.get('folders'),'inbox,sent,archive,spam,trash');assert.equal(url.searchParams.get('labels'),id)
+ await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?q='+encodeURIComponent('word '.repeat(33))),env,['conversations']))
+})
+test('delete moves a conversation to recoverable Trash and Trash remains browsable',async()=>{
+ const ref='ib~sales~'+nativeThread
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/'+ref,{method:'DELETE'}),env,['conversations',ref]);assert.equal(nativeRequests.at(-1).method,'PATCH');assert.equal(nativeRequests.at(-1).body.folder,'trash')
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?mailbox=sales@sengguanauto.com.my&folder=trash'),env,['conversations']);assert.ok(nativeRequests.at(-1).path.includes('folders=trash'))
+})
+test('categories are scoped to company inboxes and can be assigned without changing messages',async()=>{
+ const request=(method:string,value:any)=>new Request('https://sengguanauto.com.my/api/admin/mail/categories',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(value)})
+ await mailApi(request('POST',{mailbox:'sales@sengguanauto.com.my',name:'Finance',color:'#FF8800'}),env,['categories'])
+ const categories=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/categories'),env,['categories'])).json() as any;assert.equal(categories.categories[0].name,'Finance');assert.equal(categories.categories[0].mailbox,'sales@sengguanauto.com.my')
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/ib~sales~'+nativeThread,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({labels:[categories.categories[0].id]})}),env,['conversations','ib~sales~'+nativeThread]);assert.equal(nativeRequests.at(-1).method,'PUT');assert.deepEqual(nativeRequests.at(-1).body.labels,[categories.categories[0].id])
+ await assert.rejects(()=>mailApi(request('POST',{mailbox:'other@example.com',name:'Bad',color:'#FF8800'}),env,['categories']))
+})
+test('saved drafts keep partial recipients, attachments and send identifiers private, detect conflicts and support delete/restore',async()=>{
+ const id='draft-33333333-3333-4333-8333-333333333333',payload={id,from:'sales@sengguanauto.com.my',to:'partial@',cc:'',bcc:'',subject:'Work in progress',body:'Draft body',replyId:'',forwardId:'',includeSignature:true,uploads:[],sendId:'out-22222222-2222-4222-8222-222222222222',retryPayload:''}
+ const save=(p:any)=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}),env,['drafts'],'owner@example.com')
+ const first=await (await save(payload)).json() as any
+ const get=(owner='owner@example.com')=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts/'+id),env,['drafts',id],owner)
+ assert.equal((await (await get()).json() as any).to,'partial@');await assert.rejects(()=>get('other@example.com'))
+ const second=await (await save({...payload,body:'Edited draft',updatedAt:first.updatedAt})).json() as any;assert.notEqual(second.updatedAt,first.updatedAt)
+ await assert.rejects(()=>save({...payload,body:'Stale overwrite',updatedAt:first.updatedAt}))
+ const list=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts?q=Edited'),env,['drafts'],'owner@example.com')).json() as any;assert.equal(list.messages.length,1)
+ await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts/'+id,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({updatedAt:first.updatedAt})}),env,['drafts',id],'owner@example.com'));assert.equal((await (await get()).json() as any).body,'Edited draft')
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts/'+id,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({updatedAt:second.updatedAt})}),env,['drafts',id],'owner@example.com');await assert.rejects(()=>get())
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/drafts/'+id+'/restore',{method:'POST'}),env,['drafts',id,'restore'],'owner@example.com');assert.equal((await (await get()).json() as any).body,'Edited draft')
+})
+
+test('reply signatures are inserted before the editable original quote without changing the quote',async()=>{
+ const {withMailSignature}=await import('../shared/mail.ts');const quote='\n\n---------- Original message ----------\nOriginal text',body='My response'+quote;assert.equal(withMailSignature(body,'Sales team'),'My response\n\nSales team'+quote);assert.equal(withMailSignature(body,''),body)
 })
