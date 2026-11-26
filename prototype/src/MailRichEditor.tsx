@@ -11,7 +11,14 @@ import {mailApi} from './mail-api'
 import {plainMailHtml} from '../shared/mail-html'
 import logo from './assets/logo.svg'
 import darkLogo from './assets/logo-dark.svg'
-const MailImage=Image.extend({addAttributes(){return {...this.parent?.(),width:{default:200}}}})
+const MailImage=Image.extend({
+ addAttributes(){return {...this.parent?.(),width:{default:200}}},
+ addKeyboardShortcuts(){
+  const adjacentImage=(side:'nodeBefore'|'nodeAfter')=>{const selection=this.editor.state.selection;return selection.empty&&selection.$from[side]?.type.name===this.name}
+  // A caret beside an inline logo is not an empty line. Explicit image selection still allows deletion.
+  return {...this.parent?.(),Backspace:()=>adjacentImage('nodeBefore'),Delete:()=>adjacentImage('nodeAfter')}
+ }
+})
 export default function MailRichEditor({label,value,onChange,disabled=false,images=false,onUploadingChange,minimal=false,dark=false}:{label:string;value:string;onChange:(html:string,text:string)=>void;disabled?:boolean;images?:boolean;onUploadingChange?:(busy:boolean)=>void;minimal?:boolean;dark?:boolean}){
  const {language}=useLocale(),l=(en:string,zh:string,ms:string)=>language==='zh'?zh:language==='ms'?ms:en
  const id=useId(),input=useRef<HTMLInputElement>(null),uploadLock=useRef(false),[uploading,setUploading]=useState(false),[revision,setRevision]=useState(0)

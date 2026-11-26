@@ -319,7 +319,7 @@ test('rich mail HTML preserves formatting and only own branding images, strippin
  const safe=sanitizeMailHtml('<p onclick="bad()" style="text-align:center;font-size:24px;background:url(https://evil.test)"><strong>Hello</strong><em>world</em></p><script>alert(1)</script><img src="'+src+'" onerror="bad()"><img src="https://evil.test/tracker"><svg><script>bad</script></svg>')
  assert.match(safe,/text-align:center;font-size:24px/);assert.match(safe,/<strong>Hello<\/strong>/);assert.match(safe,new RegExp(src));assert.doesNotMatch(safe,/onclick|onerror|evil|script|svg|background/)
  const {composeMailHtml}=await import('../shared/mail-html');const result=composeMailHtml('<p>Answer</p><p>---------- Original message ----------</p><p>Previous</p>','Answer','<p><img src="'+src+'"></p>','','<p>Header</p>')
- assert.match(result,/background-color:#111315;color:#ffffff/);assert.match(sanitizeMailHtml(result),/background-color:#111315;color:#ffffff;padding:24px/);assert.ok(result.indexOf('Header')<result.indexOf('Answer'));assert.ok(result.indexOf(src)<result.indexOf('Original message'))
+ assert.match(result,/background-color:#111315;color:#ffffff/);assert.match(sanitizeMailHtml(result),/background-color:#111315;color:#ffffff;padding-top:8px;padding-bottom:8px;padding-left:24px;padding-right:24px/);assert.ok(result.indexOf('Header')<result.indexOf('Answer'));assert.ok(result.indexOf(src)<result.indexOf('Original message'))
 })
 test('mailbox rich signatures and headers persist atomically with their plain signature alternative',async()=>{
  const config=Object.fromEntries(['sales','admin'].map(name=>[name+'@sengguanauto.com.my',{signatureHtml:'<p><strong>'+name+'</strong></p>',signatureText:name+' team',headerHtml:'<p style="text-align:center">Seng Guan Auto</p>',headerEnabled:true}]))
@@ -361,4 +361,11 @@ test('mailbox footer settings persist and older clients preserve them when omitt
  await save(config);await save(Object.fromEntries(boxes.map(box=>[box,{signatureHtml:'<p>Team</p>',headerHtml:'',headerEnabled:false}])))
  const result=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting'),env,['formatting'])).json() as any;assert.equal(result[boxes[0]].footerEnabled,true);assert.match(result[boxes[1]].footerHtml,/Footer company text/)
  const {composeMailHtml}=await import('../shared/mail-html');const html=composeMailHtml('<p>Body</p>','Body','<p>Signature</p>','Signature','','<p>Footer company text</p>');assert.ok(html.indexOf('Signature')<html.indexOf('Footer company text'))
+})
+
+test('logo header has compact vertical padding without sacrificing horizontal spacing',async()=>{
+ const {composeMailHtml}=await import('../shared/mail-html');const {sanitizeMailHtml}=await import('../server/mail-formatting')
+ const html=sanitizeMailHtml(composeMailHtml('<p>Message</p>','Message','','','<p><img src="https://sengguanauto.com.my/api/mail-assets/11111111-1111-4111-8111-111111111111"></p>'))
+ assert.match(html,/padding-top:8px;padding-bottom:8px;padding-left:24px;padding-right:24px/)
+ assert.equal(sanitizeMailHtml(html),html)
 })

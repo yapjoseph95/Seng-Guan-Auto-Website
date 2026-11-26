@@ -85,3 +85,5 @@ Validation: 39 mail tests, frontend build, server typecheck and Pages Functions 
 Outgoing HTML paragraphs now carry explicit zero margins/padding and 1.5 line height, preventing recipients' default paragraph gaps from doubling line spacing. Intentional empty paragraphs become a line break; editor and signature preview follow the same spacing.
 
 Settings → Email footer provides mailbox-specific rich content, image upload and an enable switch. Footer HTML appears after the message/signature; its text alternative is appended to plain mail. Migration `0022_mail_footer.sql` adds three columns without changing existing signatures/headers. Older settings clients that omit footer fields preserve stored footer values. Footer starts disabled until configured.
+
+Header logo spacing: outgoing header padding is 8px vertically and 24px horizontally. Inline images in rich editors explicitly use inline-block to avoid global block-image CSS creating anonymous blank line boxes. Backspace/Delete next to an inline image no longer removes it from a collapsed caret; selecting the image explicitly still permits deletion.
