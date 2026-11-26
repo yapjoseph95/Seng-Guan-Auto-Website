@@ -294,3 +294,19 @@ test('saved drafts keep partial recipients, attachments and send identifiers pri
 test('reply signatures are inserted before the editable original quote without changing the quote',async()=>{
  const {withMailSignature}=await import('../shared/mail.ts');const quote='\n\n---------- Original message ----------\nOriginal text',body='My response'+quote;assert.equal(withMailSignature(body,'Sales team'),'My response\n\nSales team'+quote);assert.equal(withMailSignature(body,''),body)
 })
+
+test('attachment reminder recognizes authored attachment wording and ignores original quotes',async()=>{
+ const {mentionsMailAttachment}=await import('../shared/mail.ts')
+ for(const word of ['attach','attachment','attachments','Attached','attaching'])assert.equal(mentionsMailAttachment('', 'Please see '+word),true)
+ assert.equal(mentionsMailAttachment('Attachment for review','Hello'),true)
+ assert.equal(mentionsMailAttachment('Hello','No extra files today.'),false)
+ assert.equal(mentionsMailAttachment('Re: hello','Thanks.\n\n---------- Original message ----------\nPlease see attached.'),false)
+ assert.equal(mentionsMailAttachment('Hello','A detachable part'),false)
+})
+
+test('a saved forward checks its exact source message rather than a newer thread reply',async()=>{
+ const ref='ib~sales~'+nativeThread+'~'+nativeEmail.id
+ const detail=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/'+ref),env,['conversations',ref])).json() as any
+ assert.equal(detail.id,ref);assert.equal(detail.text,nativeEmail.text)
+ assert.ok(nativeRequests.at(-1).path.endsWith('/emails/'+nativeEmail.id))
+})

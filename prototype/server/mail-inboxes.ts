@@ -88,6 +88,7 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   return json(await resend(env,path,{method:'PATCH',body:JSON.stringify({folder:value.folder})}))
  }
  if(request.method==='GET'){
+  if(ref.email){const email=await resend<InboxEmail>(env,path+'/emails/'+ref.email);return json(inboxMessage(ref.box,ref.thread,email))}
   const query=new URLSearchParams({limit:'100'}),after=url.searchParams.get('after');if(after)query.set('after',uuid(after))
   const result=await resend<{data:InboxEmail[];has_more:boolean}>(env,path+'/emails?'+query)
   const summary=await resend<{folder:string}>(env,path,{method:'PATCH',body:JSON.stringify({read:true})})
