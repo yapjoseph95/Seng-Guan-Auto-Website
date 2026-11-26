@@ -2,7 +2,7 @@ import {parseFragment} from 'parse5'
 import {HttpError,json,type Env} from './auth'
 import {input,mailAddress} from './mail'
 import {mailboxes} from '../shared/mail'
-import {escapeMailHtml,mailImagePattern,safeMailStyle,type MailBrandingMap} from '../shared/mail-html'
+import {escapeMailHtml,plainMailHtml,mailFooterClass,mailImagePattern,safeMailStyle,type MailBrandingMap} from '../shared/mail-html'
 type HtmlNode={nodeName:string;value?:string;attrs?:{name:string;value:string}[];childNodes?:HtmlNode[]}
 export function sanitizeMailHtml(value:unknown,max=200000){
  if(typeof value!=='string'||value.length>max)throw new HttpError(400,'Email formatting is too large.')
@@ -23,9 +23,15 @@ export function sanitizeMailHtml(value:unknown,max=200000){
   if(tag==='p'){for(const property of ['margin','padding','line-height']){const index=styles.findIndex(style=>style.startsWith(property+':'));if(index>=0)styles.splice(index,1)}styles.unshift('margin:0','padding:0px','line-height:1.5')}
   const style=styles.join(';')
   const content=tag==='p'&&!children?'<br>':children
-  return '<'+tag+(style?' style="'+style+'"':'')+'>'+content+(['br','hr'].includes(tag)?'':'</'+tag+'>')
+  const footerClass=tag==='div' && attrs.class===mailFooterClass ? ` class="${mailFooterClass}"` : ''
+  return '<'+tag+footerClass+(style?' style="'+style+'"':'')+'>'+content+(['br','hr'].includes(tag)?'':'</'+tag+'>')
  }
  return visit(parseFragment(value))
+}
+export function outboundMailHtml(html:string,text:string){
+ const body=html||plainMailHtml(text.replace(/\r\n?/g,'\n'))
+ const mobileFooter=body.includes(`<div class="${mailFooterClass}"`) ? `<style>@media screen and (max-width:480px){.${mailFooterClass} img{max-width:120px!important;height:auto!important}}</style>` : ''
+ return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;700&amp;display=swap">${mobileFooter}</head><body><div style="font-family:'Google Sans',Arial,Helvetica,sans-serif">${body}</div></body></html>`
 }
 export async function formattingApi(request:Request,env:Env,parts:string[]){
  if(parts[0]==='images'&&request.method==='POST'){

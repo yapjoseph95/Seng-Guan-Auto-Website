@@ -100,6 +100,19 @@ test('paged vehicle listings search and sort the whole inventory while keeping f
  assert.deepEqual(searchByYear.vehicles.map((v:any)=>v.id),['page-6'])
  const ascendingPrice=await (await call('/api/vehicles?limit=6&sort=price&direction=asc','GET',undefined,false)).json() as any
  assert.deepEqual(ascendingPrice.vehicles.map((v:any)=>v.price),[1000,1001,1002,1003,1004,1005])
+ sql.exec("UPDATE vehicles SET status='sold' WHERE id='page-0'; UPDATE vehicles SET status='reserved' WHERE id='page-1'")
+ for(const direction of ['asc','desc']){
+  const first=await (await call('/api/vehicles?limit=6&sort=year&direction='+direction,'GET',undefined,false)).json() as any
+  const last=await (await call('/api/vehicles?limit=6&offset=6&sort=year&direction='+direction,'GET',undefined,false)).json() as any
+  const expected=['page-1','page-2','page-3','page-4','page-5','page-6']
+  assert.deepEqual(first.vehicles.map((v:any)=>v.id),direction==='asc'?expected:expected.reverse())
+  assert.deepEqual(last.vehicles.map((v:any)=>v.id),['page-0'])
+ }
+ const statusPage=async(offset:number)=> (await (await call('/api/admin/vehicles?limit=3&sort=availability&direction=asc&offset='+offset)).json() as any).vehicles.map((v:any)=>v.status)
+ assert.deepEqual(await statusPage(0),['draft','available','available'])
+ assert.deepEqual(await statusPage(3),['available','available','available'])
+ assert.deepEqual(await statusPage(6),['reserved','sold'])
+ sql.exec("UPDATE vehicles SET status='available' WHERE id IN ('page-0','page-1')")
  const featured=await (await call('/api/vehicles?limit=6&featured=1','GET',undefined,false)).json() as any
  assert.deepEqual(featured.vehicles.map((v:any)=>v.id),['page-6'])
  const admin=await (await call('/api/admin/vehicles?limit=6&q=Model%207')).json() as any

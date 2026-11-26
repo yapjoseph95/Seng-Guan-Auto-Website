@@ -503,6 +503,7 @@ export const translations: Readonly<Record<string, readonly [en: string, ms: str
   "Vehicle layout": ["Vehicle layout", "Susun atur kenderaan", "车辆展示模式"],
   "Standard layout": ["Standard layout", "Paparan biasa", "标准展示"],
   "Large photo layout": ["Large photo layout", "Paparan foto besar", "大图展示"],
+  "Availability": ["Availability", "Ketersediaan", "车辆状态"],
   "Sort by": ["Sort by", "Susun mengikut", "排序依据"],
   "Upload Date": ["Upload Date", "Tarikh muat naik", "上传日期"],
   "Update Date": ["Update Date", "Tarikh kemas kini", "更新日期"],

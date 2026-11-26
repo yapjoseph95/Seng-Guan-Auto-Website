@@ -1,4 +1,4 @@
-import {sanitizeMailHtml} from './mail-formatting'
+import {outboundMailHtml,sanitizeMailHtml} from './mail-formatting'
 import {HttpError,json,limitedText,type Env} from './auth'
 import {mailboxes,defaultNotificationRoutes,splitAddresses} from '../shared/mail'
 export {mailboxes} from '../shared/mail'
@@ -210,7 +210,7 @@ export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
    if(forwardId){const original=await message(env,forwardId);if(original.direction!=='inbound')throw new HttpError(400,'Only received emails can be forwarded.');attachments=(await storeAttachments(env,original)).attachments}
    const uploaded=await (await import('./mail-inboxes')).loadMailUploads(env,owner,uploads);attachments.push(...uploaded.stored)
    const key=`mail/${id}/content.json`
-   await env.PHOTOS.put(key,JSON.stringify({text,html:html||null,message_id:messageId,attachments,cc,bcc,forward_id:forwardId,send_payload:payload}),{onlyIf:{etagDoesNotMatch:'*'}})
+   await env.PHOTOS.put(key,JSON.stringify({text,html:outboundMailHtml(html,text),message_id:messageId,attachments,cc,bcc,forward_id:forwardId,send_payload:payload}),{onlyIf:{etagDoesNotMatch:'*'}})
    const savedObject=await env.PHOTOS.get(key)
    const saved=await savedObject?.json<Content>()
    if(!saved||saved.send_payload!==payload)throw new HttpError(409,'A different email already uses this send identifier.')

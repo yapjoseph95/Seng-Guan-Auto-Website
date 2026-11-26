@@ -920,7 +920,7 @@ function VehicleCard({ car, index=0, forceImage=false, imageEnabled=true, onImag
   }
 
   return (
-    <article className="vehicle-card vehicle-entrance" style={entranceStyle(index % 3)}>
+    <article className="vehicle-card vehicle-entrance" data-status={car.status} style={entranceStyle(index % 3)}>
       <div className="vehicle-card-link">
         <div className="vehicle-media">
           <div className="vehicle-photo" style={{viewTransitionName:opened ? undefined : `vehicle-photo-${String(car.id).replace(/[^a-zA-Z0-9_-]/g,'')}`}}>
@@ -1113,6 +1113,8 @@ function InventoryPage({ variant }: { variant: Direction }) {
       if (maxPrice < priceLimit && (car.price == null || car.price > maxPrice)) return false
       return `${car.make} ${car.year} ${car.name} ${car.body} ${t(car.body)}`.toLowerCase().includes(query)
     }).sort((a, b) => {
+      const soldOrder = Number(a.status === 'sold') - Number(b.status === 'sold')
+      if (soldOrder) return soldOrder
       const first = sortValue(a)
       const second = sortValue(b)
       if (first === null) return second === null ? 0 : 1

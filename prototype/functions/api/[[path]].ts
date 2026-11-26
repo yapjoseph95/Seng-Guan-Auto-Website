@@ -505,12 +505,15 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     const sortKey=params.get('sort') ?? ''
     const sort=Object.hasOwn(sorts,sortKey)?sorts[sortKey]:(admin?'created_at':'published_at')
     const direction=params.get('direction')==='asc'?'ASC':'DESC'
+    const order=admin && sortKey==='availability'
+     ? "CASE status WHEN 'draft' THEN 0 WHEN 'available' THEN 1 WHEN 'reserved' THEN 2 WHEN 'sold' THEN 3 ELSE 4 END, created_at DESC"
+     : `${admin?"":"status = 'sold', "}${sort} IS NULL, ${sort} ${direction}`
     const where=conditions.length?' WHERE '+conditions.join(' AND '):''
     if(admin && params.get('ids')==='1'){
      const matching=await env.DB.prepare(`SELECT id FROM vehicles${where}`).bind(...values).all<{id:string}>()
      return json({ids:matching.results.map(row=>row.id)})
     }
-    const rows=await env.DB.prepare(`SELECT ${vehicleFields(admin)} FROM vehicles${where} ORDER BY ${sort} IS NULL, ${sort} ${direction}, id ASC LIMIT ? OFFSET ?`).bind(...values,limit+1,offset).all<Row>()
+    const rows=await env.DB.prepare(`SELECT ${vehicleFields(admin)} FROM vehicles${where} ORDER BY ${order}, id ASC LIMIT ? OFFSET ?`).bind(...values,limit+1,offset).all<Row>()
     const hasMore=rows.results.length>limit
     const page=rows.results.slice(0,limit)
     const ids=page.map(row=>String(row.id))

@@ -1,4 +1,4 @@
-import {sanitizeMailHtml} from './mail-formatting'
+import {outboundMailHtml,sanitizeMailHtml} from './mail-formatting'
 import {HttpError,json,type Env} from './auth'
 import {resend,input,addressList,mailAddress,remember,bytesFromDownload,keyHash} from './mail'
 export type InboxEmail={id:string;direction:'inbound'|'outbound';from:string;to:string[];cc:string[];bcc:string[];reply_to:string[];subject:string|null;text:string|null;html:string|null;attachments:{id:string;filename:string|null;size:number|null}[];read:boolean;received_at:string;message_id?:string}
@@ -49,18 +49,22 @@ export async function inboxApi(request:Request,env:Env,parts:string[],owner:stri
   const uploads=value.uploads===undefined?[]:value.uploads
   if(!Array.isArray(uploads)||uploads.length>50||new Set(uploads).size!==uploads.length)throw new HttpError(400,'Use no more than 50 attachments.')
   uploads.forEach(uuid)
-  const payload=JSON.stringify({box,to,cc,bcc,subject,text,reply,forward,...html?{html}:{},...uploads.length?{uploads}:{}})
+  const requestPayload={box,to,cc,bcc,subject,text,reply,forward,...html?{html}:{},...uploads.length?{uploads}:{}}
+  const formattedHtml=html||text ? outboundMailHtml(html,text) : ''
+  const payload=JSON.stringify({...requestPayload,...formattedHtml?{html:formattedHtml}:{}})
   await env.DB.prepare('INSERT OR IGNORE INTO mail_native_sends(id,payload,created_at) VALUES(?,?,?)').bind(id,payload,new Date().toISOString()).run()
   let state=await env.DB.prepare('SELECT * FROM mail_native_sends WHERE id=?').bind(id).first<{payload:string;created_at:string;draft_id:string|null;provider_id:string|null}>()
-  if(!state||state.payload!==payload)throw new HttpError(409,'Use a new send identifier for a different email.')
+  if(!state||state.payload!==payload&&state.payload!==JSON.stringify(requestPayload))throw new HttpError(409,'Use a new send identifier for a different email.')
   if(state.provider_id)return json({id:reply?inboxRef(box,reply.thread):'',status:'sent'})
   if(Date.now()-Date.parse(state.created_at)>23*3600000)throw new HttpError(409,'Please review delivery before retrying this older email.')
   const {files:attachments}=await loadMailUploads(env,owner,uploads)
+  // Existing sends must retry with the same provider payload.
+  const deliveryHtml=state.payload===payload?formattedHtml:html
   let path:string,body:Record<string,unknown>
-  if(forward){path=root(box)+`/threads/${forward.thread}/emails/${forward.email}/forward`;body={to,cc,bcc,subject,text,attachments,...html?{html}:{}}}
+  if(forward){path=root(box)+`/threads/${forward.thread}/emails/${forward.email}/forward`;body={to,cc,bcc,subject,text,attachments,...deliveryHtml?{html:deliveryHtml}:{}}}
   else {
    if(!state.draft_id){
-    const draft=await resend<{id:string}>(env,root(box)+'/drafts',{method:'POST',body:JSON.stringify({to,cc,bcc,subject,text,attachments,...html?{html}:{},...reply?{thread_id:reply.thread,reply_to_email_id:reply.email}:{}})})
+    const draft=await resend<{id:string}>(env,root(box)+'/drafts',{method:'POST',body:JSON.stringify({to,cc,bcc,subject,text,attachments,...deliveryHtml?{html:deliveryHtml}:{},...reply?{thread_id:reply.thread,reply_to_email_id:reply.email}:{}})})
     await env.DB.prepare('UPDATE mail_native_sends SET draft_id=? WHERE id=? AND draft_id IS NULL').bind(uuid(draft.id),id).run()
     state=await env.DB.prepare('SELECT * FROM mail_native_sends WHERE id=?').bind(id).first<typeof state>()
    }

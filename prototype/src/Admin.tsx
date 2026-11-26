@@ -287,7 +287,7 @@ export default function Admin() {
  const [notice,setNotice]=useState('')
  const [query,setQuery]=useState('')
  const [filter,setFilter]=useState('all')
- const [sortDate,setSortDate]=useState<'created_at'|'updated_at'>('created_at')
+ const [sortBy,setSortBy]=useState<'created_at'|'updated_at'|'availability'>('created_at')
  const [ascending,setAscending]=useState(false)
  const [compact,setCompact]=useState(() => { try { return localStorage.getItem('sga-admin-layout') === 'compact' } catch { return false } })
  const [selected,setSelected]=useState<string[]>([])
@@ -341,7 +341,7 @@ export default function Admin() {
   }
  }, [])
  const messageRef=useRef<HTMLDivElement>(null)
- const params=new URLSearchParams({sort:sortDate,direction:ascending?'asc':'desc'})
+ const params=new URLSearchParams({sort:sortBy,direction:ascending?'asc':'desc'})
  if(query.trim())params.set('q',query.trim())
  if(filter!=='all')params.set('status',filter)
  const pages=useVehiclePages<ManagedVehicle>(params.toString(),(query,signal)=>api(`vehicles?${query}`,{signal}))
@@ -538,7 +538,7 @@ export default function Admin() {
   updatingStatusRef.current.add(vehicle.id)
   setUpdatingStatus(new Set(updatingStatusRef.current))
   setNotice('')
-  try { if(await saveQuickChanges(vehicle,{status})){void refreshCounts();if(filter!=='all' && filter!==status)setVehicles(current=>current.filter(item=>item.id!==vehicle.id))} }
+  try { if(await saveQuickChanges(vehicle,{status})){void refreshCounts();if(sortBy==='availability')pages.reload();else if(filter!=='all' && filter!==status)setVehicles(current=>current.filter(item=>item.id!==vehicle.id))} }
   finally { updatingStatusRef.current.delete(vehicle.id); setUpdatingStatus(new Set(updatingStatusRef.current)) }
  }
  const savePrices = (vehicle:ManagedVehicle,changes:PriceChanges) => saveQuickChanges(vehicle,changes)
@@ -593,14 +593,15 @@ export default function Admin() {
    <label className="admin-search"><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t("Search make, model, year or plate")} aria-label={t("搜索车辆")}/></label>
    <div className="admin-layout-controls">
     <div className="admin-sort">
-     <label><span>{t('Sort by')}</span><select value={sortDate} onChange={event=>setSortDate(event.target.value as 'created_at'|'updated_at')}>
+     <label><span>{t('Sort by')}</span><select value={sortBy} onChange={event=>setSortBy(event.target.value as 'created_at'|'updated_at'|'availability')}>
       <option value="created_at">{t('Upload Date')}</option><option value="updated_at">{t('Update Date')}</option>
+      <option value="availability">{t('Availability')}</option>
      </select></label>
-     <button type="button" className="admin-sort-direction" aria-label={t(ascending ? 'Ascending order' : 'Descending order')} title={t(ascending ? 'Ascending order' : 'Descending order')} onClick={()=>setAscending(value=>!value)}>
+     {sortBy!=='availability' && <button type="button" className="admin-sort-direction" aria-label={t(ascending ? 'Ascending order' : 'Descending order')} title={t(ascending ? 'Ascending order' : 'Descending order')} onClick={()=>setAscending(value=>!value)}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
        <path d={ascending ? 'M3 6h4m-4 4h7m-7 4h10m-10 4h13m4 0V6m-3 3 3-3 3 3' : 'M3 6h13m-13 4h10m-10 4h7m-7 4h4m13-12v12m-3-3 3 3 3-3'} />
       </svg>
-     </button>
+     </button>}
     </div>
     <div className="admin-layout-switch" role="group" aria-label={t('Vehicle layout')} data-compact={compact}>
      <button type="button" aria-label={t('Cards')} title={t('Cards')} aria-pressed={!compact} disabled={batchBusy} onClick={()=>updateCompact(false)}>

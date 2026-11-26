@@ -338,8 +338,8 @@ test('branding image uploads expose only bounded raster branding assets, never p
 })
 test('HTML delivery keeps plain text and preserves native and legacy idempotency behavior',async()=>{
  const html='<p style="text-align:right;font-size:20px"><strong>Formatted</strong></p>'
- await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-20202020-2020-4020-8020-202020202020',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich native',text:'Formatted',html,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.equal(nativeDraftPayloads.at(-1).html,(await import('../server/mail-formatting')).sanitizeMailHtml(html));assert.equal(nativeDraftPayloads.at(-1).text,'Formatted')
- await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-21212121-2121-4121-8121-212121212121',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich legacy',text:'Formatted',html,uploads:[]})}),env,['send'],'owner@example.com');assert.equal(sends.at(-1).body.html,(await import('../server/mail-formatting')).sanitizeMailHtml(html))
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-20202020-2020-4020-8020-202020202020',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich native',text:'Formatted',html,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.match(nativeDraftPayloads.at(-1).html,/font-family:'Google Sans',Arial,Helvetica,sans-serif/);assert.ok(nativeDraftPayloads.at(-1).html.includes((await import('../server/mail-formatting')).sanitizeMailHtml(html)));assert.equal(nativeDraftPayloads.at(-1).text,'Formatted')
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-21212121-2121-4121-8121-212121212121',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich legacy',text:'Formatted',html,uploads:[]})}),env,['send'],'owner@example.com');assert.match(sends.at(-1).body.html,/font-family:'Google Sans',Arial,Helvetica,sans-serif/);assert.ok(sends.at(-1).body.html.includes((await import('../server/mail-formatting')).sanitizeMailHtml(html)))
 })
 
 test('older plain-signature clients clear the old HTML signature without losing header settings',async()=>{
@@ -368,4 +368,16 @@ test('logo header has compact vertical padding without sacrificing horizontal sp
  const html=sanitizeMailHtml(composeMailHtml('<p>Message</p>','Message','','','<p><img src="https://sengguanauto.com.my/api/mail-assets/11111111-1111-4111-8111-111111111111"></p>'))
  assert.match(html,/padding-top:8px;padding-bottom:8px;padding-left:24px;padding-right:24px/)
  assert.equal(sanitizeMailHtml(html),html)
+})
+
+test('outgoing email keeps a line of space above the 24px body and scales only footer images on small screens',async()=>{
+ const {composeMailHtml}=await import('../shared/mail-html')
+ const {sanitizeMailHtml,outboundMailHtml}=await import('../server/mail-formatting')
+ const logo='<p><img width="210" src="https://sengguanauto.com.my/api/mail-assets/11111111-1111-4111-8111-111111111111"></p>'
+ const body=sanitizeMailHtml(composeMailHtml('<p>Message</p>','Message','<p>Signature</p>','Signature',logo,logo))
+ assert.match(body,/<div style="padding-left:24px;padding-right:24px;font-size:24px;line-height:1.5;padding-top:36px">.*Message.*Signature.*<\/div><div class="mail-footer"/)
+ assert.match(sanitizeMailHtml(composeMailHtml('','Message','','','','')),/font-size:24px;line-height:1.5">/)
+ assert.match(outboundMailHtml(body,'Message'),/@media screen and \(max-width:480px\)\{\.mail-footer img\{max-width:120px!important/)
+ assert.equal((body.match(/width="210"/g)||[]).length,2)
+ assert.equal(sanitizeMailHtml('<div class="arbitrary">Text</div>'),'<div>Text</div>')
 })
