@@ -19,6 +19,12 @@ document.addEventListener('focusin', event => {
 const Admin = lazy(() => import('./AdminLogin'))
 const App = lazy(() => import('./App'))
 
+const ResetPassword = lazy(() => import('./AdminResetPassword'))
+const recovery = new URLSearchParams(window.location.hash.slice(1))
+const shouldReset = recovery.get('type') === 'recovery' || recovery.get('error_code') === 'otp_expired'
+const recoveryToken = shouldReset ? recovery.get('access_token') : null
+if (shouldReset) window.history.replaceState(null, '', '/admin')
+
 function AdminLoading() {
   const { t } = useLocale()
   let compact=false
@@ -34,7 +40,9 @@ function PublicLoading() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LocaleProvider>
-      {window.location.pathname.replace(/\/$/, '') === '/admin'
+      {shouldReset
+        ? <Suspense fallback={<AdminLoading />}><ResetPassword token={recoveryToken} /></Suspense>
+        : window.location.pathname.replace(/\/$/, '') === '/admin'
         ? <Suspense fallback={<AdminLoading />}><Admin /></Suspense>
         : <Suspense fallback={<PublicLoading />}><App /></Suspense>}
     </LocaleProvider>

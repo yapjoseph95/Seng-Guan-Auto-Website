@@ -70,6 +70,25 @@ export async function authentication(request: Request,env: Env,action:string) {
  if(request.method!=='POST')throw new HttpError(405,'Method not allowed.')
  sameOrigin(request)
  const headers={apikey:env.SUPABASE_ANON_KEY,'Content-Type':'application/json'}
+ if(action==='reset-password'){
+  if(!request.headers.get('Content-Type')?.includes('application/json'))throw new HttpError(415,'Invalid request.')
+  let input:{password?:unknown};try{input=JSON.parse(await limitedText(request,4096))}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid request.')}
+  if(typeof input?.password!=='string'||input.password.length<8||input.password.length>512)throw new HttpError(400,'Use a password with at least 8 characters.')
+  const authorization=request.headers.get('Authorization')||''
+  if(!/^Bearer [A-Za-z0-9_.-]{1,8192}$/.test(authorization))throw new HttpError(401,'This reset link has expired. Request a new one.')
+  const userHeaders={...headers,Authorization:authorization}
+  const userResponse=await fetch(base+'/auth/v1/user',{headers:userHeaders})
+  if(userResponse.status===429||userResponse.status>=500)throw new HttpError(503,'Password reset is temporarily unavailable. Try again.')
+  if(!userResponse.ok)throw new HttpError(401,'This reset link has expired. Request a new one.')
+  const user=await userResponse.json() as {email?:string;email_confirmed_at?:string}
+  if(!user.email||!user.email_confirmed_at||!allowed(user.email,env))throw new HttpError(403,'This account cannot access the admin dashboard.')
+  const updated=await fetch(base+'/auth/v1/user',{method:'PUT',headers:userHeaders,body:JSON.stringify({password:input.password})})
+  if(updated.status===401||updated.status===403)throw new HttpError(401,'This reset link has expired. Request a new one.')
+  if(updated.status===429||updated.status>=500)throw new HttpError(503,'Password reset is temporarily unavailable. Try again.')
+  if(!updated.ok)throw new HttpError(400,'Choose a different password and try again.')
+  await env.DB.prepare('DELETE FROM admin_idle_sessions WHERE email=?').bind(user.email.toLowerCase()).run()
+  return json({ok:true},200,sessionCookies('','',0,''))
+ }
  if(action==='activity'){
   const id=cookie(request,idleCookie),now=nowSeconds()
   if(!id)throw new HttpError(401,'请重新登录。')

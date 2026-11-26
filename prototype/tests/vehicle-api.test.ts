@@ -60,11 +60,12 @@ const env={DB:{prepare:(query:string)=>new Statement(query),batch:async(stmts:St
 },IMAGE_RESIZER:{fetch:async(_url:string,init:{body:BodyInit})=>new Response(init.body,{headers:{'Content-Type':'image/jpeg'}})},SUPABASE_URL:'https://unit-test.supabase.co',SUPABASE_ANON_KEY:'test-publishable-key',ADMIN_EMAILS:'admin@example.test'}
 const users:Record<string,unknown>={valid:{email:'admin@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},other:{email:'other@example.test',email_confirmed_at:'2026-11-06T00:00:00Z'},unverified:{email:'admin@example.test'}}
 const sent:string[]=[]
+const passwordUpdates:string[]=[]
 const originalFetch=globalThis.fetch
 globalThis.fetch=async(input,options)=>{
  const url=String(input);assert(url.startsWith(env.SUPABASE_URL+'/auth/v1/'))
  const h=new Headers(options?.headers);assert.equal(h.get('apikey'),env.SUPABASE_ANON_KEY)
- if(url.endsWith('/user')){const user=users[h.get('Authorization')?.replace('Bearer ','')||''];return user?Response.json(user):Response.json({error:'invalid token'},{status:401})}
+ if(url.endsWith('/user')){const user=users[h.get('Authorization')?.replace('Bearer ','')||''];if(user&&options?.method==='PUT')passwordUpdates.push(JSON.parse(String(options.body)).password);return user?Response.json(user):Response.json({error:'invalid token'},{status:401})}
  const data=options?.body?JSON.parse(String(options.body)):{}
  if(url.endsWith('/otp')){assert.equal(data.create_user,false);sent.push(data.email);return Response.json({})}
  if(url.endsWith('/verify'))return data.email==='admin@example.test'&&data.token==='123456'?Response.json({access_token:'valid',refresh_token:'refresh-secret',expires_in:3600,user:users.valid}):Response.json({error:'invalid otp'},{status:400})
@@ -240,6 +241,19 @@ test('only active operator requests extend a session and expiry blocks token ref
   const refresh=await onRequest({request:new Request(origin+'/api/auth/refresh',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_refresh=refresh-secret; __Host-sga_idle=test-session'}}),env} as any)
   assert.equal(refresh.status,401)
  }finally{setActivity.run(now,'test-session')}
+})
+test('an authorized recovery session can reset the password without signing into the admin app',async()=>{
+ const reset=(token:string,requestOrigin=origin)=>onRequest({request:new Request(origin+'/api/auth/reset-password',{method:'POST',headers:{Origin:requestOrigin,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({password:'new-test-password'})}),env} as any)
+ assert.equal((await reset('expired')).status,401)
+ assert.equal((await reset('other')).status,403)
+ assert.equal((await reset('valid','https://attacker.test')).status,403)
+ assert.deepEqual(passwordUpdates,[])
+ const result=await reset('valid')
+ assert.equal(result.status,200)
+ assert.deepEqual(passwordUpdates,['new-test-password'])
+ assert.ok(result.headers.getSetCookie().every(cookie=>cookie.includes('Max-Age=0')))
+ assert.equal((await call('/api/admin/session')).status,401)
+ sql.prepare('INSERT INTO admin_idle_sessions VALUES(?,?,?)').run('test-session','admin@example.test',Math.floor(Date.now()/1000))
 })
 test.after(()=>{globalThis.fetch=originalFetch})
 
