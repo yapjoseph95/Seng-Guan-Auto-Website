@@ -23,6 +23,7 @@ db.exec(readFileSync(new URL('../migrations/0018_resend_inboxes.sql',import.meta
 db.exec(readFileSync(new URL('../migrations/0019_mail_signatures.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0020_mail_drafts.sql',import.meta.url),'utf8'))
 db.exec(readFileSync(new URL('../migrations/0021_mail_branding.sql',import.meta.url),'utf8'))
+db.exec(readFileSync(new URL('../migrations/0022_mail_footer.sql',import.meta.url),'utf8'))
 class Stmt{constructor(public sql:string,public params:unknown[]=[]){}bind(...p:unknown[]){return new Stmt(this.sql,p)}async first(){return db.prepare(this.sql).get(...this.params as any[])||null}async all(){return {results:db.prepare(this.sql).all(...this.params as any[])}}async run(){return {meta:{changes:Number(db.prepare(this.sql).run(...this.params as any[]).changes)}}}}
 const storage=new Map<string,string|Uint8Array>()
 const env={DB:{prepare:(s:string)=>new Stmt(s),batch:async(stmts:Stmt[])=>{db.exec('BEGIN');try{const result=[];for(const s of stmts)result.push(await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}},PHOTOS:{head:async(k:string)=>{const v=storage.get(k);return v?{size:typeof v==='string'?new TextEncoder().encode(v).length:v.length}:null},put:async(k:string,v:string|Uint8Array|ArrayBuffer,opts?:any)=>{if(opts?.onlyIf&&storage.has(k))return null;storage.set(k,v instanceof ArrayBuffer?new Uint8Array(v):v);return {}},get:async(k:string)=>{const v=storage.get(k);return v?{json:async()=>JSON.parse(String(v)),body:v,arrayBuffer:async()=>typeof v==='string'?new TextEncoder().encode(v).buffer:(v as Uint8Array).slice().buffer}:null}},RESEND_API_KEY:'test',RESEND_WEBHOOK_SECRET:secret,SUPABASE_URL:'https://test.supabase.co',SUPABASE_ANON_KEY:'test',ADMIN_EMAILS:'owner@example.com'} as any
@@ -337,8 +338,8 @@ test('branding image uploads expose only bounded raster branding assets, never p
 })
 test('HTML delivery keeps plain text and preserves native and legacy idempotency behavior',async()=>{
  const html='<p style="text-align:right;font-size:20px"><strong>Formatted</strong></p>'
- await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-20202020-2020-4020-8020-202020202020',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich native',text:'Formatted',html,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.equal(nativeDraftPayloads.at(-1).html,html);assert.equal(nativeDraftPayloads.at(-1).text,'Formatted')
- await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-21212121-2121-4121-8121-212121212121',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich legacy',text:'Formatted',html,uploads:[]})}),env,['send'],'owner@example.com');assert.equal(sends.at(-1).body.html,html)
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-20202020-2020-4020-8020-202020202020',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich native',text:'Formatted',html,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.equal(nativeDraftPayloads.at(-1).html,(await import('../server/mail-formatting')).sanitizeMailHtml(html));assert.equal(nativeDraftPayloads.at(-1).text,'Formatted')
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:'out-21212121-2121-4121-8121-212121212121',from:'sales@sengguanauto.com.my',to:'admin@sengguanauto.com.my',subject:'Rich legacy',text:'Formatted',html,uploads:[]})}),env,['send'],'owner@example.com');assert.equal(sends.at(-1).body.html,(await import('../server/mail-formatting')).sanitizeMailHtml(html))
 })
 
 test('older plain-signature clients clear the old HTML signature without losing header settings',async()=>{
@@ -346,4 +347,18 @@ test('older plain-signature clients clear the old HTML signature without losing 
  await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/signatures',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(signature)}),env,['signatures'])
  const value=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting'),env,['formatting'])).json() as any
  assert.equal(value['sales@sengguanauto.com.my'].signatureHtml,'');assert.equal(value['sales@sengguanauto.com.my'].headerEnabled,true)
+})
+
+test('compact paragraph spacing survives repeated sanitization and preserves intentional blank lines',async()=>{
+ const {sanitizeMailHtml}=await import('../server/mail-formatting')
+ const html=sanitizeMailHtml('<p>One</p><p style="text-align:right;font-size:20px">Two</p><p></p><p>Signature</p>')
+ assert.match(html,/margin:0;padding:0px;line-height:1.5/);assert.match(html,/<br>/);assert.equal(sanitizeMailHtml(html),html)
+})
+test('mailbox footer settings persist and older clients preserve them when omitted',async()=>{
+ const boxes=['sales@sengguanauto.com.my','admin@sengguanauto.com.my']
+ const config=Object.fromEntries(boxes.map(box=>[box,{signatureHtml:'<p>Team</p>',headerHtml:'',headerEnabled:false,footerHtml:'<p>Footer company text</p>',footerEnabled:true,footerText:'Footer company text'}]))
+ const save=(value:any)=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)}),env,['formatting'])
+ await save(config);await save(Object.fromEntries(boxes.map(box=>[box,{signatureHtml:'<p>Team</p>',headerHtml:'',headerEnabled:false}])))
+ const result=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/formatting'),env,['formatting'])).json() as any;assert.equal(result[boxes[0]].footerEnabled,true);assert.match(result[boxes[1]].footerHtml,/Footer company text/)
+ const {composeMailHtml}=await import('../shared/mail-html');const html=composeMailHtml('<p>Body</p>','Body','<p>Signature</p>','Signature','','<p>Footer company text</p>');assert.ok(html.indexOf('Signature')<html.indexOf('Footer company text'))
 })

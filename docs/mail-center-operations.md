@@ -79,3 +79,9 @@ Migration `0021_mail_branding.sql` is additive. Branding saves validate both mai
 Branding images are raster-only, capped at 2 MB after browser preparation, and served by unguessable public `/api/mail-assets/<id>` URLs isolated from private attachment/vehicle storage. Only those image URLs and a restricted tag/style allowlist survive server-side parsing. Incoming remote images and active content remain blocked by the sandboxed mail preview. Email clients may ask recipients to enable images.
 
 Validation: 39 mail tests, frontend build, server typecheck and Pages Functions bundle. Tests cover rich-format sanitization, atomic signature settings, bounded/public branding images, private-attachment isolation, HTML delivery, draft HTML and compatibility with older plain-signature clients.
+
+## Compact spacing and Footer (26 November 2026)
+
+Outgoing HTML paragraphs now carry explicit zero margins/padding and 1.5 line height, preventing recipients' default paragraph gaps from doubling line spacing. Intentional empty paragraphs become a line break; editor and signature preview follow the same spacing.
+
+Settings → Email footer provides mailbox-specific rich content, image upload and an enable switch. Footer HTML appears after the message/signature; its text alternative is appended to plain mail. Migration `0022_mail_footer.sql` adds three columns without changing existing signatures/headers. Older settings clients that omit footer fields preserve stored footer values. Footer starts disabled until configured.

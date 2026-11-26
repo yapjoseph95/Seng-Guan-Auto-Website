@@ -42,3 +42,4 @@
 .mail-branding-settings .tiptap,.mail-signature-preview,.mail-header-preview{background:#fff;color:#20252a}.mail-signature-preview,.mail-header-preview{border-radius:8px}
 
 .mail-branding-settings .mail-rich-field--dark .tiptap,.mail-header-preview{background:#111315;color:#ffffff}
+.mail-rich-field .tiptap p,.mail-signature-preview p,.mail-header-preview p{margin:0;padding:0;line-height:1.5;min-height:1.5em}.mail-body{line-height:1.5}
