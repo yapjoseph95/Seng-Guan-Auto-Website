@@ -3,3 +3,5 @@
 @media(prefers-reduced-motion:reduce){.admin-login *{animation:none!important;transition:none!important}}
 
 .admin-login--reset{grid-template-columns:1fr}
+
+.login-card form > label + label{margin-block-start:16px}
