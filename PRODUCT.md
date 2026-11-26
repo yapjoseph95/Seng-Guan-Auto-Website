@@ -31,7 +31,7 @@ Seng Guan Auto Sdn. Bhd. is presented by the current website as a used-car deale
 - Address: Lot 712, Batu 18, Jln Klang Banting, Taman Langat Jaya, 42700 Banting, Selangor.
 - Phone: +6 03-3187 6199.
 - WhatsApp: +60162182727.
-- Email: support@sengguanauto.com.my.
+- Email: sales@sengguanauto.com.my.
 
 ## Existing Assets
 

@@ -152,7 +152,7 @@ export const contact = {
   phone: '+6 03-3187 6199',
   phoneHref: 'tel:+60331876199',
   whatsapp: 'https://wa.me/60162182727',
-  email: 'support@sengguanauto.com.my',
+  email: 'sales@sengguanauto.com.my',
   hours: [
     ['Monday–Friday', '9:00 AM–6:00 PM'],
     ['Saturday', '9:00 AM–5:00 PM'],
