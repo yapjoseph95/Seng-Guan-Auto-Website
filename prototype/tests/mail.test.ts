@@ -267,23 +267,15 @@ test('pre-attachment native send identifiers remain safe to retry',async()=>{
  const response=await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,from:payload.box,to:payload.to,subject:payload.subject,text:payload.text,uploads:[]})}),env,['conversations','send'],'owner@example.com');assert.equal((await response.json() as any).status,'sent')
 })
 
-test('search forwards text, scope and category to native search across mailboxes',async()=>{
- const id='12341234-1234-4234-8234-123412341234'
- await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?q=invoice&scope=all&category=sales~'+id),env,['conversations'])
- const request=nativeRequests.at(-1);assert.ok(request.path.includes('/threads/search?'));const url=new URL('https://api.resend.com'+request.path);assert.equal(url.searchParams.get('query'),'invoice');assert.equal(url.searchParams.get('folders'),'inbox,sent,archive,spam,trash');assert.equal(url.searchParams.get('labels'),id)
+test('search forwards text and scope to native search across mailboxes',async()=>{
+ await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?q=invoice&scope=all'),env,['conversations'])
+ const request=nativeRequests.at(-1);assert.ok(request.path.includes('/threads/search?'));const url=new URL('https://api.resend.com'+request.path);assert.equal(url.searchParams.get('query'),'invoice');assert.equal(url.searchParams.get('folders'),'inbox,sent,archive,spam,trash');assert.equal(url.searchParams.get('labels'),null)
  await assert.rejects(()=>mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?q='+encodeURIComponent('word '.repeat(33))),env,['conversations']))
 })
 test('delete moves a conversation to recoverable Trash and Trash remains browsable',async()=>{
  const ref='ib~sales~'+nativeThread
  await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/'+ref,{method:'DELETE'}),env,['conversations',ref]);assert.equal(nativeRequests.at(-1).method,'PATCH');assert.equal(nativeRequests.at(-1).body.folder,'trash')
  await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations?mailbox=sales@sengguanauto.com.my&folder=trash'),env,['conversations']);assert.ok(nativeRequests.at(-1).path.includes('folders=trash'))
-})
-test('categories are scoped to company inboxes and can be assigned without changing messages',async()=>{
- const request=(method:string,value:any)=>new Request('https://sengguanauto.com.my/api/admin/mail/categories',{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(value)})
- await mailApi(request('POST',{mailbox:'sales@sengguanauto.com.my',name:'Finance',color:'#FF8800'}),env,['categories'])
- const categories=await (await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/categories'),env,['categories'])).json() as any;assert.equal(categories.categories[0].name,'Finance');assert.equal(categories.categories[0].mailbox,'sales@sengguanauto.com.my')
- await mailApi(new Request('https://sengguanauto.com.my/api/admin/mail/conversations/ib~sales~'+nativeThread,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({labels:[categories.categories[0].id]})}),env,['conversations','ib~sales~'+nativeThread]);assert.equal(nativeRequests.at(-1).method,'PUT');assert.deepEqual(nativeRequests.at(-1).body.labels,[categories.categories[0].id])
- await assert.rejects(()=>mailApi(request('POST',{mailbox:'other@example.com',name:'Bad',color:'#FF8800'}),env,['categories']))
 })
 test('saved drafts keep partial recipients, attachments and send identifiers private, detect conflicts and support delete/restore',async()=>{
  const id='draft-33333333-3333-4333-8333-333333333333',payload={id,from:'sales@sengguanauto.com.my',to:'partial@',cc:'',bcc:'',subject:'Work in progress',body:'Draft body',replyId:'',forwardId:'',includeSignature:true,uploads:[],sendId:'out-22222222-2222-4222-8222-222222222222',retryPayload:''}

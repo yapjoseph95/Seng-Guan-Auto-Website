@@ -62,8 +62,9 @@ The foreground UI checks a D1 change token every5 seconds, synchronizes on focus
 
 ## Search, drafts and organization (26 November 2026)
 
-- Native search supports all mailboxes, all folders or the current folder, and inbox-specific categories. Resend search indexing may take about a minute after delivery. Previous-email search covers stored subject, sender and recipient metadata.
-- Categories use native Inboxes labels; deleting a conversation moves it to recoverable Trash. Restore it using Move conversation → Inbox.
+- Native search supports all mailboxes, all folders or the current folder. Resend search indexing may take about a minute after delivery. Previous-email search covers stored subject, sender and recipient metadata.
+- Deleting a conversation moves it to recoverable Trash. Restore it using Move conversation → Inbox.
+- Category management, filtering and assignment were removed on 26 November 2026 at the user’s request.
 - Saved drafts are private to the signed-in administrator, stored in D1 with owner checks and version conflicts to protect edits from other windows. Migration `0020_mail_drafts.sql` adds their table. Drafts automatically save after editing pauses and can also be saved manually. Attachments reference private owner-scoped uploads.
 - Replies include editable original-message quotes. Signatures are inserted before the quote. Status messages use floating toasts.
 - Native attachments remain limited to 25 MB combined by Resend; up to 50 files are supported. Optional browser-side photo compression reduces JPEG/PNG/WebP copies to a maximum 2400px edge. Original local files are unchanged.

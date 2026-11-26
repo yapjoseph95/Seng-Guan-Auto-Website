@@ -160,7 +160,6 @@ export async function receiveMail(request:Request,env:Env) {
 }
 export async function mailApi(request:Request,env:Env,parts:string[],owner='') {
  const url=new URL(request.url),action=parts[0]||''
- if(action==='categories')return (await import('./mail-categories')).categoriesApi(request,env)
  if(action==='drafts')return (await import('./mail-drafts')).draftsApi(request,env,parts.slice(1),owner)
  if(action==='conversations')return (await import('./mail-inboxes')).inboxApi(request,env,parts.slice(1),owner)
  if(action==='changes'&&request.method==='GET')return json(url.searchParams.get('drafts')==='1'?await env.DB.prepare('SELECT COUNT(*) AS count,MAX(updated_at) AS latest FROM mail_saved_drafts WHERE owner=? AND deleted_at IS NULL').bind(owner).first():await env.DB.prepare('SELECT COUNT(*) AS count,MAX(created_at) AS latest FROM mail_messages').first())
