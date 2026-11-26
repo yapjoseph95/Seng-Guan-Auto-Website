@@ -25,6 +25,7 @@ sql.exec(readFileSync(new URL('../migrations/0014_vehicle_listing_updates.sql',i
 sql.exec(readFileSync(new URL('../migrations/0015_vehicle_discount_price.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0023_admin_idle_sessions.sql',import.meta.url),'utf8'))
 sql.exec(readFileSync(new URL('../migrations/0024_admin_login_challenges.sql',import.meta.url),'utf8'))
+sql.exec(readFileSync(new URL('../migrations/0025_admin_password_limits.sql',import.meta.url),'utf8'))
 sql.prepare('INSERT INTO admin_idle_sessions VALUES(?,?,?)').run('test-session','admin@example.test',Math.floor(Date.now()/1000))
 assert.equal(sql.prepare("SELECT published_at = created_at AS backfilled FROM vehicles WHERE id='existing'").get()?.backfilled,1)
 assert.equal(sql.prepare("SELECT status FROM vehicles WHERE id='existing'").get()?.status,'sold')
@@ -240,7 +241,7 @@ test('authorized vehicle lifecycle, drafts and photos stay private, validation a
  assert.equal(refreshed.status,200)
  assert(!JSON.stringify(await refreshed.json()).includes('refresh-secret'))
  const logout=await onRequest({request:new Request(origin+'/api/auth/logout',{method:'POST',headers:{Origin:origin,Cookie:'__Host-sga_access=valid; '+sessionCookie}}),env} as any);assert.equal(logout.status,200);assert(logout.headers.getSetCookie().every(c=>c.includes('Max-Age=0')))
- for(let i=0;i<5;i++)assert.equal((await call('/api/auth/request-code','POST',login,false)).status,200)
+ for(let i=0;i<2;i++)assert.equal((await call('/api/auth/request-code','POST',login,false)).status,200)
  assert.equal((await call('/api/auth/request-code','POST',login,false)).status,429)
 })
 test('sign-in rejects missing and invalid Turnstile tokens before sending email',async()=>{
@@ -250,6 +251,33 @@ test('sign-in rejects missing and invalid Turnstile tokens before sending email'
   assert.equal((await onRequest({request,env} as any)).status,403)
  }
  assert.equal(sent.length,previous)
+})
+test('password limits escalate independently, ignore blocked retries, and reset after 24 hours',async t=>{
+ const start=Date.now()
+ t.mock.timers.enable({apis:['Date'],now:start})
+ const attempt=(ip:string,email:string,turnstileToken='valid-turnstile')=>onRequest({request:new Request(origin+'/api/auth/request-code',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','CF-Connecting-IP':ip},body:JSON.stringify({email,password:'wrong',turnstileToken})}),env} as any)
+ const email='escalation@example.test'
+ let ip=10
+ const nextAttempt=()=>attempt('198.51.100.'+ip++,email)
+ for(const seconds of [600,3600,10800,18000,86400,86400]){
+  for(let i=0;i<5;i++)assert.equal((await nextAttempt()).status,400)
+  const blocked=await nextAttempt()
+  assert.equal(blocked.status,429)
+  assert.equal(blocked.headers.get('Retry-After'),String(seconds))
+  t.mock.timers.tick((seconds-1)*1000)
+  const retry=await nextAttempt()
+  assert.equal(retry.status,429)
+  assert.equal(retry.headers.get('Retry-After'),'1')
+  t.mock.timers.tick(1000)
+ }
+ t.mock.timers.tick(86400000)
+ for(let i=0;i<5;i++)assert.equal((await nextAttempt()).status,400)
+ assert.equal((await nextAttempt()).headers.get('Retry-After'),'600')
+ for(let i=0;i<5;i++)assert.equal((await attempt('192.0.2.200','ip-'+i+'@example.test','invalid')).status,403)
+ const blockedIp=await attempt('192.0.2.200','unused@example.test')
+ assert.equal(blockedIp.status,429)
+ assert.equal(blockedIp.headers.get('Retry-After'),'600')
+ assert.equal((await attempt('192.0.2.201','unused@example.test')).status,400)
 })
 test('only active operator requests extend a session and expiry blocks token refresh',async()=>{
  const now=Math.floor(Date.now()/1000),setActivity=sql.prepare('UPDATE admin_idle_sessions SET last_activity=? WHERE id=?')

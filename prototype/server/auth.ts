@@ -61,10 +61,46 @@ function sessionCookies(access:string,refresh:string,maxAge:number,id?:string) {
  if(id!==undefined)headers.append('Set-Cookie',`${idleCookie}=${id}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${id?604800:0}`)
  return headers
 }
+async function rateLimitKey(key:string){
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key))
+ return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')
+}
+
+const passwordWindow=10*60
+const strikeReset=24*60*60
+async function passwordRetryAfter(env:Env,key:string){
+ const now=nowSeconds()
+ const hash=await rateLimitKey(key)
+ // During a cooldown, leave both the attempt window and the penalty level untouched.
+ const limit=await env.DB.prepare(`
+  INSERT INTO admin_password_limits(key,attempts,window_start) VALUES(?1,1,?2)
+  ON CONFLICT(key) DO UPDATE SET
+   attempts=CASE WHEN blocked_until > window_start OR window_start+?3<=?2 THEN 1 ELSE MIN(attempts+1,5) END,
+   window_start=CASE WHEN blocked_until > window_start OR window_start+?3<=?2 THEN ?2 ELSE window_start END,
+   strikes=CASE
+    WHEN blocked_until <= window_start AND window_start+?3>?2 AND attempts>=5
+    THEN CASE WHEN blocked_until+?4<=?2 THEN 1 ELSE MIN(strikes+1,5) END
+    WHEN blocked_until+?4<=?2 THEN 0 ELSE strikes END,
+   blocked_until=CASE
+    WHEN blocked_until <= window_start AND window_start+?3>?2 AND attempts>=5
+    THEN CASE WHEN blocked_until+?4<=?2 OR strikes=0 THEN window_start+?3
+      WHEN strikes=1 THEN ?2+3600
+      WHEN strikes=2 THEN ?2+10800
+      WHEN strikes=3 THEN ?2+18000
+      ELSE ?2+86400 END
+    ELSE blocked_until END
+  WHERE blocked_until<=?2
+  RETURNING blocked_until
+ `).bind(hash,now,passwordWindow,strikeReset).first<{blocked_until:number}>()
+ const effective=limit??await env.DB.prepare('SELECT blocked_until FROM admin_password_limits WHERE key=?').bind(hash).first<{blocked_until:number}>()
+ if(limit)await env.DB.prepare('DELETE FROM admin_password_limits WHERE window_start<=? AND blocked_until<=?').bind(now-strikeReset,now-strikeReset).run()
+ return Math.max(0,(effective?.blocked_until??0)-now)
+}
+const passwordRateLimited=(seconds:number)=>json({error:'尝试次数太多，请稍后再试。'},429,{'Retry-After':String(seconds)})
+
 async function rateLimit(env: Env,request:Request,key:string,limit:number) {
  const now=Math.floor(Date.now()/1000)
- const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key))
- const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('')
+ const hash=await rateLimitKey(key)
  const result=await env.DB.prepare('INSERT INTO auth_limits(key,count,window_start) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN window_start < ? THEN 1 ELSE count+1 END,window_start=CASE WHEN window_start < ? THEN ? ELSE window_start END WHERE count < ? OR window_start < ? RETURNING count').bind(hash,now,now-3600,now-3600,now,limit,now-3600).first()
  if(!result)throw new HttpError(429,'尝试次数太多，请稍后再试。')
  await env.DB.prepare('DELETE FROM auth_limits WHERE window_start < ?').bind(now-86400).run()
@@ -140,11 +176,15 @@ export async function authentication(request: Request,env: Env,action:string) {
   return json({email:data.user.email},200,sessionCookies(data.access_token,data.refresh_token,data.expires_in,cookie(request,idleCookie)))
  }
  if(!['request-code','resend-code','verify-code'].includes(action))throw new HttpError(404,'Not found.')
+ const ip=request.headers.get('CF-Connecting-IP')||'unknown'
+ if(action==='request-code'){
+  const retryAfter=await passwordRetryAfter(env,'password:ip:'+ip)
+  if(retryAfter)return passwordRateLimited(retryAfter)
+ }
  if(!request.headers.get('Content-Type')?.includes('application/json'))throw new HttpError(415,'Invalid request.')
  let input:{email?:string;code?:string;password?:string;turnstileToken?:string}
  try{input=JSON.parse(await limitedText(request,8192))||{}}catch(error){if(error instanceof HttpError)throw error;throw new HttpError(400,'Invalid request.')}
- const ip=request.headers.get('CF-Connecting-IP')||'unknown'
- await rateLimit(env,request,action+':ip:'+ip,action==='verify-code'?25:10)
+ if(action!=='request-code')await rateLimit(env,request,action+':ip:'+ip,action==='verify-code'?25:10)
  const challengeId=cookie(request,loginChallengeCookie)
  const sendCode=async(email:string)=>{
   await rateLimit(env,request,'send:email:'+email,6)
@@ -156,7 +196,8 @@ export async function authentication(request: Request,env: Env,action:string) {
   const invalidCredentials='邮箱或密码不正确。'
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||typeof input.password!=='string'||!input.password||input.password.length>512)throw new HttpError(400,invalidCredentials)
   await verifyLoginTurnstile(request,env,input.turnstileToken)
-  await rateLimit(env,request,'password:email:'+email,10)
+  const retryAfter=await passwordRetryAfter(env,'password:email:'+email)
+  if(retryAfter)return passwordRateLimited(retryAfter)
   if(!allowed(email,env))throw new HttpError(400,invalidCredentials)
   const passwordResponse=await fetch(base+'/auth/v1/token?grant_type=password',{method:'POST',headers,body:JSON.stringify({email,password:input.password})})
   if(passwordResponse.status===429)throw new HttpError(429,'尝试次数太多，请稍后再试。')
