@@ -158,7 +158,6 @@ export const contact = {
     ['Saturday', '9:00 AM–5:00 PM'],
     ['Sunday', 'Closed'],
   ],
-  inventory: 'https://www.carlist.my/dealer/sengguanauto',
 }
 
 export const faqItems = [

@@ -105,7 +105,6 @@
 .main-nav a:hover, .main-nav a[aria-current="page"] { color: var(--ink); }
 .main-nav a[aria-current="page"] { box-shadow: none; }
 .main-nav .nav-indicator { position: absolute; bottom: 0; left: 0; width: 0; height: 2px; background: var(--brand); pointer-events: none; }
-.main-nav .nav-inventory { gap: 6px; margin-left: 3px; color: var(--brand); font-weight: 700; }
 .header-contact { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; gap: 9px; color: #fff !important; background: var(--brand); border-radius: var(--radius); font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: transform 160ms ease, filter 160ms ease; }
 .header-contact--whatsapp { background: #25d366; }
 .header-contact.header-contact--whatsapp:hover { background: #1ebe5d; filter: none; }
@@ -370,7 +369,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .home-flow { width: min(var(--content), calc(100% - 56px)); margin: 0 auto; }
 .section { padding: 84px 2vw; border-top: 1px solid var(--line); }
 .section-heading { margin-bottom: 26px; display: flex; align-items: end; justify-content: space-between; gap: 25px; }
-.section-heading h2, .section h2, .finance-next h2, .about-feature h2, .about-section-heading h2, .about-services h2, .team-section h2, .faq-contact h2, .hours-section h2 { margin-bottom: 0; font-family: var(--display); font-size: clamp(2.4rem, 4vw, 4.4rem); line-height: .98; letter-spacing: -.025em; }
+.section-heading h2, .section h2, .about-feature h2, .about-section-heading h2, .about-services h2, .team-section h2, .faq-contact h2, .hours-section h2 { margin-bottom: 0; font-family: var(--display); font-size: clamp(2.4rem, 4vw, 4.4rem); line-height: .98; letter-spacing: -.025em; }
 .section-label { margin-bottom: 11px; font-size: 10px !important; }
 .teaser-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 .vehicle-card { position:relative; min-width: 0; overflow: hidden; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -538,8 +537,6 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
 .finance-aside-icon { width: 44px; height: 44px; margin-bottom: 18px; display: grid; place-items: center; color: #fff; background: var(--brand); border-radius: 50%; }
 .finance-aside h2 { margin-bottom: 15px; font-family: var(--display); font-size: 30px; }
 .finance-aside ul { margin: 0 0 15px; padding-left: 19px; color: var(--muted); font-size: 13px; line-height: 1.9; }
-.finance-next { margin-top: 40px; padding: 31px 0; display: flex; justify-content: space-between; align-items: center; gap: 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.finance-next h2 { max-width: 14ch; font-size: 34px; }
 
 .about-feature { display: grid; grid-template-columns: 1.05fr .95fr; gap: 6vw; align-items: center; padding: 10px 0 60px; border-bottom: 1px solid var(--line); }
 .about-feature-image { height: 385px; overflow: hidden; }
@@ -763,7 +760,6 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .main-nav a { min-height: 48px; padding: 0 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
   .main-nav a[aria-current="page"] { box-shadow: inset 3px 0 var(--brand); padding-left: 12px; }
   .main-nav .nav-indicator { display: none; }
-  .main-nav .nav-inventory { margin: 6px 0 0; border-bottom: 0; }
   .prototype-app[data-variant="greenlight"] .brand-caption { display: none; }
 }
 
@@ -843,7 +839,7 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .clear-bottom { font-size: 10px; }
   .section { padding: 54px 4px; }
   .section-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
-  .section-heading h2, .section h2, .finance-next h2, .about-feature h2, .about-section-heading h2, .about-services h2, .team-section h2, .faq-contact h2, .hours-section h2 { font-size: clamp(2.3rem, 10vw, 3.4rem); }
+  .section-heading h2, .section h2, .about-feature h2, .about-section-heading h2, .about-services h2, .team-section h2, .faq-contact h2, .hours-section h2 { font-size: clamp(2.3rem, 10vw, 3.4rem); }
   .teaser-list { grid-template-columns: 1fr; gap: 13px; }
   .vehicle-card-link { display: grid; grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
   .vehicle-info { padding: 12px; }
@@ -873,7 +869,6 @@ html[data-scroll-snap="sections"] .page--about .content-page--about > .visit-tea
   .calculator-fields label { font-size: 12px; }
   .calculator-fields label span { font-size: 9px; }
   .calculator-panel { padding: 19px 16px; }
-  .finance-next { align-items: flex-start; flex-direction: column; }
   .about-feature { grid-template-columns: 1fr; gap: 23px; padding-bottom: 35px; }
   .about-feature-image { height: 245px; }
   .about-values { padding: 42px 0; grid-template-columns: 1fr; gap: 28px; }

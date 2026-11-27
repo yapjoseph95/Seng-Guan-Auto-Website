@@ -426,8 +426,6 @@ function SiteHeader({
               {t(page.label)}
             </a>
           ))}
-          <a className="nav-inventory" href={contact.inventory} target="_blank" rel="noreferrer">{t("Current listings")} <ArrowUpRight aria-hidden="true" size={15} />
-          </a>
           <span className="nav-indicator" ref={navIndicatorRef} aria-hidden="true" />
         </nav>
         <LanguageSelect />
@@ -704,7 +702,7 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
             <h1>{t("A better way to find your next car.")}</h1>
             <p>{t("Explore the cars we feature, ask what you need to know, and plan a visit to our Banting showroom.")}</p>
             <div className="hero-actions"><button className="button button--primary" onClick={() => goToPage('cars')}>{t("Explore featured cars")} <ArrowRight size={17} aria-hidden="true" /></button><button className="button button--plain" onClick={() => goToPage('contact')}>{t("Talk to the team")}</button></div>
-            <div className="lot-note"><span className="lot-note-rule" />{t("Local dealership · Direct contact · Carlist inventory")}</div>
+            <div className="lot-note"><span className="lot-note-rule" />{t("Local dealership · Direct contact")}</div>
           </div>
           <div className="hero-art hero-lot-photo"><img src={showroom} alt={t("Seng Guan Auto's roadside showroom in Banting")} width="1072" height="603" fetchPriority="high" /></div>
         </section>
@@ -716,7 +714,7 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
           <div className="finder-content hero-copy">
             <p className="hero-overline">{t("Seng Guan Auto · Used cars")}</p>
             <h1>{t("Find a car that feels right.")}</h1>
-            <p>{t("Start with the body style or make you have in mind. Check live details on our Carlist page.")}</p>
+            <p>{t("Start with the body style or make you have in mind.")}</p>
             <div className="finder-actions">
               <button className="button button--primary" onClick={() => goToPage('cars')}><Search size={17} aria-hidden="true" />{t("Browse featured cars")}</button>
               <button className="button button--soft" onClick={() => goToPage('finance')}><Calculator size={17} aria-hidden="true" />{t("Estimate a payment")}</button>
@@ -758,7 +756,7 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
           <div className="collection-copy hero-copy">
             <p className="collection-label">Seng Guan Auto / Banting</p>
             <h1>{t("Good cars.")}<br />{t("A closer look.")}</h1>
-            <p>{t("A small selection to start your search. Find the live details on Carlist or ask us about a visit.")}</p>
+            <p>{t("A small selection to start your search.")}</p>
             <button className="button button--light" onClick={() => goToPage('cars')}>{t("View the selection")} <ArrowUpRight size={17} aria-hidden="true" /></button>
           </div>
           <div className="collection-stamp">S G<br /><span>{t("USED CARS")}</span></div>
@@ -767,9 +765,9 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
     case 'spec-ledger':
       return (
         <section className="hero hero--ledger">
-          <div className="ledger-top hero-copy"><div><p className="ledger-label">{t("Seng Guan Auto / Used vehicles")}</p><h1>{t("Start with what matters.")}</h1></div><p>{t("Filter the featured selection, review the basics, then check current price and availability on Carlist.")}</p></div>
+          <div className="ledger-top hero-copy"><div><p className="ledger-label">{t("Seng Guan Auto / Used vehicles")}</p><h1>{t("Start with what matters.")}</h1></div><p>{t("Filter the featured selection and review vehicle details.")}</p></div>
           <div className="ledger-feature hero-art"><img src={budgetCar.photo} alt={`${budgetCar.year} ${budgetCar.name}`} width="300" height="200" fetchPriority="high" /><div className="ledger-specs"><span>{t("Featured")}</span><strong>{budgetCar.year} {budgetCar.name}</strong><span>{t("Petrol")} <i />{t("Automatic")}</span></div><button className="button button--primary" onClick={() => goToPage('cars')}>{t("Open vehicle index")} <ArrowRight size={16} aria-hidden="true" /></button></div>
-          <div className="ledger-bottom"><span>{t("Used cars")}</span><span>{t("Carlist for live details")}</span><span>{t("Questions welcome")}</span></div>
+          <div className="ledger-bottom"><span>{t("Used cars")}</span><span>{t("Questions welcome")}</span></div>
         </section>
       )
     case 'drive-journal':
@@ -814,7 +812,7 @@ function HomeHero({ variant, goToPage }: { variant: Direction; goToPage: (page: 
     default:
       return (
         <section className="hero hero--clear">
-          <div className="clear-top"><div className="hero-copy"><p className="hero-overline">Seng Guan Auto · Banting</p><h1>{t("Used cars, with room to think.")}</h1></div><p>{t("Browse a selection, check live details on Carlist, and contact the team when you are ready.")}</p></div>
+          <div className="clear-top"><div className="hero-copy"><p className="hero-overline">Seng Guan Auto · Banting</p><h1>{t("Used cars, with room to think.")}</h1></div><p>{t("Browse the selection and contact the team when you are ready.")}</p></div>
           <div className="clear-image hero-art"><img src={vehicles[5].photo} alt={`${vehicles[5].year} ${vehicles[5].name}`} width="300" height="200" fetchPriority="high" /><button className="button button--primary" onClick={() => goToPage('cars')}>{t("See featured cars")} <ArrowRight size={16} aria-hidden="true" /></button></div>
           <div className="clear-bottom"><span>{t("01 / Browse")}</span><span>{t("02 / Compare")}</span><span>{t("03 / Ask")}</span></div>
         </section>
@@ -839,7 +837,6 @@ function VehicleTeaser({ variantId, goToPage }: { variantId: string; goToPage: (
       ) : (
         <div className="section-heading"><div><p className="section-label">{t("A few to get you started")}</p><h2>{t("Featured vehicles")}</h2></div><button className="text-link" onClick={() => goToPage('cars')}>{t("See all featured cars")} <ArrowRight size={17} aria-hidden="true" /></button></div>
       )}
-      <p className="data-note">{t("Explore vehicle photos and details on our website. You can also find us on")} <a href={contact.inventory} target="_blank" rel="noreferrer">Carlist</a>.</p>
     </section>
   )
 }
@@ -873,14 +870,14 @@ function VehicleCard({ car, index=0, forceImage=false, imageEnabled=true, onImag
   const [opened, setOpened] = useState(false)
   const [copied, setCopied] = useState(false)
   const [calculatorOpen, setCalculatorOpen] = useState(false)
-  const href = isOfficialSite ? `/cars?vehicle=${encodeURIComponent(String(car.id))}` : contact.inventory
+  const href = `/cars?vehicle=${encodeURIComponent(String(car.id))}`
   const calculatorPrice = getVehicleDiscount(car.price,car.discount_price) ? car.discount_price : car.price
   const available = car.status === 'available'
   const unavailableStatus = car.status === 'sold' || car.status === 'reserved' ? car.status : null
   const stamp = unavailableStatus ? t(unavailableStatus === 'sold' ? 'SOLD' : 'RESERVED') : null
   const availableLabel = useRef<HTMLSpanElement>(null)
   const openVehicle = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!isPlainLeftClick(event) || (!isOfficialSite && !car.photos)) return
+    if (!isPlainLeftClick(event)) return
     event.preventDefault()
     transitionView(()=>setOpened(true))
   }
@@ -1238,7 +1235,6 @@ function InventoryPage({ variant }: { variant: Direction }) {
           {results.length ? <div className={`inventory-grid${photoLayout ? ' inventory-grid--photo' : ''}`}>{results.map((car,index) => <VehicleCard key={car.id} car={car} index={index} forceImage={pages.waiting} imageEnabled={!isOfficialSite || settledImages.has(`${car.id}:${car.photo}`) || car.id === results.find(item=>item.photo && !settledImages.has(`${item.id}:${item.photo}`))?.id} onImageSettled={item=>setSettledImages(previous=>{const key=`${item.id}:${item.photo}`;return previous.has(key)?previous:new Set([...previous,key])})} />)}</div> : <div className="empty-state"><CarFront size={25} aria-hidden="true" /><h2>{t(pages.error ? 'Unable to load vehicles right now.' : 'No vehicles match that search.')}</h2><p>{t(pages.error ? 'Please refresh the page or contact our team.' : 'Try another search or adjust your filters.')}</p></div>}
         </ListingTransition>
         {isOfficialSite && <LoadMore sentinel={pages.sentinel} loading={pages.loading || pages.waiting} hasMore={pages.hasMore} error={pages.error} retry={pages.reload} />}
-        <p className="data-note">{t("Featured selection.")} <a href={contact.inventory} target="_blank" rel="noreferrer">{t("More listings on Carlist")} <ArrowUpRight size={13} aria-hidden="true" /></a></p>
       </section>
       {linkedVehicle && (linkedVehicle.status==='sold'||linkedVehicle.status==='reserved'
         ? <VehicleUnavailable status={linkedVehicle.status} onClose={()=>setLinkedVehicle(null)} />
@@ -1334,7 +1330,6 @@ function FinancePage({ variant }: { variant: Direction }) {
         <LoanCalculatorPanel initialValue={initialValue} />
         <aside className="finance-aside"><div className="finance-aside-icon"><CircleHelp size={22} aria-hidden="true" /></div><h2>{t("What should I compare?")}</h2><ul><li>{t("Monthly payment and total repayment")}</li><li>{t("Down payment and loan length")}</li><li>{t("Provider terms and any additional fees")}</li><li>{t("Vehicle price and live availability")}</li></ul><a className="text-link" href={contact.whatsapp} target="_blank" rel="noreferrer">{t("Ask the team about financing")} <ArrowUpRight size={15} aria-hidden="true" /></a></aside>
       </section>
-      <section className="finance-next"><div><p className="section-label">{t("Keep your options open")}</p><h2>{t("Compare the car and the payment together.")}</h2></div><a className="button button--primary" href={contact.inventory} target="_blank" rel="noreferrer">{t("Browse current listings")} <ArrowUpRight size={16} aria-hidden="true" /></a></section>
     </div>
   )
 }
